@@ -1,4 +1,4 @@
 module Main where
 import Tokenizer
 
-main = print 0
+main = print $ tokenize_default "="
