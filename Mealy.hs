@@ -6,7 +6,7 @@ import SemiLattice
 
 type Mealy a b q = q -> a -> (b, q)
 
-data MealyFormula a b x = TT
+data MealyFormula a b x = FF
                         | Var x
                         | Trans a (MealyFormula a b x)
                         | Out a b
@@ -26,10 +26,10 @@ sub f x g = case f of
 synthesize :: (Eq a, Eq x, SemiLattice b) =>
     Mealy a b (MealyFormula a b x)
 synthesize f a = case f of
-    TT -> (top, TT)
-    Trans a' g -> (top, if a' == a then g else TT)
-    Out a' b -> (if a' == a then b else top, TT)
-    Add f g -> (meet b1 b2, Add t1 t2)
+    FF -> (bottom, FF)
+    Trans a' g -> (bottom, if a' == a then g else FF)
+    Out a' b -> (if a' == a then b else bottom, FF)
+    Add f g -> (add b1 b2, Add t1 t2)
         where
         (b1, t1) = synthesize f a
         (b2, t2) = synthesize g a
@@ -38,13 +38,13 @@ synthesize f a = case f of
 --norm :: (Eq a, Eq b, Eq x) =>
 --    MealyFormula a b x -> MealyFormula a b x
 --norm f = case f of
---    TT -> TT
+--    FF -> FF
 --    Trans a g -> Trans a (norm g)
 --    Add g h -> conj . rem . flatten $ Add (norm g) (norm h)
 --        where
---        conj = foldl Add TT
+--        conj = foldl Add FF
 --        rem = foldl (\seen x -> if x `elem` seen then seen else seen ++ [x]) []
---        flatten TT = []
+--        flatten FF = []
 --        flatten (Add i j) = flatten i ++ flatten j
 --        flatten i = [i]
 --    Nu x g -> Nu x (norm g)
@@ -53,10 +53,10 @@ synthesize f a = case f of
 --synthesize :: (Eq a, Eq b, Eq x, SemiLattice b) =>
 --    Mealy a b (MealyFormula a b x)
 --synthesize f a = case f of
---    TT -> (top, TT)
---    Trans a' g -> (top, if a' == a then norm g else TT)
---    Out a' b -> (if a' == a then b else top, TT)
---    Add f g -> (meet b1 b2, norm $ Add t1 t2)
+--    FF -> (bottom, FF)
+--    Trans a' g -> (bottom, if a' == a then norm g else FF)
+--    Out a' b -> (if a' == a then b else bottom, FF)
+--    Add f g -> (add b1 b2, norm $ Add t1 t2)
 --        where
 --        (b1, t1) = synthesize f a
 --        (b2, t2) = synthesize g a

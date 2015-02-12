@@ -48,12 +48,12 @@ tokenize m i s = tokenize' i is $ (map Just s) ++ [Nothing]
     tokenize' _ _ [] = []
     tokenize' q state (a : r) = case m q a of
         (s, p) -> case s of
-            Top -> advance id True
+            Bottom -> advance id True
             Val c -> case c of
                 Token t -> (t, tdata state) : r
                 _ -> r
                 where
                 r = advance (command c) False
-            Bottom -> error "Overspecified tokenizer"
+            Top -> error "Overspecified tokenizer"
             where
             advance f b = tokenize' p (f $ readc a b state) r

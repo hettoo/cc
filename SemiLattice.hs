@@ -1,15 +1,15 @@
 module SemiLattice where
 
 class SemiLattice s where
-    top :: s
-    meet :: s -> s -> s
+    bottom :: s
+    add :: s -> s -> s
 
-data SimpleLattice s = Top -- underspecification
+data SimpleLattice s = Bottom -- underspecification
                      | Val s
-                     | Bottom -- overspecification
+                     | Top -- overspecification
 
 instance SemiLattice (SimpleLattice s) where
-    top = Top
-    meet x Top = x
-    meet Top x = x
-    meet _ _ = Bottom
+    bottom = Bottom
+    add x Bottom = x
+    add Bottom x = x
+    add _ _ = Top
