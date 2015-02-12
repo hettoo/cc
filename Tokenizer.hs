@@ -87,9 +87,6 @@ tokenize m i s = tokenize' i ([], 0, 0) $ (map Just s) ++ [Nothing]
 
 type TFormula = MealyFormula A B Int
 
-tokenize_default :: String -> [AToken]
-tokenize_default = tokenize synthesize tassign
-
 tseq :: String -> TFormula -> TFormula
 tseq [] f = f
 tseq (c : r) f = Trans (Just c) (tseq r f)
@@ -118,27 +115,55 @@ tmulti :: [String] -> Token -> TFormula
 tmulti [] _ = FF
 tmulti (s : r) t = tsingle s t `Add` tmulti r t
 
-tassign = tsingle "=" TAssign
-tsemicolon = tsingle ";" TSemicolon
-tcomma = tsingle "," TComma
-tleftparenthesis = tsingle "(" TLeftParenthesis
-trightparenthesis = tsingle ")" TRightParenthesis
-tleftcbracket = tsingle "{" TLeftCBracket
-trightcbracket = tsingle "}" TRightCBracket
-tleftbracket = tsingle "[" TLeftBracket
-trightbracket = tsingle "]" TRightBracket
-tvoid = tsingle "Void" TVoid
-tif = tsingle "if" TIf
-telse = tsingle "else" TElse
-twhile = tsingle "while" TWhile
-treturn = tsingle "return" TReturn
-tnil = tsingle "nil" TNil
-tbool = tmulti ["True", "False"] TBool
-tbasictype = tmulti ["Int", "Bool", "Char"] TBasicType
-top1 = tmulti ["!", "-"] TOp1
-top2 = tmulti ["+", "-", "*", "/", "%", "==", "<", ">", "<=", ">=", "!=", "&&",
-               "||", ":"] TOp2
-tchar = tmulti (map (\c -> ['\'', c, '\'']) ['0'..'9']) TChar
-tfield = Nu 0 $ tsum (filter (\c -> c /= Just '.') mcall) (Val $ Token TField) `Add` tmseq [".hd", ".tl", ".fst", ".snd"] (Var 0)
-tint = tmseq (map (\c -> ['-', c]) ['0'..'9']) $ Nu 0 $ tsum mcnondigit (Val $ Token TInt) `Add` tmseq (map (\c -> [c]) ['0'..'9']) (Var 0)
-tid = tmseq (map (\c -> [c]) (['a'..'z'] ++ ['A'..'Z'])) $ Nu 0 $ tsum mcnonalphanum (Val $ Token TId) `Add` tmseq (map (\c -> [c]) (['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'])) (Var 0)
+tdefault =
+    tsingle "=" TAssign
+    `Add`
+    tsingle ";" TSemicolon
+    `Add`
+    tsingle "," TComma
+    `Add`
+    tsingle "(" TLeftParenthesis
+    `Add`
+    tsingle ")" TRightParenthesis
+    `Add`
+    tsingle "{" TLeftCBracket
+    `Add`
+    tsingle "}" TRightCBracket
+    `Add`
+    tsingle "[" TLeftBracket
+    `Add`
+    tsingle "]" TRightBracket
+    `Add`
+    tsingle "Void" TVoid
+    `Add`
+    tsingle "if" TIf
+    `Add`
+    tsingle "else" TElse
+    `Add`
+    tsingle "while" TWhile
+    `Add`
+    tsingle "return" TReturn
+    `Add`
+    tsingle "nil" TNil
+    `Add`
+    tmulti ["True", "False"] TBool
+    `Add`
+    tmulti ["Int", "Bool", "Char"] TBasicType
+    `Add`
+    tmulti ["!", "-"] TOp1
+    `Add`
+    tmulti ["+", "-", "*", "/", "%", "==", "<", ">", "<=", ">=", "!=", "&&",
+            "||", ":"] TOp2
+    `Add`
+    tmulti (map (\c -> ['\'', c, '\'']) ['0'..'9']) TChar
+    `Add`
+    (Nu 0 $ tsum (filter (\c -> c /= Just '.') mcall) (Val $ Token TField) `Add` tmseq [".hd", ".tl", ".fst", ".snd"] (Var 0))
+    `Add`
+    (Nu 0 $ tsum mcnondigit (Val $ Token TInt) `Add` tmseq (map (\c -> [c]) ['0'..'9']) (Var 0))
+    `Add`
+    (tmseq (map (\c -> ['-', c]) ['0'..'9']) $ Nu 0 $ tsum mcnondigit (Val $ Token TInt) `Add` tmseq (map (\c -> [c]) ['0'..'9']) (Var 0))
+    `Add`
+    (tmseq (map (\c -> [c]) (['a'..'z'] ++ ['A'..'Z'])) $ Nu 0 $ tsum mcnonalphanum (Val $ Token TId) `Add` tmseq (map (\c -> [c]) (['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'])) (Var 0))
+
+tokenize_default :: String -> [AToken]
+tokenize_default = tokenize synthesize tdefault
