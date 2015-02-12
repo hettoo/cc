@@ -1,20 +1,29 @@
 module Tokenizer where
+import SemiLattice
 import Mealy
 
 data Token = TBD
 
+-- Final tokens will be annotated with the corresponding string and its
+-- location.
 type TData = (String, Int, Int)
 type AToken = (Token, TData)
 
+-- We need to add some special tokens as tokenizer commands.
+data CToken = NextLine
+            | Clear
+            | Token Token
+
+-- The state representation of the tokenizer happens to match the
+-- representation of the annotated token data.
 type TState = (String, Int, Int)
-type Command = TState -> TState
 
-type TMealy q = Maybe Char -> (Command, Maybe Token, q)
-
+-- However, strings corresponding to tokens are recorded in reverse.
 tdata :: TState -> TData
 tdata (w, c, l) = (reverse w, c, l)
 
-readc :: Maybe Char -> Bool -> Command
+-- The character advance command is executed first on each new character.
+readc :: Maybe Char -> Bool -> TState -> TState
 readc a b (w, c, l) = case b of
     True -> as w
     False -> as []
@@ -23,14 +32,28 @@ readc a b (w, c, l) = case b of
         Nothing -> u
         Just b -> b : u), c + 1, l)
 
-tokenize :: (q -> TMealy q) -> q -> String -> [AToken]
-tokenize m i s = tokenizef i is $ (map Just s) ++ [Nothing]
+-- Further effects depend on the command in the token.
+command :: CToken -> TState -> TState
+command c = case c of
+    NextLine -> \(u, c, l) -> (u, 0, l + 1)
+    Clear -> \(u, c, l) -> ("", c, l)
+    _ -> id
+
+type TMealy q = Mealy (Maybe Char) (SimpleLattice CToken) q
+
+tokenize :: TMealy q -> q -> String -> [AToken]
+tokenize m i s = tokenize' i is $ (map Just s) ++ [Nothing]
     where
     is = ([], 0, 0)
-    tokenizef _ _ [] = []
-    tokenizef q d (a : r) = case m i a of
-        (f, x, p) -> case x of
-            Nothing -> advance True
-            Just t -> (t, tdata d) : advance False
+    tokenize' _ _ [] = []
+    tokenize' q state (a : r) = case m q a of
+        (s, p) -> case s of
+            Top -> advance id True
+            Val c -> case c of
+                Token t -> (t, tdata state) : r
+                _ -> r
+                where
+                r = advance (command c) False
+            Bottom -> error "Overspecified tokenizer"
             where
-            advance b = tokenizef p (f $ readc a b d) r
+            advance f b = tokenize' p (f $ readc a b state) r
