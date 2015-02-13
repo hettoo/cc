@@ -89,82 +89,84 @@ tokenize m i s = tokenize' i ([], 0, 0) $ (map Just s) ++ [Nothing]
 type TFormula = MealyFormula A B Int
 
 tseq :: String -> TFormula -> TFormula
-tseq [] f = f
-tseq (c : r) f = Trans (Just c) (tseq r f)
+tseq l f = foldr (Trans . Just) f l
 
 tmseq :: [String] -> TFormula -> TFormula
-tmseq [] _ = FF
-tmseq (s : r) f = tseq s f `Add` tmseq r f
+tmseq l f = foldr (\s -> Add (tseq s f)) FF l
 
 tsum :: [A] -> B -> TFormula
-tsum [] _ = FF
-tsum (a : r) b = Out a b `Add` tsum r b
+tsum l b = foldr (\a -> Add (Out a b)) FF l
 
-mcall :: [A]
-mcall = Nothing : map Just ['\0'..'\255']
+sub :: Eq a => [a] -> [a] -> [a]
+sub a b = filter (\c -> not $ c `elem` b) a
 
-mcnondigit :: [A]
-mcnondigit = filter (\c -> not $ c `elem` map Just ['0'..'9']) mcall
+mc :: [Char] -> [A]
+mc = map Just
 
-mcnonalphanum :: [A]
-mcnonalphanum = filter (\c -> not $ c `elem` map Just (['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'])) mcall
+cs :: [Char] -> [String]
+cs = map (\c -> [c])
 
-tsingle :: String -> Token -> TFormula
-tsingle s t = tseq s (tsum mcall $ Val $ Token t)
+call = ['\0'..'\255']
+cnum = ['0'..'9']
+calpha = ['a'..'z'] ++ ['A'..'Z']
+calphanum = calpha ++ cnum
+mcall = Nothing : mc call
 
-tmulti :: [String] -> Token -> TFormula
-tmulti [] _ = FF
-tmulti (s : r) t = tsingle s t `Add` tmulti r t
+taccept :: Token -> TFormula
+taccept t = tsum mcall $ Val $ Token t
 
-tdefault =
-    tsingle "=" TAssign
+tokenize_default = tokenize synthesize $
+    tseq "=" (taccept TAssign)
     `Add`
-    tsingle ";" TSemicolon
+    tseq ";" (taccept TSemicolon)
     `Add`
-    tsingle "," TComma
+    tseq "," (taccept TComma)
     `Add`
-    tsingle "(" TLeftParenthesis
+    tseq "(" (taccept TLeftParenthesis)
     `Add`
-    tsingle ")" TRightParenthesis
+    tseq ")" (taccept TRightParenthesis)
     `Add`
-    tsingle "{" TLeftCBracket
+    tseq "{" (taccept TLeftCBracket)
     `Add`
-    tsingle "}" TRightCBracket
+    tseq "}" (taccept TRightCBracket)
     `Add`
-    tsingle "[" TLeftBracket
+    tseq "[" (taccept TLeftBracket)
     `Add`
-    tsingle "]" TRightBracket
+    tseq "]" (taccept TRightBracket)
     `Add`
-    tsingle "Void" TVoid
+    tseq "Void" (taccept TVoid)
     `Add`
-    tsingle "if" TIf
+    tseq "if" (taccept TIf)
     `Add`
-    tsingle "else" TElse
+    tseq "else" (taccept TElse)
     `Add`
-    tsingle "while" TWhile
+    tseq "while" (taccept TWhile)
     `Add`
-    tsingle "return" TReturn
+    tseq "return" (taccept TReturn)
     `Add`
-    tsingle "nil" TNil
+    tseq "nil" (taccept TNil)
     `Add`
-    tmulti ["True", "False"] TBool
+    tmseq ["True", "False"] (taccept TBool)
     `Add`
-    tmulti ["Int", "Bool", "Char"] TBasicType
+    tmseq ["Int", "Bool", "Char"] (taccept TBasicType)
     `Add`
-    tmulti ["!", "-"] TOp1
+    tmseq ["!", "-"] (taccept TOp1)
     `Add`
-    tmulti ["+", "-", "*", "/", "%", "==", "<", ">", "<=", ">=", "!=", "&&",
-            "||", ":"] TOp2
+    tmseq ["+", "-", "*", "/", "%", "==", "<", ">", "<=", ">=", "!=", "&&",
+           "||", ":"] (taccept TOp2)
     `Add`
-    tmulti (map (\c -> ['\'', c, '\'']) ['0'..'9']) TChar
+    tmseq (map (\c -> ['\'', c, '\'']) ['0'..'9']) (taccept TChar)
     `Add`
-    (Nu 0 $ tsum (filter (\c -> c /= Just '.') mcall) (Val $ Token TField) `Add` tmseq [".hd", ".tl", ".fst", ".snd"] (Var 0))
+    (Nu 0 $ tsum (sub mcall [Just '.']) (Val $ Token TField)
+        `Add` tmseq [".hd", ".tl", ".fst", ".snd"] (Var 0))
     `Add`
-    (Nu 0 $ tsum mcnondigit (Val $ Token TInt) `Add` tmseq (map (\c -> [c]) ['0'..'9']) (Var 0))
+    (Nu 0 $ tsum (sub mcall $ mc cnum) (Val $ Token TInt)
+        `Add` tmseq (cs cnum) (Var 0))
     `Add`
-    (tmseq (map (\c -> ['-', c]) ['0'..'9']) $ Nu 0 $ tsum mcnondigit (Val $ Token TInt) `Add` tmseq (map (\c -> [c]) ['0'..'9']) (Var 0))
+    (tmseq (map (\c -> ['-', c]) cnum) $ Nu 0 $
+        tsum (sub mcall $ mc cnum) (Val $ Token TInt)
+        `Add` tmseq (cs cnum) (Var 0))
     `Add`
-    (tmseq (map (\c -> [c]) (['a'..'z'] ++ ['A'..'Z'])) $ Nu 0 $ tsum mcnonalphanum (Val $ Token TId) `Add` tmseq (map (\c -> [c]) (['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'])) (Var 0))
-
-tokenize_default :: String -> [AToken]
-tokenize_default = tokenize synthesize tdefault
+    (tmseq (cs calpha) $ Nu 0 $
+        tsum (sub mcall $ mc calphanum) (Val $ Token TId)
+        `Add` tmseq (cs calphanum) (Var 0))
