@@ -112,9 +112,6 @@ sub a b = filter (\c -> not $ c `elem` b) a
 mc :: [Char] -> [A]
 mc = map Just
 
-cs :: [Char] -> [String]
-cs = map (\c -> [c])
-
 call = ['\0'..'\255']
 cnum = ['0'..'9']
 calpha = ['a'..'z'] ++ ['A'..'Z']
@@ -178,8 +175,8 @@ tokenize_default = tokenize synthesize $
         tosum (mcall `sub` mc cnum) (nt TInt)
         `Add` tsum (mc cnum) (Var 0))
     `Add`
-    (tmseq (cs calpha) $ Nu 0 $ tosum (mcall `sub` mc calphanum_) (nt TId)
-        `Add` tmseq (cs calphanum_) (Var 0))
+    (tsum (mc calpha) $ Nu 0 $ tosum (mcall `sub` mc calphanum_) (nt TId)
+        `Add` tsum (mc calphanum_) (Var 0))
     `Add`
     (Nu 0 $ tsum (mcall `sub` mc cwhite) (Var 0) `Add` tsum (mc cwhite)
         (Nu 1 $ tsum (mcall `sub` mc cwhite) (Var 0)
