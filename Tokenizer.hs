@@ -184,17 +184,17 @@ tokenize_default = tokenize synthesize $
             `Add` tsum (mc cwhite) (Var 1)))
     `Add`
     (Nu 0 $ tseq "\n" (tosum mcall $ Val NextLine)
-        `Add` (Nu 1 $ Trans (Just '\n') (Var 1)
+        `Add` (Nu 1 $ tseq "\n" (Var 1)
             `Add` tsum (mcall `sub` mc ['\n']) (Var 0)))
     `Add`
-    (Nu 0 $ tsum (mcall `sub` mc ['/']) (Var 0) `Add` Trans (Just '/')
-        (tsum (mcall `sub` mc ['/']) (Var 0) `Add` Trans (Just '/')
+    (Nu 0 $ tsum (mcall `sub` mc ['/']) (Var 0) `Add` tseq "/"
+        (tsum (mcall `sub` mc ['/']) (Var 0) `Add` tseq "/"
             (Nu 1 $ tsum (mcall `sub` mc ['\n']) (Var 1)
                 `Add` tot (Just '\n') (Val Clear) (Var 0))))
     `Add`
-    (Nu 0 $ tsum (mcall `sub` mc ['/']) (Var 0) `Add` Trans (Just '/')
+    (Nu 0 $ tsum (mcall `sub` mc ['/']) (Var 0) `Add` tseq "/"
         (Nu 1 $ tsum (mcall `sub` mc ['/', '*']) (Var 0)
-            `Add` Trans (Just '/') (Var 1) `Add` Trans (Just '*')
+            `Add` tseq "/" (Var 1) `Add` tseq "*"
                 (Nu 2 $ tsum (mcall `sub` mc ['*']) (Var 2)
-                    `Add` Trans (Just '*') (Out (Just '/') (Val Clear)
+                    `Add` tseq "*" (Out (Just '/') (Val Clear)
                         `Add` tsum mcall (Var 0)))))
