@@ -9,8 +9,8 @@ data SimpleLattice s = Bottom -- underspecification
                      | Top -- overspecification
                      deriving (Eq, Show)
 
-instance SemiLattice (SimpleLattice s) where
+instance Eq s => SemiLattice (SimpleLattice s) where
     bottom = Bottom
     add x Bottom = x
     add Bottom x = x
-    add _ _ = Top
+    add x y = if x == y then x else Top

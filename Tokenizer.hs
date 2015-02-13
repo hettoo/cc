@@ -94,8 +94,11 @@ tseq l f = foldr (Trans . Just) f l
 tmseq :: [String] -> TFormula -> TFormula
 tmseq l f = foldr (\s -> Add (tseq s f)) FF l
 
-tsum :: [A] -> B -> TFormula
-tsum l b = foldr (\a -> Add (Out a b)) FF l
+tsum :: [A] -> TFormula -> TFormula
+tsum l t = foldr (\a -> Add (Trans a t)) FF l
+
+tosum :: [A] -> B -> TFormula
+tosum l b = foldr (\a -> Add (Out a b)) FF l
 
 sub :: Eq a => [a] -> [a] -> [a]
 sub a b = filter (\c -> not $ c `elem` b) a
@@ -113,7 +116,7 @@ calphanum = calpha ++ cnum
 mcall = Nothing : mc call
 
 taccept :: Token -> TFormula
-taccept t = tsum mcall $ Val $ Token t
+taccept t = tosum mcall $ Val $ Token t
 
 tokenize_default = tokenize synthesize $
     tseq "=" (taccept TAssign)
@@ -144,7 +147,7 @@ tokenize_default = tokenize synthesize $
     `Add`
     tseq "return" (taccept TReturn)
     `Add`
-    tseq "nil" (taccept TNil)
+    tseq "[]" (taccept TNil)
     `Add`
     tmseq ["True", "False"] (taccept TBool)
     `Add`
@@ -155,18 +158,20 @@ tokenize_default = tokenize synthesize $
     tmseq ["+", "-", "*", "/", "%", "==", "<", ">", "<=", ">=", "!=", "&&",
            "||", ":"] (taccept TOp2)
     `Add`
-    tmseq (map (\c -> ['\'', c, '\'']) ['0'..'9']) (taccept TChar)
+    tmseq (map (\c -> ['\'', c, '\'']) cnum) (taccept TChar)
     `Add`
-    (Nu 0 $ tsum (sub mcall [Just '.']) (Val $ Token TField)
+    (Nu 0 $ tosum (sub mcall [Just '.']) (Val $ Token TField)
         `Add` tmseq [".hd", ".tl", ".fst", ".snd"] (Var 0))
     `Add`
-    (Nu 0 $ tsum (sub mcall $ mc cnum) (Val $ Token TInt)
+    (Nu 0 $ tosum (sub mcall $ mc cnum) (Val $ Token TInt)
         `Add` tmseq (cs cnum) (Var 0))
     `Add`
     (tmseq (map (\c -> ['-', c]) cnum) $ Nu 0 $
-        tsum (sub mcall $ mc cnum) (Val $ Token TInt)
+        tosum (sub mcall $ mc cnum) (Val $ Token TInt)
         `Add` tmseq (cs cnum) (Var 0))
     `Add`
     (tmseq (cs calpha) $ Nu 0 $
-        tsum (sub mcall $ mc calphanum) (Val $ Token TId)
+        tosum (sub mcall $ mc calphanum) (Val $ Token TId)
         `Add` tmseq (cs calphanum) (Var 0))
+    `Add`
+    (Nu 0 $ Out (Just '\n') (Val NextLine) `Add` tsum mcall (Var 0))
