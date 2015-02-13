@@ -100,6 +100,9 @@ tsum l t = foldr (\a -> Add (Trans a t)) FF l
 tosum :: [A] -> B -> TFormula
 tosum l b = foldr (\a -> Add (Out a b)) FF l
 
+topt :: (TFormula -> TFormula) -> TFormula -> TFormula
+topt f g = f g `Add` g
+
 sub :: Eq a => [a] -> [a] -> [a]
 sub a b = filter (\c -> not $ c `elem` b) a
 
@@ -113,6 +116,7 @@ call = ['\0'..'\255']
 cnum = ['0'..'9']
 calpha = ['a'..'z'] ++ ['A'..'Z']
 calphanum = calpha ++ cnum
+calphanum_ = '_' : calphanum
 mcall = Nothing : mc call
 
 nt :: Token -> B
@@ -166,14 +170,13 @@ tokenize_default = tokenize synthesize $
     (Nu 0 $ tosum (mcall `sub` [Just '.']) (nt TField)
         `Add` tmseq [".hd", ".tl", ".fst", ".snd"] (Var 0))
     `Add`
-    (Nu 0 $ tosum (mcall `sub` mc cnum) (nt TInt)
-        `Add` tmseq (cs cnum) (Var 0))
-    `Add`
-    (tmseq (map (\c -> ['-', c]) cnum) $ Nu 0 $
+    (topt (tmseq (map (\c -> ['-', c]) cnum)) $ Nu 0 $
         tosum (mcall `sub` mc cnum) (nt TInt)
         `Add` tmseq (cs cnum) (Var 0))
     `Add`
-    (tmseq (cs calpha) $ Nu 0 $ tosum (mcall `sub` mc calphanum) (nt TId)
-        `Add` tmseq (cs calphanum) (Var 0))
+    (tmseq (cs calpha) $ Nu 0 $ tosum (mcall `sub` mc calphanum_) (nt TId)
+        `Add` tmseq (cs calphanum_) (Var 0))
     `Add`
-    (Nu 0 $ tseq "\n" (tosum mcall $ Val NextLine) `Add` tsum mcall (Var 0))
+    (Nu 0 $ tseq "\n" (tosum mcall $ Val NextLine)
+        `Add` (Nu 1 $ Trans (Just '\n') (Var 1)
+            `Add` tsum (mcall `sub` [Just '\n']) (Var 0)))

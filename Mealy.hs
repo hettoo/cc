@@ -20,7 +20,7 @@ subst f x g = case f of
     Var y -> if y == x then g else Var y
     Trans a h -> Trans a (subst h x g)
     Add h i -> Add (subst h x g) (subst i x g)
-    Nu y h -> if y == x then Nu y h else Nu y (subst h y g)
+    Nu y h -> if y == x then Nu y h else Nu y (subst h x g)
     _ -> f
 
 synthesize :: (Eq a, Eq x, SemiLattice b) =>
@@ -34,6 +34,7 @@ synthesize f a = case f of
         (b1, t1) = synthesize f a
         (b2, t2) = synthesize g a
     Nu x f -> synthesize (subst f x (Nu x f)) a
+    Var x -> error "Not a closed formula"
 
 --norm :: (Eq a, Eq b, Eq x) =>
 --    MealyFormula a b x -> MealyFormula a b x
@@ -63,3 +64,4 @@ synthesize f a = case f of
 --    Nu x f -> (b, norm g)
 --        where
 --        (b, g) = synthesize (subst f x (Nu x f)) a
+--    Var x -> error "Not a closed formula"
