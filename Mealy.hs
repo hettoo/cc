@@ -38,6 +38,14 @@ synthesize f a = case f of
     Nu x f -> synthesize (subst f x (Nu x f)) a
     Var x -> error "Not a closed formula"
 
+freshest :: Ord x => MealyFormula a b x -> Maybe x
+freshest f = case f of
+    Var x -> Just x
+    Trans a g -> freshest g
+    Add g h -> max (freshest g) (freshest h)
+    Nu x g -> max (Just x) (freshest g)
+    _ -> Nothing
+
 --norm :: (Eq a, Eq b, Eq x) =>
 --    MealyFormula a b x -> MealyFormula a b x
 --norm f = case f of

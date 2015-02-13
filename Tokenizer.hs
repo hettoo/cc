@@ -88,6 +88,11 @@ tokenize m i s = tokenize' i ([], 0, 0) $ (map Just s) ++ [Nothing]
 
 type TFormula = MealyFormula A B Int
 
+fresh :: (TFormula -> TFormula) -> Var
+fresh f = case freshest (f FF) of
+    Just n -> n + 1
+    Nothing -> 0
+
 tseq :: String -> TFormula -> TFormula
 tseq l f = foldr (Trans . Just) f l
 
