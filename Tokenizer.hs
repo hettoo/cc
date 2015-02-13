@@ -94,22 +94,10 @@ fresh f = case freshest (f FF) of
     Nothing -> 0
 
 tseq :: String -> TFormula -> TFormula
-tseq l f = foldr (Trans . Just) f l
+tseq s = mfseq (map Just s)
 
 tmseq :: [String] -> TFormula -> TFormula
-tmseq l f = foldr (\s -> Add (tseq s f)) FF l
-
-tsum :: [A] -> TFormula -> TFormula
-tsum l t = foldr (\a -> Add (Trans a t)) FF l
-
-tosum :: [A] -> B -> TFormula
-tosum l b = foldr (\a -> Add (Out a b)) FF l
-
-topt :: (TFormula -> TFormula) -> TFormula -> TFormula
-topt f g = f g `Add` g
-
-tot :: A -> B -> TFormula -> TFormula
-tot a b f = Trans a f `Add` Out a b
+tmseq l = mfmseq (map (map Just) l)
 
 sub :: Eq a => [a] -> [a] -> [a]
 sub a b = filter (\c -> not $ c `elem` b) a
@@ -129,7 +117,7 @@ nt :: Token -> B
 nt = Val . Token
 
 taccept :: Token -> TFormula
-taccept = tosum mcall . nt
+taccept = mfosum mcall . nt
 
 tokenize_default = tokenize synthesize $ foldr add id formulas FF
     where
@@ -159,18 +147,19 @@ formulas = [
                   "&&", "||", ":"] (taccept TOp2 `Add` f)),
     (\f -> tmseq (map (\c -> ['\'', c, '\'']) cnum) (taccept TChar `Add` f)),
     (\f -> (tmseq [".hd", ".tl", ".fst", ".snd"] $ Nu 0 $
-        tosum (mcall `sub` mc ['.']) (nt TField) `Add` f
+        mfosum (mcall `sub` mc ['.']) (nt TField) `Add` f
         `Add` tmseq [".hd", ".tl", ".fst", ".snd"] (Var 0))),
-    (\f -> (topt (tseq "-") $ tsum (mc cnum) $ Nu 0 $
-        tosum (mcall `sub` mc cnum) (nt TInt) `Add` f
-        `Add` tsum (mc cnum) (Var 0))),
-    (\f -> (tsum (mc calpha) $ Nu 0 $ tosum (mcall `sub` mc calphanum_) (nt TId)
-        `Add` f `Add` tsum (mc calphanum_) (Var 0))),
-    (\f -> tsum (mc cwhite) (Nu 0 $ tosum (mcall `sub` mc cwhite) (Val Clear)
-        `Add` f `Add` tsum (mc cwhite) (Var 0))),
-    (\f -> tseq "\n" (tosum mcall (Val NextLine) `Add` f)),
-    (\f -> tseq "//" (Nu 0 $ tsum (mcall `sub` mc ['\n']) (Var 0)
-        `Add` tseq "\n" (tosum mcall (Val Clear) `Add` f))),
-    (\f -> tseq "/*" (Nu 0 $ tsum (mcall `sub` mc ['*']) (Var 0)
-        `Add` tseq "*" (tsum (mcall `sub` mc ['/']) (Var 0)
-            `Add` tseq "/" (tosum mcall (Val Clear) `Add` f))))]
+    (\f -> (mfopt (tseq "-") $ mfsum (mc cnum) $ Nu 0 $
+        mfosum (mcall `sub` mc cnum) (nt TInt) `Add` f
+        `Add` mfsum (mc cnum) (Var 0))),
+    (\f -> (mfsum (mc calpha) $ Nu 0 $
+        mfosum (mcall `sub` mc calphanum_) (nt TId)
+        `Add` f `Add` mfsum (mc calphanum_) (Var 0))),
+    (\f -> mfsum (mc cwhite) (Nu 0 $ mfosum (mcall `sub` mc cwhite) (Val Clear)
+        `Add` f `Add` mfsum (mc cwhite) (Var 0))),
+    (\f -> tseq "\n" (mfosum mcall (Val NextLine) `Add` f)),
+    (\f -> tseq "//" (Nu 0 $ mfsum (mcall `sub` mc ['\n']) (Var 0)
+        `Add` tseq "\n" (mfosum mcall (Val Clear) `Add` f))),
+    (\f -> tseq "/*" (Nu 0 $ mfsum (mcall `sub` mc ['*']) (Var 0)
+        `Add` tseq "*" (mfsum (mcall `sub` mc ['/']) (Var 0)
+            `Add` tseq "/" (mfosum mcall (Val Clear) `Add` f))))]

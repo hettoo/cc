@@ -75,3 +75,22 @@ freshest f = case f of
 --        where
 --        (b, g) = synthesize (subst f x (Nu x f)) a
 --    Var x -> error "Not a closed formula"
+
+mfseq :: [a] -> MealyFormula a b x -> MealyFormula a b x
+mfseq l f = foldr Trans f l
+
+mfmseq :: [[a]] -> MealyFormula a b x -> MealyFormula a b x
+mfmseq d f = foldr (\l -> Add (mfseq l f)) FF d
+
+mfsum :: [a] -> MealyFormula a b x -> MealyFormula a b x
+mfsum l t = foldr (\a -> Add (Trans a t)) FF l
+
+mfosum :: [a] -> b -> MealyFormula a b x
+mfosum l b = foldr (\a -> Add (Out a b)) FF l
+
+mfopt :: (MealyFormula a b x -> MealyFormula a b x) ->
+    MealyFormula a b x -> MealyFormula a b x
+mfopt f g = f g `Add` g
+
+mfot :: a -> b -> MealyFormula a b x -> MealyFormula a b x
+mfot a b f = Trans a f `Add` Out a b
