@@ -115,8 +115,11 @@ calpha = ['a'..'z'] ++ ['A'..'Z']
 calphanum = calpha ++ cnum
 mcall = Nothing : mc call
 
+nt :: Token -> B
+nt = Val . Token
+
 taccept :: Token -> TFormula
-taccept t = tosum mcall $ Val $ Token t
+taccept = tosum mcall . nt
 
 tokenize_default = tokenize synthesize $
     tseq "=" (taccept TAssign)
@@ -160,18 +163,17 @@ tokenize_default = tokenize synthesize $
     `Add`
     tmseq (map (\c -> ['\'', c, '\'']) cnum) (taccept TChar)
     `Add`
-    (Nu 0 $ tosum (sub mcall [Just '.']) (Val $ Token TField)
+    (Nu 0 $ tosum (mcall `sub` [Just '.']) (nt TField)
         `Add` tmseq [".hd", ".tl", ".fst", ".snd"] (Var 0))
     `Add`
-    (Nu 0 $ tosum (sub mcall $ mc cnum) (Val $ Token TInt)
+    (Nu 0 $ tosum (mcall `sub` mc cnum) (nt TInt)
         `Add` tmseq (cs cnum) (Var 0))
     `Add`
     (tmseq (map (\c -> ['-', c]) cnum) $ Nu 0 $
-        tosum (sub mcall $ mc cnum) (Val $ Token TInt)
+        tosum (mcall `sub` mc cnum) (nt TInt)
         `Add` tmseq (cs cnum) (Var 0))
     `Add`
-    (tmseq (cs calpha) $ Nu 0 $
-        tosum (sub mcall $ mc calphanum) (Val $ Token TId)
+    (tmseq (cs calpha) $ Nu 0 $ tosum (mcall `sub` mc calphanum) (nt TId)
         `Add` tmseq (cs calphanum) (Var 0))
     `Add`
-    (Nu 0 $ Out (Just '\n') (Val NextLine) `Add` tsum mcall (Var 0))
+    (Nu 0 $ tseq "\n" (tosum mcall $ Val NextLine) `Add` tsum mcall (Var 0))
