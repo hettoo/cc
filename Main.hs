@@ -1,4 +1,4 @@
 module Main where
 import Tokenizer
 
-main = print $ tokenize_default "-37"
+main = print $ tokenize_default "37"

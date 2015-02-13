@@ -12,7 +12,7 @@ data MealyFormula a b x = FF
                         | Out a b
                         | Add (MealyFormula a b x) (MealyFormula a b x)
                         | Nu x (MealyFormula a b x)
-                        deriving Eq
+                        deriving (Show, Eq)
 
 sub :: Eq x =>
     MealyFormula a b x -> x -> MealyFormula a b x -> MealyFormula a b x

@@ -7,6 +7,7 @@ class SemiLattice s where
 data SimpleLattice s = Bottom -- underspecification
                      | Val s
                      | Top -- overspecification
+                     deriving (Eq, Show)
 
 instance SemiLattice (SimpleLattice s) where
     bottom = Bottom

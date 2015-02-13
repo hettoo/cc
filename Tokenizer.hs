@@ -25,7 +25,7 @@ data Token = TAssign
            | TField
            | TInt
            | TId
-           deriving Show
+           deriving (Eq, Show)
 
 -- Final tokens will be annotated with the corresponding string and its
 -- location.
@@ -36,6 +36,7 @@ type AToken = (Token, TData)
 data CToken = NextLine
             | Clear
             | Token Token
+            deriving (Eq, Show)
 
 -- The state representation of the tokenizer happens to match the
 -- representation of the annotated token data.
@@ -100,7 +101,7 @@ tsum [] _ = FF
 tsum (a : r) b = Out a b `Add` tsum r b
 
 mcall :: [A]
-mcall = Nothing : map Just ['\0'..'\FF']
+mcall = Nothing : map Just ['\0'..'\255']
 
 mcnondigit :: [A]
 mcnondigit = filter (\c -> not $ c `elem` map Just ['0'..'9']) mcall
