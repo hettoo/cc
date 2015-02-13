@@ -180,3 +180,9 @@ tokenize_default = tokenize synthesize $
     (Nu 0 $ tseq "\n" (tosum mcall $ Val NextLine)
         `Add` (Nu 1 $ Trans (Just '\n') (Var 1)
             `Add` tsum (mcall `sub` [Just '\n']) (Var 0)))
+    `Add`
+    (Nu 0 $ tsum (mcall `sub` [Just '/']) (Var 0) `Add` Trans (Just '/')
+        (tsum (mcall `sub` [Just '/']) (Var 0) `Add` Trans (Just '/')
+            (Nu 1 $ tsum (mcall `sub` [Just '\n']) (Var 1)
+                `Add` Trans (Just '\n') (Var 0)
+                `Add` Out (Just '\n') (Val Clear))))

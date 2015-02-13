@@ -1,7 +1,9 @@
 module Mealy where
 import SemiLattice
 
--- Based on http://homepages.cwi.nl/~janr/papers/files-of-papers/2008-fossacs-2008-coalgebraic-logic-and-synthesis-etc.pdf
+-- Based on http://homepages.cwi.nl/~janr/papers/files-of-papers/2008-fossacs-2008-coalgebraic-logic-and-synthesis-etc.pdf.
+-- We switched from meet semilattices to join semilattices because this makes
+-- more sense from a synthesis point of view.
 -- Note that the link to their implementation did not exist anymore.
 
 type Mealy a b q = q -> a -> (b, q)
