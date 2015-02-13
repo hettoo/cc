@@ -103,6 +103,9 @@ tosum l b = foldr (\a -> Add (Out a b)) FF l
 topt :: (TFormula -> TFormula) -> TFormula -> TFormula
 topt f g = f g `Add` g
 
+tot :: A -> B -> TFormula -> TFormula
+tot a b f = Trans a f `Add` Out a b
+
 sub :: Eq a => [a] -> [a] -> [a]
 sub a b = filter (\c -> not $ c `elem` b) a
 
@@ -117,6 +120,7 @@ cnum = ['0'..'9']
 calpha = ['a'..'z'] ++ ['A'..'Z']
 calphanum = calpha ++ cnum
 calphanum_ = '_' : calphanum
+cwhite = [' ', '\t', '\n']
 mcall = Nothing : mc call
 
 nt :: Token -> B
@@ -167,7 +171,7 @@ tokenize_default = tokenize synthesize $
     `Add`
     tmseq (map (\c -> ['\'', c, '\'']) cnum) (taccept TChar)
     `Add`
-    (Nu 0 $ tosum (mcall `sub` [Just '.']) (nt TField)
+    (Nu 0 $ tosum (mcall `sub` mc ['.']) (nt TField)
         `Add` tmseq [".hd", ".tl", ".fst", ".snd"] (Var 0))
     `Add`
     (topt (tmseq (map (\c -> ['-', c]) cnum)) $ Nu 0 $
@@ -177,12 +181,23 @@ tokenize_default = tokenize synthesize $
     (tmseq (cs calpha) $ Nu 0 $ tosum (mcall `sub` mc calphanum_) (nt TId)
         `Add` tmseq (cs calphanum_) (Var 0))
     `Add`
+    (Nu 0 $ tsum (mcall `sub` mc cwhite) (Var 0) `Add` tsum (mc cwhite)
+        (Nu 1 $ tsum (mcall `sub` mc cwhite) (Var 0)
+            `Add` tosum (mcall `sub` mc cwhite) (Val Clear)
+            `Add` tsum (mc cwhite) (Var 1)))
+    `Add`
     (Nu 0 $ tseq "\n" (tosum mcall $ Val NextLine)
         `Add` (Nu 1 $ Trans (Just '\n') (Var 1)
-            `Add` tsum (mcall `sub` [Just '\n']) (Var 0)))
+            `Add` tsum (mcall `sub` mc ['\n']) (Var 0)))
     `Add`
-    (Nu 0 $ tsum (mcall `sub` [Just '/']) (Var 0) `Add` Trans (Just '/')
-        (tsum (mcall `sub` [Just '/']) (Var 0) `Add` Trans (Just '/')
-            (Nu 1 $ tsum (mcall `sub` [Just '\n']) (Var 1)
-                `Add` Trans (Just '\n') (Var 0)
-                `Add` Out (Just '\n') (Val Clear))))
+    (Nu 0 $ tsum (mcall `sub` mc ['/']) (Var 0) `Add` Trans (Just '/')
+        (tsum (mcall `sub` mc ['/']) (Var 0) `Add` Trans (Just '/')
+            (Nu 1 $ tsum (mcall `sub` mc ['\n']) (Var 1)
+                `Add` tot (Just '\n') (Val Clear) (Var 0))))
+    `Add`
+    (Nu 0 $ tsum (mcall `sub` mc ['/']) (Var 0) `Add` Trans (Just '/')
+        (Nu 1 $ tsum (mcall `sub` mc ['/', '*']) (Var 0)
+            `Add` Trans (Just '/') (Var 1) `Add` Trans (Just '*')
+                (Nu 2 $ tsum (mcall `sub` mc ['*']) (Var 2)
+                    `Add` Trans (Just '*') (Out (Just '/') (Val Clear)
+                        `Add` tsum mcall (Var 0)))))
