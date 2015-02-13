@@ -172,29 +172,19 @@ tokenize_default = tokenize synthesize $
         `Add` tmseq [".hd", ".tl", ".fst", ".snd"] (Var 0))
     `Add`
     (topt (tseq "-") $ tsum (mc cnum) $ Nu 0 $
-        tosum (mcall `sub` mc cnum) (nt TInt)
-        `Add` tsum (mc cnum) (Var 0))
+        tosum (mcall `sub` mc cnum) (nt TInt) `Add` tsum (mc cnum) (Var 0))
     `Add`
     (tsum (mc calpha) $ Nu 0 $ tosum (mcall `sub` mc calphanum_) (nt TId)
         `Add` tsum (mc calphanum_) (Var 0))
     `Add`
-    (Nu 0 $ tsum (mcall `sub` mc cwhite) (Var 0) `Add` tsum (mc cwhite)
-        (Nu 1 $ tsum (mcall `sub` mc cwhite) (Var 0)
-            `Add` tosum (mcall `sub` mc cwhite) (Val Clear)
-            `Add` tsum (mc cwhite) (Var 1)))
+    tsum (mc cwhite) (Nu 0 $ tosum (mcall `sub` mc cwhite) (Val Clear)
+        `Add` tsum (mc cwhite) (Var 0))
     `Add`
-    (Nu 0 $ tseq "\n" (tosum mcall $ Val NextLine)
-        `Add` (Nu 1 $ tseq "\n" (Var 1)
-            `Add` tsum (mcall `sub` mc ['\n']) (Var 0)))
+    tseq "\n" (tosum mcall $ Val NextLine)
     `Add`
-    (Nu 0 $ tsum (mcall `sub` mc ['/']) (Var 0) `Add` tseq "/"
-        (tsum (mcall `sub` mc ['/']) (Var 0) `Add` tseq "/"
-            (Nu 1 $ tsum (mcall `sub` mc ['\n']) (Var 1)
-                `Add` tot (Just '\n') (Val Clear) (Var 0))))
+    tseq "//" (Nu 0 $ tsum (mcall `sub` mc ['\n']) (Var 0)
+        `Add` tseq "\n" (tosum mcall $ Val Clear))
     `Add`
-    (Nu 0 $ tsum (mcall `sub` mc ['/']) (Var 0) `Add` tseq "/"
-        (Nu 1 $ tsum (mcall `sub` mc ['/', '*']) (Var 0)
-            `Add` tseq "/" (Var 1) `Add` tseq "*"
-                (Nu 2 $ tsum (mcall `sub` mc ['*']) (Var 2)
-                    `Add` tseq "*" (Out (Just '/') (Val Clear)
-                        `Add` tsum mcall (Var 0)))))
+    tseq "/*" (Nu 0 $ tsum (mcall `sub` mc ['*']) (Var 0)
+        `Add` tseq "*" (tsum (mcall `sub` mc ['/']) (Var 0)
+            `Add` tseq "/" (tosum mcall $ Val Clear)))
