@@ -131,65 +131,46 @@ nt = Val . Token
 taccept :: Token -> TFormula
 taccept = tosum mcall . nt
 
-tokenize_default = tokenize synthesize $
-    tseq "=" (taccept TAssign)
-    `Add`
-    tseq ";" (taccept TSemicolon)
-    `Add`
-    tseq "," (taccept TComma)
-    `Add`
-    tseq "(" (taccept TLeftParenthesis)
-    `Add`
-    tseq ")" (taccept TRightParenthesis)
-    `Add`
-    tseq "{" (taccept TLeftCBracket)
-    `Add`
-    tseq "}" (taccept TRightCBracket)
-    `Add`
-    tseq "[" (taccept TLeftBracket)
-    `Add`
-    tseq "]" (taccept TRightBracket)
-    `Add`
-    tseq "Void" (taccept TVoid)
-    `Add`
-    tseq "if" (taccept TIf)
-    `Add`
-    tseq "else" (taccept TElse)
-    `Add`
-    tseq "while" (taccept TWhile)
-    `Add`
-    tseq "return" (taccept TReturn)
-    `Add`
-    tseq "[]" (taccept TNil)
-    `Add`
-    tmseq ["True", "False"] (taccept TBool)
-    `Add`
-    tmseq ["Int", "Bool", "Char"] (taccept TBasicType)
-    `Add`
-    tmseq ["!", "-"] (taccept TOp1)
-    `Add`
-    tmseq ["+", "-", "*", "/", "%", "==", "<", ">", "<=", ">=", "!=", "&&",
-           "||", ":"] (taccept TOp2)
-    `Add`
-    tmseq (map (\c -> ['\'', c, '\'']) cnum) (taccept TChar)
-    `Add`
-    (Nu 0 $ tosum (mcall `sub` mc ['.']) (nt TField)
-        `Add` tmseq [".hd", ".tl", ".fst", ".snd"] (Var 0))
-    `Add`
-    (topt (tseq "-") $ tsum (mc cnum) $ Nu 0 $
-        tosum (mcall `sub` mc cnum) (nt TInt) `Add` tsum (mc cnum) (Var 0))
-    `Add`
-    (tsum (mc calpha) $ Nu 0 $ tosum (mcall `sub` mc calphanum_) (nt TId)
-        `Add` tsum (mc calphanum_) (Var 0))
-    `Add`
-    tsum (mc cwhite) (Nu 0 $ tosum (mcall `sub` mc cwhite) (Val Clear)
-        `Add` tsum (mc cwhite) (Var 0))
-    `Add`
-    tseq "\n" (tosum mcall $ Val NextLine)
-    `Add`
-    tseq "//" (Nu 0 $ tsum (mcall `sub` mc ['\n']) (Var 0)
-        `Add` tseq "\n" (tosum mcall $ Val Clear))
-    `Add`
-    tseq "/*" (Nu 0 $ tsum (mcall `sub` mc ['*']) (Var 0)
+tokenize_default = tokenize synthesize $ foldr add id formulas FF
+    where
+    add f g h = f h `Add` g h
+
+formulas :: [TFormula -> TFormula]
+formulas = [
+    (\f -> tseq "=" (taccept TAssign `Add` f)),
+    (\f -> tseq ";" (taccept TSemicolon `Add` f)),
+    (\f -> tseq "," (taccept TComma `Add` f)),
+    (\f -> tseq "(" (taccept TLeftParenthesis `Add` f)),
+    (\f -> tseq ")" (taccept TRightParenthesis `Add` f)),
+    (\f -> tseq "{" (taccept TLeftCBracket `Add` f)),
+    (\f -> tseq "}" (taccept TRightCBracket `Add` f)),
+    (\f -> tseq "[" (taccept TLeftBracket `Add` f)),
+    (\f -> tseq "]" (taccept TRightBracket `Add` f)),
+    (\f -> tseq "Void" (taccept TVoid `Add` f)),
+    (\f -> tseq "if" (taccept TIf `Add` f)),
+    (\f -> tseq "else" (taccept TElse `Add` f)),
+    (\f -> tseq "while" (taccept TWhile `Add` f)),
+    (\f -> tseq "return" (taccept TReturn `Add` f)),
+    (\f -> tseq "[]" (taccept TNil `Add` f)),
+    (\f -> tmseq ["True", "False"] (taccept TBool `Add` f)),
+    (\f -> tmseq ["Int", "Bool", "Char"] (taccept TBasicType `Add` f)),
+    (\f -> tmseq ["!", "-"] (taccept TOp1 `Add` f)),
+    (\f -> tmseq ["+", "-", "*", "/", "%", "==", "<", ">", "<=", ">=", "!=",
+                  "&&", "||", ":"] (taccept TOp2 `Add` f)),
+    (\f -> tmseq (map (\c -> ['\'', c, '\'']) cnum) (taccept TChar `Add` f)),
+    (\f -> (tmseq [".hd", ".tl", ".fst", ".snd"] $ Nu 0 $
+        tosum (mcall `sub` mc ['.']) (nt TField) `Add` f
+        `Add` tmseq [".hd", ".tl", ".fst", ".snd"] (Var 0))),
+    (\f -> (topt (tseq "-") $ tsum (mc cnum) $ Nu 0 $
+        tosum (mcall `sub` mc cnum) (nt TInt) `Add` f
+        `Add` tsum (mc cnum) (Var 0))),
+    (\f -> (tsum (mc calpha) $ Nu 0 $ tosum (mcall `sub` mc calphanum_) (nt TId)
+        `Add` f `Add` tsum (mc calphanum_) (Var 0))),
+    (\f -> tsum (mc cwhite) (Nu 0 $ tosum (mcall `sub` mc cwhite) (Val Clear)
+        `Add` f `Add` tsum (mc cwhite) (Var 0))),
+    (\f -> tseq "\n" (tosum mcall (Val NextLine) `Add` f)),
+    (\f -> tseq "//" (Nu 0 $ tsum (mcall `sub` mc ['\n']) (Var 0)
+        `Add` tseq "\n" (tosum mcall (Val Clear) `Add` f))),
+    (\f -> tseq "/*" (Nu 0 $ tsum (mcall `sub` mc ['*']) (Var 0)
         `Add` tseq "*" (tsum (mcall `sub` mc ['/']) (Var 0)
-            `Add` tseq "/" (tosum mcall $ Val Clear)))
+            `Add` tseq "/" (tosum mcall (Val Clear) `Add` f))))]
