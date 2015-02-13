@@ -174,9 +174,9 @@ tokenize_default = tokenize synthesize $
     (Nu 0 $ tosum (mcall `sub` mc ['.']) (nt TField)
         `Add` tmseq [".hd", ".tl", ".fst", ".snd"] (Var 0))
     `Add`
-    (topt (tmseq (map (\c -> ['-', c]) cnum)) $ Nu 0 $
+    (topt (tseq "-") $ tsum (mc cnum) $ Nu 0 $
         tosum (mcall `sub` mc cnum) (nt TInt)
-        `Add` tmseq (cs cnum) (Var 0))
+        `Add` tsum (mc cnum) (Var 0))
     `Add`
     (tmseq (cs calpha) $ Nu 0 $ tosum (mcall `sub` mc calphanum_) (nt TId)
         `Add` tmseq (cs calphanum_) (Var 0))
