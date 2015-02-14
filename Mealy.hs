@@ -25,7 +25,7 @@ subst f x g = case f of
     Nu y h -> if y == x then Nu y h else Nu y (subst h x g)
     _ -> f
 
-synthesize :: (Eq a, Eq x, BJSL b) =>
+synthesize :: (Eq a, Eq x, JSL b) =>
     Mealy a b (MealyFormula a b x)
 synthesize f a = case f of
     FF -> (bottom, FF)
@@ -61,7 +61,7 @@ freshest f = case f of
 --    Nu x g -> Nu x (norm g)
 --    f -> f
 --
---synthesize :: (Eq a, Eq b, Eq x, BJSL b) =>
+--synthesize :: (Eq a, Eq b, Eq x, JSL b) =>
 --    Mealy a b (MealyFormula a b x)
 --synthesize f a = case f of
 --    FF -> (bottom, FF)
