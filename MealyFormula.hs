@@ -45,7 +45,7 @@ norm f = case f of
     _ -> f
 
 synthesize :: (Eq a, Eq b, Eq x, JSL b, Show a, Show b, Show x) =>
-    MealyFormula a b x -> FullMealy a b (MealyFormula a b x)
+    MealyFormula a b x -> Mealy a b (MealyFormula a b x)
 synthesize s = (norm s, synthesize')
     where
     synthesize' f a = case f of

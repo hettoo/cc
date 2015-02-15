@@ -14,7 +14,7 @@ instance Fresh Int where
 
 type FPos = (Int, Int)
 
-index :: FullMealy TChar FPos FPos
+index :: Mealy TChar FPos FPos
 index = ((1, 1), \p a -> (p, advance a p))
     where
     advance a (l, c) = case a of
