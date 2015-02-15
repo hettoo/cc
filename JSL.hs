@@ -1,8 +1,12 @@
-module SemiLattice where
+module JSL where
 
 class JSL s where
     bottom :: s
     add :: s -> s -> s
+
+bigAdd :: JSL s =>
+    [s] -> s
+bigAdd = foldr add bottom
 
 data SimpleLattice s = Bottom -- underspecification
                      | Val s
@@ -19,8 +23,10 @@ instance JSL Bool where
     bottom = False
     add = (||)
 
-newtype FJSL s j = FJSL (s -> j)
+instance JSL j => JSL (s -> j) where
+    bottom = \_ -> bottom
+    add f g = \s -> f s `add` g s
 
-instance JSL j => JSL (FJSL s j) where
-    bottom = FJSL $ \_ -> bottom
-    add (FJSL f) (FJSL g) = FJSL $ \s -> f s `add` g s
+instance (JSL a, JSL b) => JSL (a, b) where
+    bottom = (bottom, bottom)
+    add (a1, b1) (a2, b2) = (a1 `add` a2, b1 `add` b2)

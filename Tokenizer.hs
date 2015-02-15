@@ -1,165 +1,71 @@
 module Tokenizer where
-import SemiLattice
 import Mealy
+import MealyFormula
+import MealyExpression
+import JSL
+import Utils
 
-data Token = TAssign
-           | TSemicolon
-           | TComma
-           | TLeftParenthesis
-           | TRightParenthesis
-           | TLeftCBracket
-           | TRightCBracket
-           | TLeftBracket
-           | TRightBracket
-           | TVoid
-           | TIf
-           | TElse
-           | TWhile
-           | TReturn
-           | TNil
-           | TBool
-           | TBasicType
-           | TOp1
-           | TOp2
-           | TChar
-           | TField
-           | TInt
-           | TId
-           deriving (Eq, Show)
-
--- Final tokens will be annotated with the corresponding string and its
--- location.
-type TData = (String, Int, Int)
-type AToken = (Token, TData)
-
--- We need to add some special tokens as tokenizer commands.
-data CToken = NextLine
-            | Clear
-            | Token Token
-            deriving (Eq, Show)
-
--- The state representation of the tokenizer happens to match the
--- representation of the annotated token data.
-type TState = (String, Int, Int)
-
--- However, strings corresponding to tokens are recorded in reverse.
-tdata :: TState -> TData
-tdata (w, c, l) = (reverse w, c, l)
-
--- The character advance command is executed first on each new character.
-readc :: Maybe Char -> Bool -> TState -> TState
-readc a b (w, c, l) = case b of
-    True -> as w
-    False -> as []
-    where
-    as u = ((case a of
-        Nothing -> u
-        Just b -> b : u), c + 1, l)
-
--- Further effects depend on the command in the token.
-command :: CToken -> TState -> TState
-command c = case c of
-    NextLine -> \(u, c, l) -> (u, 0, l + 1)
-    Clear -> \(u, c, l) -> ("", c, l)
-    _ -> id
-
--- We create some abbreviations for practical reasons.
-type A = Maybe Char
-type B = SimpleLattice CToken
 type Var = Int
 
-type TMealy q = Mealy A B q
+instance Fresh Int where
+    fresh f = case freshest f of
+        Just n -> n + 1
+        Nothing -> 0
 
-tokenize :: TMealy q -> q -> String -> [AToken]
-tokenize m i s = tokenize' i ([], 0, 0) $ (map Just s) ++ [Nothing]
+type FPos = (Int, Int)
+
+index :: FullMealy TChar FPos FPos
+index = ((1, 1), \p a -> (p, advance a p))
     where
-    tokenize' _ _ [] = []
-    tokenize' q state (a : r) = case m q a of
-        (s, p) -> case s of
-            Bottom -> advance id True
-            Val c -> case c of
-                Token t -> (t, tdata state) : r
-                _ -> r
-                where
-                r = advance (command c) False
-            Top -> error "Overspecified tokenizer"
-            where
-            advance f b = tokenize' p (f $ readc a b state) r
+    advance a (l, c) = case a of
+        Char '\n' -> (l + 1, 1)
+        _ -> (l, c + 1)
 
-type TFormula = MealyFormula A B Int
+data CommentClass = Slash
+                  | Star
+                  | Newline
+                  | StarSlash
+                  | NotSlash
+                  | NotStar
+                  | NotNewline
+                  | NotStarNotSlash
+                  deriving (Eq, Enum, Bounded, Show)
 
-fresh :: (TFormula -> TFormula) -> Var
-fresh f = case freshest (f FF) of
-    Just n -> n + 1
-    Nothing -> 0
+commentClassChars :: CommentClass -> TChar -> Bool
+commentClassChars c a = case c of
+    Slash -> a == Char '/'
+    Star -> a == Char '*'
+    Newline -> a == Char '\n'
+    StarSlash -> commentClassChars Slash a || commentClassChars Star a
+    NotSlash -> not $ commentClassChars Slash a
+    NotStar -> not $ commentClassChars Star a
+    NotNewline -> not $ commentClassChars Newline a
+    NotStarNotSlash -> not $ commentClassChars StarSlash a
 
-tseq :: String -> TFormula -> TFormula
-tseq s = mfseq (map Just s)
+data CommentMark = Start
+                 | Abort
+                 | End
+                 deriving (Eq, Show)
 
-tmseq :: [String] -> TFormula -> TFormula
-tmseq l = mfmseq (map (map Just) l)
+type CML = SimpleLattice CommentMark
 
-sub :: Eq a => [a] -> [a] -> [a]
-sub a b = filter (\c -> not $ c `elem` b) a
+commentMarker :: MealyFormula CommentClass CML Var
+commentMarker =
+    star
+        (star (skip [NotSlash]) .*. [Slash] .|. Start .*.
+            ([NotStarNotSlash] .|. Abort
+            .+. (skip [Slash] .*. star (skip [NotNewline]) .*.
+                [Newline] .|. End)
+            .+. skip [Star] .*.
+                star (skip [NotStar] .+. skip [Star, NotSlash]) .*.
+                [Star, Slash] .|. End))
 
-mc :: [Char] -> [A]
-mc = map Just
+commentMarks :: String -> [CML]
+commentMarks = (trace $ mealyList $ synthesize commentMarker)
+    . fmap (classify commentClassChars) . tstring
 
-call = ['\0'..'\255']
-cnum = ['0'..'9']
-calpha = ['a'..'z'] ++ ['A'..'Z']
-calphanum = calpha ++ cnum
-calphanum_ = '_' : calphanum
-cwhite = [' ', '\t', '\n']
-mcall = Nothing : mc call
-
-nt :: Token -> B
-nt = Val . Token
-
-taccept :: Token -> TFormula
-taccept = mfosum mcall . nt
-
-tokenize_default = tokenize synthesize $ foldr add id formulas FF
-    where
-    add f g h = f h `Add` g h
-
-formulas :: [TFormula -> TFormula]
-formulas = [
-    (\f -> tseq "=" (taccept TAssign `Add` f)),
-    (\f -> tseq ";" (taccept TSemicolon `Add` f)),
-    (\f -> tseq "," (taccept TComma `Add` f)),
-    (\f -> tseq "(" (taccept TLeftParenthesis `Add` f)),
-    (\f -> tseq ")" (taccept TRightParenthesis `Add` f)),
-    (\f -> tseq "{" (taccept TLeftCBracket `Add` f)),
-    (\f -> tseq "}" (taccept TRightCBracket `Add` f)),
-    (\f -> tseq "[" (taccept TLeftBracket `Add` f)),
-    (\f -> tseq "]" (taccept TRightBracket `Add` f)),
-    (\f -> tseq "Void" (taccept TVoid `Add` f)),
-    (\f -> tseq "if" (taccept TIf `Add` f)),
-    (\f -> tseq "else" (taccept TElse `Add` f)),
-    (\f -> tseq "while" (taccept TWhile `Add` f)),
-    (\f -> tseq "return" (taccept TReturn `Add` f)),
-    (\f -> tseq "[]" (taccept TNil `Add` f)),
-    (\f -> tmseq ["True", "False"] (taccept TBool `Add` f)),
-    (\f -> tmseq ["Int", "Bool", "Char"] (taccept TBasicType `Add` f)),
-    (\f -> tmseq ["!", "-"] (taccept TOp1 `Add` f)),
-    (\f -> tmseq ["+", "-", "*", "/", "%", "==", "<", ">", "<=", ">=", "!=",
-                  "&&", "||", ":"] (taccept TOp2 `Add` f)),
-    (\f -> tmseq (map (\c -> ['\'', c, '\'']) cnum) (taccept TChar `Add` f)),
-    (\f -> (tmseq [".hd", ".tl", ".fst", ".snd"] $ Nu 0 $
-        mfosum (mcall `sub` mc ['.']) (nt TField) `Add` f
-        `Add` tmseq [".hd", ".tl", ".fst", ".snd"] (Var 0))),
-    (\f -> (mfopt (tseq "-") $ mfsum (mc cnum) $ Nu 0 $
-        mfosum (mcall `sub` mc cnum) (nt TInt) `Add` f
-        `Add` mfsum (mc cnum) (Var 0))),
-    (\f -> (mfsum (mc calpha) $ Nu 0 $
-        mfosum (mcall `sub` mc calphanum_) (nt TId)
-        `Add` f `Add` mfsum (mc calphanum_) (Var 0))),
-    (\f -> mfsum (mc cwhite) (Nu 0 $ mfosum (mcall `sub` mc cwhite) (Val Clear)
-        `Add` f `Add` mfsum (mc cwhite) (Var 0))),
-    (\f -> tseq "\n" (mfosum mcall (Val NextLine) `Add` f)),
-    (\f -> tseq "//" (Nu 0 $ mfsum (mcall `sub` mc ['\n']) (Var 0)
-        `Add` tseq "\n" (mfosum mcall (Val Clear) `Add` f))),
-    (\f -> tseq "/*" (Nu 0 $ mfsum (mcall `sub` mc ['*']) (Var 0)
-        `Add` tseq "*" (mfsum (mcall `sub` mc ['/']) (Var 0)
-            `Add` tseq "/" (mfosum mcall (Val Clear) `Add` f))))]
+unabort :: [CML] -> [CML]
+unabort l = case l of
+    [] -> []
+    (a : Val Abort : r) -> Bottom : Bottom : unabort r
+    (a : r) -> a : unabort r
