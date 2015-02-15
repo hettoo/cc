@@ -16,10 +16,22 @@ trace (i, f) = trace' i
 mealyId :: FullMealy a a ()
 mealyId = ((), \_ a -> (a, ()))
 
+mealyComp :: FullMealy a b q -> FullMealy b c s -> FullMealy a c (q, s)
+mealyComp (i, m) (j, n) = ((i, j), t)
+    where
+    t (q, s) a = (c, (q', s'))
+        where
+        (b, q') = m q a
+        (c, s') = n s b
+
 mealyProd :: FullMealy a b q -> FullMealy c d s ->
     FullMealy (a, c) (b, d) (q, s)
-mealyProd (i, f) (j, g) = ((i, j), \(q, s) (a, c) ->
-    ((fst (f q a), fst (g s c)), (snd (f q a), snd (g s c))))
+mealyProd (i, f) (j, g) = ((i, j), t)
+    where
+    t (q, s) (a, c) = ((a', b'), (q', s'))
+        where
+        (a', q') = f q a
+        (b', s') = g s c
 
 mealyList :: (JSL b, JSL q) =>
     FullMealy a b q -> FullMealy [a] b q
