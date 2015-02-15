@@ -22,10 +22,10 @@ instance JSL (MealyFormula a b x) where
 subst :: Eq x =>
     MealyFormula a b x -> x -> MealyFormula a b x -> MealyFormula a b x
 subst f x g = case f of
-    Var y -> if y == x then g else Var y
-    Trans a b h -> Trans a b (subst h x g)
+    Var y -> if y == x then g else f
+    Trans a b h -> Trans a b $ subst h x g
     Add h i -> Add (subst h x g) (subst i x g)
-    Nu y h -> if y == x then Nu y h else Nu y (subst h x g)
+    Nu y h -> if y == x then f else Nu y $ subst h x g
     _ -> f
 
 -- Normalization avoids accumulated redundancy and could be used to generate a
@@ -33,7 +33,7 @@ subst f x g = case f of
 norm :: (Eq a, Eq b, Eq x) =>
     MealyFormula a b x -> MealyFormula a b x
 norm f = case f of
-    Trans a b g -> Trans a b (norm g)
+    Trans a b g -> Trans a b $ norm g
     Add g h -> conj . rem . flatten $ Add (norm g) (norm h)
         where
         conj = nfoldr Add FF
@@ -44,8 +44,10 @@ norm f = case f of
     Nu x g -> Nu x (norm g)
     _ -> f
 
+type MealySynth a b x = Mealy a b (MealyFormula a b x)
+
 synthesize :: (Eq a, Eq b, Eq x, JSL b, Show a, Show b, Show x) =>
-    MealyFormula a b x -> Mealy a b (MealyFormula a b x)
+    MealyFormula a b x -> MealySynth a b x
 synthesize s = (norm s, synthesize')
     where
     synthesize' f a = case f of

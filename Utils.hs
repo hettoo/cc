@@ -3,6 +3,9 @@ module Utils where
 double :: a -> (a, a)
 double a = (a, a)
 
+pair :: (a -> b, c -> d) -> (a, c) -> (b, d)
+pair (f, g) (a, c) = (f a, g c)
+
 nfoldr :: Eq a =>
     (a -> a -> a) -> a -> [a] -> a
 nfoldr f b l = case l of

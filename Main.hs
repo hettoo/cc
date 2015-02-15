@@ -2,5 +2,5 @@ module Main where
 import Tokenizer
 import MealyFormula
 
---main = print $ norm commentMarker
-main = print $ (unabort . commentMarks) "?/*/a*//x//f/**/\n"
+--main = print $ norm layoutMarker
+main = print $ layoutMarks "?/*/a*//x//f/**/\n"

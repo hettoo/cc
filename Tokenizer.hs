@@ -12,60 +12,58 @@ instance Fresh Int where
         Just n -> n + 1
         Nothing -> 0
 
-type FPos = (Int, Int)
+type APos a = (a, (Int, Int))
 
-index :: Mealy TChar FPos FPos
-index = ((1, 1), \p a -> (p, advance a p))
+index :: Mealy TChar (APos TChar) (Int, Int)
+index = ((1, 1), \p a -> ((a, p), advance a p))
     where
     advance a (l, c) = case a of
         Char '\n' -> (l + 1, 1)
         _ -> (l, c + 1)
 
-data CommentClass = Slash
-                  | Star
-                  | Newline
-                  | StarSlash
-                  | NotSlash
-                  | NotStar
-                  | NotNewline
-                  | NotStarNotSlash
-                  deriving (Eq, Enum, Bounded, Show)
+data LayoutClass = Slash
+                 | Star
+                 | Newline
+                 | Blank
+                 | StarSlash
+                 | NotSlash
+                 | NotStar
+                 | NotNewline
+                 | NotStarNotSlash
+                 deriving (Eq, Enum, Bounded, Show)
 
-commentClassChars :: CommentClass -> TChar -> Bool
-commentClassChars c a = case c of
+layoutClassChars :: LayoutClass -> TChar -> Bool
+layoutClassChars c a = case c of
     Slash -> a == Char '/'
     Star -> a == Char '*'
     Newline -> a == Char '\n'
-    StarSlash -> commentClassChars Slash a || commentClassChars Star a
-    NotSlash -> not $ commentClassChars Slash a
-    NotStar -> not $ commentClassChars Star a
-    NotNewline -> not $ commentClassChars Newline a
-    NotStarNotSlash -> not $ commentClassChars StarSlash a
+    Blank -> a `elem` EOF : map Char [' ', '\t', '\n', '\r']
+    StarSlash -> layoutClassChars Slash a || layoutClassChars Star a
+    NotSlash -> not $ layoutClassChars Slash a
+    NotStar -> not $ layoutClassChars Star a
+    NotNewline -> not $ layoutClassChars Newline a
+    NotStarNotSlash -> not $ layoutClassChars StarSlash a
 
-data CommentMark = Start
-                 | Abort
-                 | End
-                 deriving (Eq, Show)
+data LayoutMark = Start -- comment started on the previous character
+                | End -- exact comment end
+                | Single -- whitespace character
+                deriving (Eq, Show)
 
-type CML = SimpleLattice CommentMark
+type LML = SimpleLattice LayoutMark
 
-commentMarker :: MealyFormula CommentClass CML Var
-commentMarker =
-    star
-        (star (skip [NotSlash]) .*. [Slash] .|. Start .*.
-            ([NotStarNotSlash] .|. Abort
-            .+. (skip [Slash] .*. star (skip [NotNewline]) .*.
+layoutMarker :: MealySynth LayoutClass LML Var
+layoutMarker = synthesize $ star
+    (star ([Blank] .|. Single .+. skip [NotSlash]) .*.
+        skip [Slash] .*.
+            (skip [NotStarNotSlash]
+            .+. ([Slash] .|. Start .*. star (skip [NotNewline]) .*.
                 [Newline] .|. End)
-            .+. skip [Star] .*.
+            .+. [Star] .|. Start .*.
                 star (skip [NotStar] .+. skip [Star, NotSlash]) .*.
                 [Star, Slash] .|. End))
 
-commentMarks :: String -> [CML]
-commentMarks = (trace $ mealyList $ synthesize commentMarker)
-    . fmap (classify commentClassChars) . tstring
-
-unabort :: [CML] -> [CML]
-unabort l = case l of
-    [] -> []
-    (a : Val Abort : r) -> Bottom : Bottom : unabort r
-    (a : r) -> a : unabort r
+layoutMarks :: String -> [(LML, APos TChar)]
+layoutMarks s =
+    mealyList layoutMarker -*- mealyId -.-
+    mealySingle (classify layoutClassChars) -*- index
+    -!- map double (tstring s)
