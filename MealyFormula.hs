@@ -57,7 +57,8 @@ synthesize s = (norm s, synthesize')
         Nu x f -> synthesize' (norm (subst f x (Nu x f))) a
         Var x -> error $ "Not a closed formula: " ++ show s
 
-freshest :: Ord x => MealyFormula a b x -> Maybe x
+freshest :: Ord x =>
+    MealyFormula a b x -> Maybe x
 freshest f = case f of
     Var x -> Just x
     Trans a b g -> freshest g

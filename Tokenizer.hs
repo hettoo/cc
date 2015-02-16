@@ -52,18 +52,18 @@ data LayoutMark = Start -- comment started on the previous character
 type LML = SimpleLattice LayoutMark
 
 layoutMarker :: MealySynth LayoutClass LML Var
-layoutMarker = synthesize $ star
-    (star ([Blank] .|. Single .+. skip [NotSlash]) .*.
+layoutMarker = synthesize $ star $
+    star ([Blank] .|. Single .+. skip [NotSlash]) .*.
         skip [Slash] .*.
             (skip [NotStarNotSlash]
             .+. ([Slash] .|. Start .*. star (skip [NotNewline]) .*.
                 [Newline] .|. End)
             .+. [Star] .|. Start .*.
                 star (skip [NotStar] .+. skip [Star, NotSlash]) .*.
-                [Star, Slash] .|. End))
+                [Star, Slash] .|. End)
 
 layoutMarks :: String -> [(LML, APos TChar)]
 layoutMarks s =
     mealyList layoutMarker -*- mealyId -.-
     mealySingle (classify layoutClassChars) -*- index
-    -!- map double (tstring s)
+    -<- map double (tstring s)

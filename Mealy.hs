@@ -3,14 +3,14 @@ import JSL
 
 type Mealy a b q = (q, q -> a -> (b, q))
 
-(-!-) :: Mealy a b q -> [a] -> [b]
-(-!-) (i, f) = trace' i
+(-<-) :: Mealy a b q -> [a] -> [b]
+(-<-) (i, f) = trace' i
     where
     trace' q l = case l of
         [] -> []
         a : r -> case f q a of
             (b, p) -> b : trace' p r
-infixl 5 -!-
+infixl 5 -<-
 
 mealySingle :: (a -> b) -> Mealy a b ()
 mealySingle f = ((), \_ a -> (f a, ()))
