@@ -6,14 +6,10 @@ class JSL s where
     (\/) :: s -> s -> s
     infixl 6 \/
 
+-- Some applications may be sensitive to redundancy.
 bigJoin :: JSL s =>
     [s] -> s
-bigJoin = foldr (\/) bot
-
--- Some applications may be sensitive to redundancy.
-nBigJoin :: (Eq s, JSL s) =>
-    [s] -> s
-nBigJoin = nfoldr (\/) bot
+bigJoin = nfoldr (\/) bot
 
 -- We also want to be able to create that.
 opt :: JSL s =>

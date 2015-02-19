@@ -34,7 +34,7 @@ norm :: (Eq a, Eq b, Eq x) =>
     MealyFormula a b x -> MealyFormula a b x
 norm f = case f of
     Trans a b g -> Trans a b $ norm g
-    Add g h -> nBigJoin . rm . flatten $ norm g \/ norm h
+    Add g h -> bigJoin . rm . flatten $ norm g \/ norm h
         where
         flatten FF = []
         flatten (Add i j) = flatten i ++ flatten j
