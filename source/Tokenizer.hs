@@ -69,31 +69,32 @@ layoutMarks s =
     -<- map double (tstring s)
 
 -- This is ugly.
-unifyBlank :: [(LML, APos TChar)] -> [APos TChar]
+unifyBlank :: [(LML, APos TChar)] -> [APos Char]
 unifyBlank = noQuote True
     where
     noQuote v l = case l of
         [] -> []
         (p : r@((Val Start, _) : _)) -> blank v p quote False r
         p@(Val Single, _) : r -> blank v p noQuote False r
-        p : r -> snd p : noQuote True r
+        p : r -> c (snd p) : noQuote True r
     quote v l = case l of
         [] -> []
         p@(Val End, _) : r -> blank v p noQuote v r
         p : r -> blank v p quote v r
     blank v (_, a) f w r = case v of
-        True -> (Char ' ', snd a) : f w r
+        True -> (' ', snd a) : f w r
         False -> f w r
+    c (Char c, d) = (c, d)
 
 data CharClass = CAssign
                | CWhite
                | COther
                deriving (Eq, Enum, Bounded, Show)
 
-classChars :: CharClass -> TChar -> Bool
+classChars :: CharClass -> Char -> Bool
 classChars c a = case c of
-    CAssign -> a == Char '='
-    CWhite -> a == Char ' '
+    CAssign -> a == '='
+    CWhite -> a == ' '
     COther -> not $ classChars CAssign a || classChars CWhite a
 
 data Token = TAssign
@@ -118,7 +119,7 @@ normalize = snd . normalize'
         ((_, b), _) : r -> case normalize' r of
             (s, t) -> (b : s, t)
 
-tokenize :: String -> [APos (Token, [TChar])]
+tokenize :: String -> [APos (Token, String)]
 tokenize s = normalize $
     (mealyList tokenizer -*- mealyId
     -.- mealySingle (pair (classify classChars, id) . double))
