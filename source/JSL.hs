@@ -1,12 +1,24 @@
 module JSL where
+import Utils
 
 class JSL s where
-    bottom :: s
-    add :: s -> s -> s
+    bot :: s
+    (\/) :: s -> s -> s
+    infixl 6 \/
 
-bigAdd :: JSL s =>
+bigJoin :: JSL s =>
     [s] -> s
-bigAdd = foldr add bottom
+bigJoin = foldr (\/) bot
+
+-- Some applications may be sensitive to redundancy.
+nBigJoin :: (Eq s, JSL s) =>
+    [s] -> s
+nBigJoin = nfoldr (\/) bot
+
+-- We also want to be able to create that.
+opt :: JSL s =>
+    s -> s
+opt = (\/) bot
 
 data SimpleLattice s = Bottom -- underspecification
                      | Val s
@@ -14,19 +26,19 @@ data SimpleLattice s = Bottom -- underspecification
                      deriving (Eq, Show)
 
 instance Eq s => JSL (SimpleLattice s) where
-    bottom = Bottom
-    add x Bottom = x
-    add Bottom x = x
-    add x y = if x == y then x else Top
+    bot = Bottom
+    (\/) x Bottom = x
+    (\/) Bottom x = x
+    (\/) x y = if x == y then x else Top
 
 instance JSL Bool where
-    bottom = False
-    add = (||)
+    bot = False
+    (\/) = (||)
 
 instance JSL j => JSL (s -> j) where
-    bottom = \_ -> bottom
-    add f g = \s -> f s `add` g s
+    bot = \_ -> bot
+    (\/) f g = \s -> f s \/ g s
 
 instance (JSL a, JSL b) => JSL (a, b) where
-    bottom = (bottom, bottom)
-    add (a1, b1) (a2, b2) = (a1 `add` a2, b1 `add` b2)
+    bot = (bot, bot)
+    (\/) (a1, b1) (a2, b2) = (a1 \/ a2, b1 \/ b2)

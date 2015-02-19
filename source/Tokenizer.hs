@@ -53,13 +53,13 @@ type LML = SimpleLattice LayoutMark
 
 layoutMarker :: MealySynth LayoutClass LML Var
 layoutMarker = synthesize $ star $
-    star ([Blank] .|. Single .+. skip [NotSlash]) .*.
+    star ([Blank] .|. Single \/ skip [NotSlash]) .*.
         skip [Slash] .*.
             (skip [NotStarNotSlash]
-            .+. ([Slash] .|. Start .*. star (skip [NotLineEnd]) .*.
+            \/ ([Slash] .|. Start .*. star (skip [NotLineEnd]) .*.
                 [LineEnd] .|. End)
-            .+. [Star] .|. Start .*.
-                star (skip [NotStar] .+. skip [Star, NotSlash]) .*.
+            \/ [Star] .|. Start .*.
+                star (skip [NotStar] \/ skip [Star, NotSlash]) .*.
                 [Star, Slash] .|. End)
 
 layoutMarks :: String -> [(LML, APos TChar)]
@@ -105,7 +105,7 @@ type TL = SimpleLattice Token
 
 tokenizer :: MealySynth CharClass TL Var
 tokenizer = synthesize $ star $
-    [CAssign] .|. TAssign .+. [CWhite] .|. TWhite .+. [COther] .|. TError
+    [CAssign] .|. TAssign \/ [CWhite] .|. TWhite \/ [COther] .|. TError
 
 -- This is also ugly.
 normalize :: [APos (SimpleLattice a, b)] -> [APos (a, [b])]

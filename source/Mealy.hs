@@ -38,4 +38,4 @@ infixl 7 -*-
 
 mealyList :: (JSL b, JSL q) =>
     Mealy a b q -> Mealy [a] b q
-mealyList (i, m) = (i, \q l -> bigAdd $ map (m q) l)
+mealyList (i, m) = (i, \q l -> bigJoin $ map (m q) l)

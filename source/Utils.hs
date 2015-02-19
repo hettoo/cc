@@ -1,5 +1,9 @@
 module Utils where
 
+rm :: Eq a =>
+    [a] -> [a]
+rm = foldl (\seen x -> if x `elem` seen then seen else seen ++ [x]) []
+
 double :: a -> (a, a)
 double a = (a, a)
 
