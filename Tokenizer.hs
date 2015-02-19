@@ -23,12 +23,12 @@ index = ((1, 1), \p a -> ((a, p), advance a p))
 
 data LayoutClass = Slash
                  | Star
-                 | Newline
+                 | LineEnd
                  | Blank
                  | StarSlash
                  | NotSlash
                  | NotStar
-                 | NotNewline
+                 | NotLineEnd
                  | NotStarNotSlash
                  deriving (Eq, Enum, Bounded, Show)
 
@@ -36,12 +36,12 @@ layoutClassChars :: LayoutClass -> TChar -> Bool
 layoutClassChars c a = case c of
     Slash -> a == Char '/'
     Star -> a == Char '*'
-    Newline -> a == Char '\n'
+    LineEnd -> a == Char '\n' || a == EOF
     Blank -> a `elem` EOF : map Char [' ', '\t', '\n', '\r']
     StarSlash -> layoutClassChars Slash a || layoutClassChars Star a
     NotSlash -> not $ layoutClassChars Slash a
     NotStar -> not $ layoutClassChars Star a
-    NotNewline -> not $ layoutClassChars Newline a
+    NotLineEnd -> not $ layoutClassChars LineEnd a
     NotStarNotSlash -> not $ layoutClassChars StarSlash a
 
 data LayoutMark = Start -- comment started on the previous character
@@ -56,14 +56,71 @@ layoutMarker = synthesize $ star $
     star ([Blank] .|. Single .+. skip [NotSlash]) .*.
         skip [Slash] .*.
             (skip [NotStarNotSlash]
-            .+. ([Slash] .|. Start .*. star (skip [NotNewline]) .*.
-                [Newline] .|. End)
+            .+. ([Slash] .|. Start .*. star (skip [NotLineEnd]) .*.
+                [LineEnd] .|. End)
             .+. [Star] .|. Start .*.
                 star (skip [NotStar] .+. skip [Star, NotSlash]) .*.
                 [Star, Slash] .|. End)
 
 layoutMarks :: String -> [(LML, APos TChar)]
 layoutMarks s =
-    mealyList layoutMarker -*- mealyId -.-
-    mealySingle (classify layoutClassChars) -*- index
+    mealyList layoutMarker -*- mealyId
+    -.- mealySingle (classify layoutClassChars) -*- index
     -<- map double (tstring s)
+
+-- This is ugly.
+unifyBlank :: [(LML, APos TChar)] -> [APos TChar]
+unifyBlank = noQuote True
+    where
+    noQuote v l = case l of
+        [] -> []
+        (p : r@((Val Start, _) : _)) -> blank v p quote False r
+        p@(Val Single, _) : r -> blank v p noQuote False r
+        p : r -> snd p : noQuote True r
+    quote v l = case l of
+        [] -> []
+        p@(Val End, _) : r -> blank v p noQuote v r
+        p : r -> blank v p quote v r
+    blank v (_, a) f w r = case v of
+        True -> (Char ' ', snd a) : f w r
+        False -> f w r
+
+data CharClass = CAssign
+               | CWhite
+               | COther
+               deriving (Eq, Enum, Bounded, Show)
+
+classChars :: CharClass -> TChar -> Bool
+classChars c a = case c of
+    CAssign -> a == Char '='
+    CWhite -> a == Char ' '
+    COther -> not $ classChars CAssign a || classChars CWhite a
+
+data Token = TAssign
+           | TWhite
+           | TError
+           deriving (Eq, Show)
+
+type TL = SimpleLattice Token
+
+tokenizer :: MealySynth CharClass TL Var
+tokenizer = synthesize $ star $
+    [CAssign] .|. TAssign .+. [CWhite] .|. TWhite .+. [COther] .|. TError
+
+-- This is also ugly.
+normalize :: [APos (SimpleLattice a, b)] -> [APos (a, [b])]
+normalize = snd . normalize'
+    where
+    normalize' l = case l of
+        [] -> ([], [])
+        ((Val a, b), p) : r -> case normalize' r of
+            (s, t) -> ([], ((a, b : s), p) : t)
+        ((_, b), _) : r -> case normalize' r of
+            (s, t) -> (b : s, t)
+
+tokenize :: String -> [APos (Token, [TChar])]
+tokenize s = normalize $
+    (mealyList tokenizer -*- mealyId
+    -.- mealySingle (pair (classify classChars, id) . double))
+        -*- mealyId
+    -<- (unifyBlank . layoutMarks) s
