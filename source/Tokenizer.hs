@@ -86,19 +86,57 @@ unifyBlank = noQuote True
         False -> f w r
     c (Char c, d) = (c, d)
 
-data CharClass = CAssign
+data CharClass = CEquals
                | CWhite
+               | CSemiColon
+               | CLParens
+               | CRParens
+               | CLBrace
+               | CRBrace
+               | CLBracket
+               | CRBracket
+               | CDot
+               | CComma
+               | CMinus
+               | COp
+               | CExclaim
+               | CDigit
+               | CAlpha
+               | CUnderScore
                | COther
                deriving (Eq, Enum, Bounded, Show)
 
 classChars :: CharClass -> Char -> Bool
 classChars c a = case c of
-    CAssign -> a == '='
+    CEquals -> a == '='
     CWhite -> a == ' '
-    COther -> not $ classChars CAssign a || classChars CWhite a
+    CSemiColon -> a == ';'
+    CLParens -> a == '('
+    CRParens -> a == ')'
+    CLBrace -> a == '{'
+    CRBrace -> a == '}'
+    CLBracket -> a == '['
+    CRBracket -> a == ']'
+    CComma -> a == ','
+    CDot -> a == '.'
+    CMinus -> a == '-'
+    COp -> a `elem` ['+', '*', '/', '%', '<', '>', '&', '|', ':']
+    CExclaim -> a == '!'
+    CDigit -> a `elem` ['0' .. '9']
+    CAlpha -> a `elem` ['a' .. 'z'] ++ ['A' .. 'Z']
+    CUnderScore -> a == '_'
+    COther -> not $ True `elem` map (\c -> classChars c a) [CEquals .. CUnderScore]
 
 data Token = TAssign
            | TWhite
+           | TSemiColon
+           | TLParens
+           | TRParens
+           | TLBrace
+           | TRBrace
+           | TLBracket
+           | TRBracket
+           | TComma
            | TError
            deriving (Eq, Show)
 
@@ -106,7 +144,17 @@ type TL = SimpleLattice Token
 
 tokenizer :: MealySynth CharClass TL Var
 tokenizer = synthesize $ star $
-    [CAssign] .|. TAssign \/ [CWhite] .|. TWhite \/ [COther] .|. TError
+    [CEquals] .|. TAssign
+    \/ [CWhite] .|. TWhite
+    \/ [CSemiColon] .|. TSemiColon
+    \/ [CLParens] .|. TLParens
+    \/ [CRParens] .|. TRParens
+    \/ [CLBrace] .|. TLBrace
+    \/ [CRBrace] .|. TRBrace
+    \/ [CLBracket] .|. TLBracket
+    \/ [CRBracket] .|. TRBracket
+    \/ [CComma] .|. TComma
+    \/ [COther] .|. TError
 
 -- This is also ugly.
 normalize :: [APos (SimpleLattice a, b)] -> [APos (a, [b])]
