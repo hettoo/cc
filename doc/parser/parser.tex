@@ -12,14 +12,16 @@
 \renewcommand{\syntright}{}
 
 \title{SPL Parser Grammar}
-\author{Tom Sanders \and Gerco van Heerdt}
+\author{Tom Sanders and Gerco van Heerdt}
 
 \begin{document}
 
 \maketitle
 
-We recall first the original grammar of the Simple Programming Language.
-\setlength{\grammarindent}{7em}
+We recall first the original grammar of the Simple Programming Language\footnote{%
+    tl;dr: the final grammar is at the end of this document.
+}.
+\setlength{\grammarindent}{6.8em}
 \begin{grammar}
     <SPL> ::= <Decl>+
 
@@ -27,7 +29,7 @@ We recall first the original grammar of the Simple Programming Language.
 
     <VarDecl> ::= <Type> <id> `=' <Exp> `;'
 
-    <FunDecl> ::= <RetType> <id> `(' [ <FArgs> ] `)' `{' <VarDecl>* <Stmt>+ `}'
+    <FunDecl> ::= <RetType> <id> `(' [\,<FArgs>\,] `)' `{' <VarDecl>* <Stmt>+ `}'
 
     <RetType> ::= <Type> | `Void'
 
@@ -35,35 +37,87 @@ We recall first the original grammar of the Simple Programming Language.
 
     <BasicType> ::= `Int' | `Bool' | `Char'
 
-    <FArgs> ::= [ <FArgs> `,' ] <Type> <id>
+    <FArgs> ::= [\,<FArgs> `,'\,] <Type> <id>
 
     <Stmt> ::= `{' <Stmt>* `}'
-    \alt `if' `(' <Exp> `)' <Stmt> [ `else' <Stmt> ]
+    \alt `if' `(' <Exp> `)' <Stmt> [\,`else' <Stmt>\,]
     \alt `while' `(' <Exp> `)' <Stmt>
-    \alt <id> <Field> `=' <Exp> `;'
-    \alt <FunCall> `;'
-    \alt `return' [ <Exp> ] `;'
+    \alt <FunCall> `;' | <id> <Field> `=' <Exp> `;' | `return' [\,<Exp>\,] `;'
 
     <Exp> ::= <int> | <char> | `False' | `True' | `[]' | <id> <Field>
-    \alt <FunCall>
-    \alt <Op1> <Exp> | <Exp> <Op2> <Exp>
+    \alt <FunCall> | <Op1> <Exp> | <Exp> <Op2> <Exp>
     \alt `(' <Exp> `)' | `(' <Exp> `,' <Exp> `)'
 
-    <Field> ::= [ <Field> `.' (`hd' | `tl' | `fst' | `snd') ]
+    <Field> ::= [\,<Field> `.' (\,`hd' | `tl' | `fst' | `snd'\,)\,]
 
-    <FunCall> ::= <id> `(' [ <ActArgs> ] `)'
+    <FunCall> ::= <id> `(' [\,<ActArgs>\,] `)'
 
-    <ActArgs> ::= <Exp> [ `,' <ActArgs> ]
+    <ActArgs> ::= <Exp> [\,`,' <ActArgs>\,]
 
     <Op1> ::= `!' | `-'
 
-    <Op2> ::= `+' | `-' | `*' | `/' | `%'
-    \alt `==' | `<' | `>' | `<=' | `>=' | `!='
+    <Op2> ::=  `*' | `/' | `%' | `+' | `-'
+    \alt `<' | `>' | `<=' | `>=' | `==' | `!='
     \alt `&&' | `||' | `:'
 
-    <int> ::= [ `-' ] <digit>+
+    <int> ::= [\,`-'\,] <digit>+
 
-    <id> ::= <alpha> (`_' | <alphaNum>)*
+    <id> ::= <alpha> (\,`_' | <alphaNum>\,)*
+\end{grammar}
+
+The operators should adhere to the usual precedence and associativity rules.
+The following grammar is transformed from the previous one in order to achieve that.
+\setlength{\grammarindent}{7.1em}
+\begin{grammar}
+    <SPL> ::= <Decl>+
+
+    <Decl> ::= <VarDecl> | <FunDecl>
+
+    <VarDecl> ::= <Type> <id> `=' <Exp> `;'
+
+    <FunDecl> ::= <RetType> <id> `(' [\,<FArgs>\,] `)' `{' <VarDecl>* <Stmt>+ `}'
+
+    <RetType> ::= <Type> | `Void'
+
+    <Type> ::= <id> | <BasicType> | `(' <Type> `,' <Type> `)' | `[' <Type> `]'
+
+    <BasicType> ::= `Int' | `Bool' | `Char'
+
+    <FArgs> ::= [\,<FArgs> `,'\,] <Type> <id>
+
+    <Stmt> ::= `{' <Stmt>* `}'
+    \alt `if' `(' <Exp> `)' <Stmt> [\,`else' <Stmt>\,]
+    \alt `while' `(' <Exp> `)' <Stmt>
+    \alt <FunCall> `;' | <id> <Field> `=' <Exp> `;' | `return' [\,<Exp>\,] `;'
+
+    <Exp> ::= <OpExp> | <NonOpExp>
+
+    <OpExp> ::= <OpExp1> `:' <OpExp>
+
+    <OpExp1> ::= <OpExp2> (\,`&&' | `||'\,) <OpExp1>
+
+    <OpExp2> ::= <OpExp3> (\,`==' | `!='\,) <OpExp2>
+
+    <OpExp3> ::= <OpExp4> (\,`<' | `>' | `<=' | `>='\,) <OpExp3>
+
+    <OpExp4> ::= <OpExp5> (\,`+' | `-'\,) <OpExp4>
+
+    <OpExp5> ::= <OpExp6> (\,`*' | `/' | `%'\,) <OpExp5>
+
+    <OpExp6> ::= (\,`!' | `-'\,) <OpExp6> | <NonOpExp>
+
+    <NonOpExp> ::= <int> | <char> | `False' | `True' | `[]' | <id> <Field>
+    \alt <FunCall> | `(' <Exp> `)' | `(' <Exp> `,' <Exp> `)'
+
+    <Field> ::= [\,<Field> `.' (\,`hd' | `tl' | `fst' | `snd'\,)\,]
+
+    <FunCall> ::= <id> `(' [\,<ActArgs>\,] `)'
+
+    <ActArgs> ::= <Exp> [\,`,' <ActArgs>\,]
+
+    <int> ::= [\,`-'\,] <digit>+
+
+    <id> ::= <alpha> (\,`_' | <alphaNum>\,)*
 \end{grammar}
 
 \end{document}
