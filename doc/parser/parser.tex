@@ -39,8 +39,8 @@ We recall first the original grammar of the Simple Programming Language\footnote
 
     <FArgs> ::= [\,<FArgs> `,'\,] <Type> <id>
 
-    <Stmt> ::= `{' <Stmt>* `}'
-    \alt <FunCall> `;' | <id> <Field> `=' <Exp> `;' | `return' [\,<Exp>\,] `;'
+    <Stmt> ::= `{' <Stmt>* `}' | <FunCall> `;' | `return' [\,<Exp>\,] `;'
+    \alt <id> <Field> `=' <Exp> `;'
     \alt `if' `(' <Exp> `)' <Stmt> [\,`else' <Stmt>\,]
     \alt `while' `(' <Exp> `)' <Stmt>
 
@@ -86,8 +86,8 @@ Note that only list construction is right-associative.
 
     <FArgs> ::= [\,<FArgs> `,'\,] <Type> <id>
 
-    <Stmt> ::= `{' <Stmt>* `}'
-    \alt <FunCall> `;' | <id> <Field> `=' <Exp> `;' | `return' [\,<Exp>\,] `;'
+    <Stmt> ::= `{' <Stmt>* `}' | <FunCall> `;' | `return' [\,<Exp>\,] `;'
+    \alt <id> <Field> `=' <Exp> `;'
     \alt `if' `(' <Exp> `)' <Stmt> [\,`else' <Stmt>\,]
     \alt `while' `(' <Exp> `)' <Stmt>
 
@@ -111,6 +111,61 @@ Note that only list construction is right-associative.
     \alt <FunCall> | `(' <Exp> `)' | `(' <Exp> `,' <Exp> `)'
 
     <Field> ::= [\,<Field> `.' (\,`hd' | `tl' | `fst' | `snd'\,)\,]
+
+    <FunCall> ::= <id> `(' [\,<ActArgs>\,] `)'
+
+    <ActArgs> ::= <Exp> [\,`,' <ActArgs>\,]
+
+    <int> ::= [\,`-'\,] <digit>+
+
+    <id> ::= <alpha> (\,`_' | <alphaNum>\,)*
+\end{grammar}
+
+We will now eliminate left recursion.
+The first step is to remove empty productions.
+These are only present in the \synt{Field} rule, which we easily adapt.
+\begin{grammar}
+    <SPL> ::= <Decl>+
+
+    <Decl> ::= <VarDecl> | <FunDecl>
+
+    <VarDecl> ::= <Type> <id> `=' <Exp> `;'
+
+    <FunDecl> ::= <RetType> <id> `(' [\,<FArgs>\,] `)' `{' <VarDecl>* <Stmt>+ `}'
+
+    <RetType> ::= <Type> | `Void'
+
+    <Type> ::= <id> | <BasicType> | `(' <Type> `,' <Type> `)' | `[' <Type> `]'
+
+    <BasicType> ::= `Int' | `Bool' | `Char'
+
+    <FArgs> ::= [\,<FArgs> `,'\,] <Type> <id>
+
+    <Stmt> ::= `{' <Stmt>* `}' | <FunCall> `;' | `return' [\,<Exp>\,] `;'
+    \alt <id> [\,<Field>\,] `=' <Exp> `;'
+    \alt `if' `(' <Exp> `)' <Stmt> [\,`else' <Stmt>\,]
+    \alt `while' `(' <Exp> `)' <Stmt>
+
+    <Exp> ::= <OpExp> | <NonOpExp>
+
+    <OpExp> ::= <OpExp1> [\,`:' <OpExp>\,]
+
+    <OpExp1> ::= [\,<OpExp1> (\,`&&' | `||'\,)\,] <OpExp2>
+
+    <OpExp2> ::= [\,<OpExp2> (\,`==' | `!='\,)\,] <OpExp3>
+
+    <OpExp3> ::= [\,<OpExp3> (\,`<' | `>' | `<=' | `>='\,)\,] <OpExp4>
+
+    <OpExp4> ::= [\,<OpExp4> (\,`+' | `-'\,)\,] <OpExp5>
+
+    <OpExp5> ::= [\,<OpExp5> (\,`*' | `/' | `%'\,)\,] <OpExp6>
+
+    <OpExp6> ::= (\,`!' | `-'\,) <OpExp6> | <NonOpExp>
+
+    <NonOpExp> ::= <int> | <char> | `False' | `True' | `[]' | <id> [\,<Field>\,]
+    \alt <FunCall> | `(' <Exp> `)' | `(' <Exp> `,' <Exp> `)'
+
+    <Field> ::= [\,<Field>\,] `.' (\,`hd' | `tl' | `fst' | `snd'\,)
 
     <FunCall> ::= <id> `(' [\,<ActArgs>\,] `)'
 
