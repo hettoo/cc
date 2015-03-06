@@ -1,0 +1,68 @@
+\documentclass{article}
+
+\usepackage[latin1]{inputenc}
+\usepackage[english]{babel}
+\usepackage{mathtools}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[nounderscore]{syntax}
+
+\setlength{\grammarparsep}{0pt}
+\renewcommand{\syntleft}{\normalfont\itshape}
+\renewcommand{\syntright}{}
+
+\title{SPL Parser Grammar}
+\author{Tom Sanders \and Gerco van Heerdt}
+
+\begin{document}
+
+\maketitle
+
+We recall first the original grammar of the Simple Programming Language.
+\setlength{\grammarindent}{7em}
+\begin{grammar}
+    <SPL> ::= <Decl>+
+
+    <Decl> ::= <VarDecl> | <FunDecl>
+
+    <VarDecl> ::= <Type> <id> `=' <Exp> `;'
+
+    <FunDecl> ::= <RetType> <id> `(' [ <FArgs> ] `)' `{' <VarDecl>* <Stmt>+ `}'
+
+    <RetType> ::= <Type> | `Void'
+
+    <Type> ::= <id> | <BasicType> | `(' <Type> `,' <Type> `)' | `[' <Type> `]'
+
+    <BasicType> ::= `Int' | `Bool' | `Char'
+
+    <FArgs> ::= [ <FArgs> `,' ] <Type> <id>
+
+    <Stmt> ::= `{' <Stmt>* `}'
+    \alt `if' `(' <Exp> `)' <Stmt> [ `else' <Stmt> ]
+    \alt `while' `(' <Exp> `)' <Stmt>
+    \alt <id> <Field> `=' <Exp> `;'
+    \alt <FunCall> `;'
+    \alt `return' [ <Exp> ] `;'
+
+    <Exp> ::= <int> | <char> | `False' | `True' | `[]' | <id> <Field>
+    \alt <FunCall>
+    \alt <Op1> <Exp> | <Exp> <Op2> <Exp>
+    \alt `(' <Exp> `)' | `(' <Exp> `,' <Exp> `)'
+
+    <Field> ::= [ <Field> `.' (`hd' | `tl' | `fst' | `snd') ]
+
+    <FunCall> ::= <id> `(' [ <ActArgs> ] `)'
+
+    <ActArgs> ::= <Exp> [ `,' <ActArgs> ]
+
+    <Op1> ::= `!' | `-'
+
+    <Op2> ::= `+' | `-' | `*' | `/' | `%'
+    \alt `==' | `<' | `>' | `<=' | `>=' | `!='
+    \alt `&&' | `||' | `:'
+
+    <int> ::= [ `-' ] <digit>+
+    <id> ::= <alpha> (`_' | <alphaNum>)*
+\end{grammar}
+
+\end{document}
