@@ -67,6 +67,7 @@ We recall first the original grammar of the Simple Programming Language\footnote
 
 The operators should adhere to the usual precedence and associativity rules.
 The following grammar is transformed from the previous one in order to achieve that.
+Note that only list construction is right-associative.
 \setlength{\grammarindent}{7.1em}
 \begin{grammar}
     <SPL> ::= <Decl>+
@@ -94,15 +95,15 @@ The following grammar is transformed from the previous one in order to achieve t
 
     <OpExp> ::= <OpExp1> [\,`:' <OpExp>\,]
 
-    <OpExp1> ::= <OpExp2> [\,(\,`&&' | `||'\,) <OpExp1>\,]
+    <OpExp1> ::= [\,<OpExp1> (\,`&&' | `||'\,)\,] <OpExp2>
 
-    <OpExp2> ::= <OpExp3> [\,(\,`==' | `!='\,) <OpExp2>\,]
+    <OpExp2> ::= [\,<OpExp2> (\,`==' | `!='\,)\,] <OpExp3>
 
-    <OpExp3> ::= <OpExp4> [\,(\,`<' | `>' | `<=' | `>='\,) <OpExp3>\,]
+    <OpExp3> ::= [\,<OpExp3> (\,`<' | `>' | `<=' | `>='\,)\,] <OpExp4>
 
-    <OpExp4> ::= <OpExp5> [\,(\,`+' | `-'\,) <OpExp4>\,]
+    <OpExp4> ::= [\,<OpExp4> (\,`+' | `-'\,)\,] <OpExp5>
 
-    <OpExp5> ::= <OpExp6> [\,(\,`*' | `/' | `%'\,) <OpExp5>\,]
+    <OpExp5> ::= [\,<OpExp5> (\,`*' | `/' | `%'\,)\,] <OpExp6>
 
     <OpExp6> ::= (\,`!' | `-'\,) <OpExp6> | <NonOpExp>
 
