@@ -40,9 +40,9 @@ We recall first the original grammar of the Simple Programming Language\footnote
     <FArgs> ::= [\,<FArgs> `,'\,] <Type> <id>
 
     <Stmt> ::= `{' <Stmt>* `}'
+    \alt <FunCall> `;' | <id> <Field> `=' <Exp> `;' | `return' [\,<Exp>\,] `;'
     \alt `if' `(' <Exp> `)' <Stmt> [\,`else' <Stmt>\,]
     \alt `while' `(' <Exp> `)' <Stmt>
-    \alt <FunCall> `;' | <id> <Field> `=' <Exp> `;' | `return' [\,<Exp>\,] `;'
 
     <Exp> ::= <int> | <char> | `False' | `True' | `[]' | <id> <Field>
     \alt <FunCall> | <Op1> <Exp> | <Exp> <Op2> <Exp>
@@ -86,23 +86,23 @@ The following grammar is transformed from the previous one in order to achieve t
     <FArgs> ::= [\,<FArgs> `,'\,] <Type> <id>
 
     <Stmt> ::= `{' <Stmt>* `}'
+    \alt <FunCall> `;' | <id> <Field> `=' <Exp> `;' | `return' [\,<Exp>\,] `;'
     \alt `if' `(' <Exp> `)' <Stmt> [\,`else' <Stmt>\,]
     \alt `while' `(' <Exp> `)' <Stmt>
-    \alt <FunCall> `;' | <id> <Field> `=' <Exp> `;' | `return' [\,<Exp>\,] `;'
 
     <Exp> ::= <OpExp> | <NonOpExp>
 
-    <OpExp> ::= <OpExp1> `:' <OpExp>
+    <OpExp> ::= <OpExp1> [\,`:' <OpExp>\,]
 
-    <OpExp1> ::= <OpExp2> (\,`&&' | `||'\,) <OpExp1>
+    <OpExp1> ::= <OpExp2> [\,(\,`&&' | `||'\,) <OpExp1>\,]
 
-    <OpExp2> ::= <OpExp3> (\,`==' | `!='\,) <OpExp2>
+    <OpExp2> ::= <OpExp3> [\,(\,`==' | `!='\,) <OpExp2>\,]
 
-    <OpExp3> ::= <OpExp4> (\,`<' | `>' | `<=' | `>='\,) <OpExp3>
+    <OpExp3> ::= <OpExp4> [\,(\,`<' | `>' | `<=' | `>='\,) <OpExp3>\,]
 
-    <OpExp4> ::= <OpExp5> (\,`+' | `-'\,) <OpExp4>
+    <OpExp4> ::= <OpExp5> [\,(\,`+' | `-'\,) <OpExp4>\,]
 
-    <OpExp5> ::= <OpExp6> (\,`*' | `/' | `%'\,) <OpExp5>
+    <OpExp5> ::= <OpExp6> [\,(\,`*' | `/' | `%'\,) <OpExp5>\,]
 
     <OpExp6> ::= (\,`!' | `-'\,) <OpExp6> | <NonOpExp>
 
