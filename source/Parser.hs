@@ -80,6 +80,10 @@ sym :: Eq a =>
     a -> Parser a a
 sym a = satisfy ((==) a)
 
+nsym :: Eq a =>
+    a -> Parser a a
+nsym a = satisfy ((/=) a)
+
 sseq :: Eq a =>
     [a] -> Parser a [a]
 sseq l = case l of

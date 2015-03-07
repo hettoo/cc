@@ -1,5 +1,6 @@
 module Main where
 import Parser
+import SPLPreParser
 import SPLParser
 
 main = do
