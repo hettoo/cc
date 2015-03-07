@@ -28,11 +28,7 @@ yield v l = [(v, l)]
 infixl 7 .*.
 
 (>@) :: Parser a v -> (v -> w) -> Parser a w
-(>@) p f l = apply (p l)
-    where
-    apply l = case l of
-        [] -> []
-        (v, c) : r -> (f v, c) : apply r
+(>@) p f l = map (\(v, c) -> (f v, c)) (p l)
 infixl 6 >@
 
 (\/) :: Parser a v -> Parser a v -> Parser a v
@@ -57,7 +53,7 @@ opt :: Parser a v -> Parser a (Maybe v)
 opt p = p >@ Just \/ yield Nothing
 
 plus :: Parser a v -> Parser a (v, [v])
-plus p = p >@ (\v -> (v, [])) \/ p .*. plus p >@ \(v, (w, r)) -> (v, w : r)
+plus p = p >@ (\v -> (v, [])) \/ p .*. plus p >@ pair (id, uncurry (:))
 
 star :: Parser a v -> Parser a [v]
 star p = opt (plus p) >@ \m -> case m of
@@ -80,4 +76,4 @@ sseq :: Eq a =>
     [a] -> Parser a [a]
 sseq l = case l of
     [] -> yield []
-    a : r -> sym a .*. sseq r >@ \(v, vs) -> v : vs
+    a : r -> sym a .*. sseq r >@ uncurry (:)
