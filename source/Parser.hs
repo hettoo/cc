@@ -13,10 +13,6 @@ parse p l = case (map fst . rm . fullParses . p) l of
     where
     fullParses :: [(v, [a])] -> [(v, [a])]
     fullParses = filter (\(_, l) -> isEmpty l)
-        where
-        isEmpty l = case l of
-            [] -> True
-            _ -> False
 
 -- Main parser building blocks
 
@@ -31,9 +27,9 @@ infixl 7 .*.
 (>@) p f l = map (\(v, c) -> (f v, c)) (p l)
 infixl 6 >@
 
-(\/) :: Parser a v -> Parser a v -> Parser a v
-(\/) p q l = p l ++ q l
-infixl 5 \/
+combine :: ([(v, [a])] -> [(w, [a])] -> [(x, [a])]) ->
+    Parser a v -> Parser a w -> Parser a x
+combine f p q l = f (p l) (q l)
 
 -- Some useful abbreviations
 
@@ -48,6 +44,18 @@ infixl 7 -*.
 (>!) :: Parser a v -> w -> Parser a w
 (>!) p w = p >@ \_ -> w
 infixl 6 >!
+
+(\/) :: Parser a v -> Parser a v -> Parser a v
+(\/) = combine (++)
+infixl 5 \/
+
+(\</) :: Parser a v -> Parser a v -> Parser a v
+(\</) = combine (\a b -> if isEmpty a then b else a)
+infixl 5 \</
+
+(\>/) :: Parser a v -> Parser a v -> Parser a v
+(\>/) = combine (\a b -> if isEmpty b then a else b)
+infixl 5 \>/
 
 opt :: Parser a v -> Parser a (Maybe v)
 opt p = p >@ Just \/ yield Nothing

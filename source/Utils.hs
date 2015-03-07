@@ -1,5 +1,9 @@
 module Utils where
 
+isEmpty l = case l of
+    [] -> True
+    _ -> False
+
 rm :: Eq a =>
     [a] -> [a]
 rm = foldl (\seen x -> if x `elem` seen then seen else seen ++ [x]) []

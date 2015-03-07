@@ -4,12 +4,12 @@ import Enlist
 import Data.Char
 
 data Type =
-    VarType String
-    | BInt
-    | BBool
-    | BChar
-    | TType Type Type
-    | LType Type
+    TCustom String
+    | TInt
+    | TBool
+    | TChar
+    | TTuple Type Type
+    | TList Type
 
 data RetType =
     Type Type
@@ -21,6 +21,31 @@ data Field =
     | First
     | Second
 
+data Exp =
+    EInt Int
+    | EBool Bool
+    | EChar Char
+    | ENil
+    | ECons Exp Exp
+    | ETuple Exp Exp
+    | EId String [Field]
+    | EFunCall String [Exp]
+    | EAnd Exp Exp
+    | EOr Exp Exp
+    | EEq Exp Exp
+    | ENeq Exp Exp
+    | ELt Exp Exp
+    | EGt Exp Exp
+    | ELe Exp Exp
+    | EGe Exp Exp
+    | EPlus Exp Exp
+    | EMinus Exp Exp
+    | ETimes Exp Exp
+    | EDiv Exp Exp
+    | EMod Exp Exp
+    | ENot Exp
+    | ENeg Exp
+
 -- pSPL
 
 -- pDecl
@@ -30,39 +55,74 @@ data Field =
 -- pFunDecl
 
 pRetType :: Parser Char RetType
-pRetType = pType >@ Type \/ sseq "Void" >! Void
+pRetType = pType >@ Type \</ sseq "Void" >! Void
 
--- Note that we unfold BasicType into Type
 pType :: Parser Char Type
 pType =
-    pId >@ VarType \/
-    sseq "Int" >! BInt \/
-    sseq "Bool" >! BBool \/
-    sseq "Char" >! BChar \/
-    sym '(' -*. pType .*- sym ',' .*. pType .*- sym ')' >@ uncurry TType \/
-    sym '[' -*. pType .*- sym ']' >@ LType
+    pId >@ TCustom \>/ (
+        sseq "Int" >! TInt \/ sseq "Bool" >! TBool \/ sseq "Char" >! TChar \/
+        sym '(' -*. pType .*- sym ',' .*. pType .*- sym ')' >@ uncurry TTuple \/
+        sym '[' -*. pType .*- sym ']' >@ TList)
 
--- pFArgs
+pFArgs :: Parser Char [(Type, String)]
+pFArgs = opt (pType .*. pId .*. star (sym ',' -*. pType .*. pId)) >@ enlist
 
 -- pStmt
 
--- pExp
+pExp :: Parser Char Exp
+pExp = pOpExp \/ pNonOpExp
 
--- pOpExp
+pOpExp :: Parser Char Exp
+pOpExp =
+    pOpExp1 .*. opt (sym ':' -*. pOpExp) >@
+    \(a, m) -> case m of
+        Nothing -> a
+        Just b -> ECons a b
 
--- pOpExp1
+(.<<) :: Parser a v -> Parser a (v -> v) -> Parser a v
+(.<<) p q = p .*. star q >@ uncurry (foldl (\a f -> f a))
+infixl 4 .<<
 
--- pOpExp2
+pOpExp1 :: Parser Char Exp
+pOpExp1 = pOpExp2 .<<
+    sseq "&&" -*. pOpExp2 >@ EAnd \/
+    sseq "||" -*. pOpExp2 >@ EOr
 
--- pOpExp3
+pOpExp2 :: Parser Char Exp
+pOpExp2 = pOpExp3 .<<
+    sseq "==" -*. pOpExp3 >@ EEq \/
+    sseq "!=" -*. pOpExp3 >@ ENeq
 
--- pOpExp4
+pOpExp3 :: Parser Char Exp
+pOpExp3 = pOpExp4 .<<
+    sym '<' -*. pOpExp4 >@ ELt \/
+    sym '>' -*. pOpExp4 >@ EGt \/
+    sseq "<=" -*. pOpExp4 >@ ELe \/
+    sseq ">=" -*. pOpExp4 >@ EGe
 
--- pOpExp5
+pOpExp4 :: Parser Char Exp
+pOpExp4 = pOpExp5 .<<
+    sym '+' -*. pOpExp5 >@ EPlus \/
+    sym '-' -*. pOpExp5 >@ EMinus
 
--- pOpExp6
+pOpExp5 :: Parser Char Exp
+pOpExp5 = pOpExp6 .<<
+    sym '*' -*. pOpExp6 >@ ETimes \/
+    sym '/' -*. pOpExp6 >@ EDiv \/
+    sym '%' -*. pOpExp6 >@ EMod
 
--- pNonOpExp
+pOpExp6 :: Parser Char Exp
+pOpExp6 =
+    sym '!' -*. pOpExp6 >@ ENot \/
+    sym '-' -*. pOpExp6 >@ ENeg \/
+    pNonOpExp
+
+pNonOpExp :: Parser Char Exp
+pNonOpExp =
+    pInt >@ EInt \/ pBool >@ EBool \/ pChar >@ EChar \/ sseq "[]" >! ENil \/
+    sym '(' -*. pExp .*- sym ',' .*. pExp .*- sym ')' >@ uncurry ETuple \/
+    pId .*. pField >@ uncurry EId \/ pFunCall >@ uncurry EFunCall \/
+    sym '(' -*. pExp .*- sym ')'
 
 pField :: Parser Char [Field]
 pField = sym '.' -*. (
@@ -71,12 +131,14 @@ pField = sym '.' -*. (
     sseq "fst" >! First \/
     sseq "snd" >! Second) .*. opt pField >@ enlist
 
--- pFunCall
-
--- pActArgs
+pFunCall :: Parser Char (String, [Exp])
+pFunCall = pId .*. (sym '(' -*. star pExp .*- sym ')')
 
 pInt :: Parser Char Int
 pInt = opt (sym '-') .*. plus (satisfy isDigit) >@ read . enlist
+
+pBool :: Parser Char Bool
+pBool = sseq "False" >! False \/ sseq "True" >! True
 
 pChar :: Parser Char Char
 pChar = sym '\'' -*. anything .*- sym '\''
