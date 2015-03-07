@@ -1,3 +1,4 @@
+{-# LANGUAGE RankNTypes #-}
 module Parser where
 import Enlist
 import Utils
@@ -67,34 +68,44 @@ infixl 5 \</
 (\>/) p q = q \</ p
 infixl 5 \>/
 
+_opt :: (forall v. Parser a v -> Parser a v -> Parser a v) ->
+    Parser a v -> Parser a (Maybe v)
+_opt c p = (p >@ Just) `c` (yield Nothing)
+
+_plus :: (forall v. Parser a v -> Parser a v -> Parser a v) ->
+    Parser a v -> Parser a (v, [v])
+_plus c p = (p >@ (\v -> (v, []))) `c` (p .*. _plus c p >@ pair (id, uncurry (:)))
+
+_star :: (forall v. Parser a v -> Parser a v -> Parser a v) ->
+    Parser a v -> Parser a [v]
+_star c p = _opt c (_plus c p) >@ enlist
+
 opt :: Parser a v -> Parser a (Maybe v)
-opt p = p >@ Just \/ yield Nothing
+opt = _opt (\/)
 
 plus :: Parser a v -> Parser a (v, [v])
-plus p = p >@ (\v -> (v, [])) \/ p .*. plus p >@ pair (id, uncurry (:))
+plus = _plus (\/)
 
 star :: Parser a v -> Parser a [v]
-star p = opt (plus p) >@ enlist
-
--- Asymmetric (greedy and ungreedy) variants of these are also useful.
+star = _star (\/)
 
 gopt :: Parser a v -> Parser a (Maybe v)
-gopt p = p >@ Just \</ yield Nothing
+gopt = _opt (\</)
 
 gplus :: Parser a v -> Parser a (v, [v])
-gplus p = p >@ (\v -> (v, [])) \>/ p .*. gplus p >@ pair (id, uncurry (:))
+gplus = _plus (\</)
 
 gstar :: Parser a v -> Parser a [v]
-gstar p = gopt (gplus p) >@ enlist
+gstar = _star (\</)
 
 uopt :: Parser a v -> Parser a (Maybe v)
-uopt p = p >@ Just \>/ yield Nothing
+uopt = _opt (\>/)
 
 uplus :: Parser a v -> Parser a (v, [v])
-uplus p = p >@ (\v -> (v, [])) \</ p .*. uplus p >@ pair (id, uncurry (:))
+uplus = _plus (\>/)
 
 ustar :: Parser a v -> Parser a [v]
-ustar p = uopt (uplus p) >@ enlist
+ustar = _star (\>/)
 
 anything :: Parser a a
 anything = satisfy $ \_ -> True
