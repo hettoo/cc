@@ -49,6 +49,10 @@ infixl 7 .*-
 (-*.) p q = p .*. q >@ snd
 infixl 7 -*.
 
+(>!) :: Parser a v -> w -> Parser a w
+(>!) p w = p >@ \_ -> w
+infixl 6 >!
+
 opt :: Parser a v -> Parser a (Maybe v)
 opt p = p >@ Just \/ yield Nothing
 
