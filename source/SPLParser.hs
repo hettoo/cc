@@ -3,6 +3,18 @@ import Parser
 import Enlist
 import Data.Char
 
+data Type =
+    VarType String
+    | BInt
+    | BBool
+    | BChar
+    | TType Type Type
+    | LType Type
+
+data RetType =
+    Type Type
+    | Void
+
 data Field =
     Head
     | Tail
@@ -17,11 +29,18 @@ data Field =
 
 -- pFunDecl
 
--- pRetType
+pRetType :: Parser Char RetType
+pRetType = pType >@ Type \/ sseq "Void" >! Void
 
--- pType
-
--- pBasicType
+-- Note that we unfold BasicType into Type
+pType :: Parser Char Type
+pType =
+    pId >@ VarType \/
+    sseq "Int" >! BInt \/
+    sseq "Bool" >! BBool \/
+    sseq "Char" >! BChar \/
+    sym '(' -*. pType .*- sym ',' .*. pType .*- sym ')' >@ uncurry TType \/
+    sym '[' -*. pType .*- sym ']' >@ LType
 
 -- pFArgs
 
