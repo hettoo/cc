@@ -1,61 +1,26 @@
 module SPLParser where
+import SPL
 import Parser
 import Enlist
 import Data.Char
 
-data Type =
-    TCustom String
-    | TInt
-    | TBool
-    | TChar
-    | TTuple Type Type
-    | TList Type
+pSPL :: Parser Char [Stmt]
+pSPL = star pDecl
 
-data RetType =
-    Type Type
-    | Void
+pDecl :: Parser Char Stmt
+pDecl = pVarDecl \/ pFunDecl
 
-data Field =
-    Head
-    | Tail
-    | First
-    | Second
+pVarDecl :: Parser Char Stmt
+pVarDecl = pType .*. pId .*. (sym '=' -*. pExp .*- sym ';') >@
+    (uncurry . uncurry) VarDecl
 
-data Exp =
-    EInt Int
-    | EBool Bool
-    | EChar Char
-    | ENil
-    | ECons Exp Exp
-    | ETuple Exp Exp
-    | EId String [Field]
-    | EFunCall String [Exp]
-    | EAnd Exp Exp
-    | EOr Exp Exp
-    | EEq Exp Exp
-    | ENeq Exp Exp
-    | ELt Exp Exp
-    | EGt Exp Exp
-    | ELe Exp Exp
-    | EGe Exp Exp
-    | EPlus Exp Exp
-    | EMinus Exp Exp
-    | ETimes Exp Exp
-    | EDiv Exp Exp
-    | EMod Exp Exp
-    | ENot Exp
-    | ENeg Exp
+pFunDecl :: Parser Char Stmt
+pFunDecl = pRetType .*. pId .*- sym '(' .*. pFArgs .*- sym ')' .*-
+    sym '{' .*. (star pVarDecl .*. star pStmt >@ uncurry (++)) .*- sym '}' >@
+    (uncurry . uncurry . uncurry) FunDecl
 
--- pSPL
-
--- pDecl
-
--- pVarDecl
-
--- pFunDecl
-
-pRetType :: Parser Char RetType
-pRetType = pType >@ Type \</ sseq "Void" >! Void
+pRetType :: Parser Char Type
+pRetType = pType \</ sseq "Void" >! TVoid
 
 pType :: Parser Char Type
 pType =
@@ -67,7 +32,15 @@ pType =
 pFArgs :: Parser Char [(Type, String)]
 pFArgs = opt (pType .*. pId .*. star (sym ',' -*. pType .*. pId)) >@ enlist
 
--- pStmt
+pStmt :: Parser Char Stmt
+pStmt = sym '{' -*. star pStmt .*- sym '}' >@ Stmts \/
+    pFunCall .*- sym ';' >@ uncurry FunCall \/
+    sseq "return" -*. opt pExp .*- sym ';' >@ Return \/
+    pId .*. pField .*. (sym '=' -*. pExp .*- sym ';') >@
+        (uncurry . uncurry) Assign \/
+    sseq "if" -*. (sym '(' -*. pExp .*- sym ')') .*.
+        pStmt .*. opt (sseq "else" -*. pStmt) >@ (uncurry . uncurry) If \/
+    sseq "while" -*. (sym '(' -*. pExp .*- sym ')') .*. pStmt >@ uncurry While
 
 pExp :: Parser Char Exp
 pExp = pOpExp \/ pNonOpExp
