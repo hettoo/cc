@@ -3,13 +3,6 @@ import Utils
 
 type Parser a v = [a] -> [(v, [a])]
 
-fullParses :: [(v, [a])] -> [(v, [a])]
-fullParses = filter (\(_, l) -> isEmpty l)
-    where
-    isEmpty l = case l of
-        [] -> True
-        _ -> False
-
 parse :: (Eq a, Eq v) =>
     Parser a v -> [a] -> v
 parse p l = case (map fst . rm . fullParses . p) l of
@@ -17,6 +10,13 @@ parse p l = case (map fst . rm . fullParses . p) l of
     v : r -> case r of
         [] -> v
         _ -> error "ambiguous parse"
+    where
+    fullParses :: [(v, [a])] -> [(v, [a])]
+    fullParses = filter (\(_, l) -> isEmpty l)
+        where
+        isEmpty l = case l of
+            [] -> True
+            _ -> False
 
 -- Main parser building blocks
 
@@ -65,6 +65,12 @@ satisfy f l = case l of
     a : r | f a -> [(a, r)]
     _ -> []
 
-symbol :: Eq a =>
+sym :: Eq a =>
     a -> Parser a a
-symbol a = satisfy ((==) a)
+sym a = satisfy ((==) a)
+
+sseq :: Eq a =>
+    [a] -> Parser a [a]
+sseq l = case l of
+    [] -> yield []
+    a : r -> sym a .*. sseq r >@ \(v, vs) -> v : vs
