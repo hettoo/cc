@@ -17,45 +17,54 @@ parse p l = case (map fst . rm . fullParses . p) l of
 
 -- Main parser building blocks
 
+nop :: Parser a v
+nop _ = []
+
 yield :: v -> Parser a v
 yield v l = [(v, l)]
 
-(.*.) :: Parser a v -> Parser a w -> Parser a (v, w)
-(.*.) p q l = [((v, w), l'') | (v, l') <- p l, (w, l'') <- q l']
-infixl 7 .*.
+satisfy :: (a -> Bool) -> Parser a a
+satisfy f l = case l of
+    a : r | f a -> [(a, r)]
+    _ -> []
+
+cond :: Parser a v -> Parser a (v -> w) -> Parser a w -> Parser a w
+cond p q r l = if isEmpty m then r l else m
+    where
+    m = [(f v, l'') | (v, l') <- p l, (f, l'') <- q l']
 
 (>@) :: Parser a v -> (v -> w) -> Parser a w
 (>@) p f l = map (\(v, c) -> (f v, c)) (p l)
 infixl 6 >@
 
-combine :: ([(v, [a])] -> [(w, [a])] -> [(x, [a])]) ->
-    Parser a v -> Parser a w -> Parser a x
-combine f p q l = f (p l) (q l)
+(\/) :: Parser a v -> Parser a v -> Parser a v
+(\/) p q l = p l ++ q l
+infixl 5 \/
 
 -- Some useful abbreviations
+
+(.*.) :: Parser a v -> Parser a w -> Parser a (v, w)
+(.*.) p q = cond p (q >@ \w v -> (v, w)) nop
+infixl 7 .*.
 
 (.*-) :: Parser a v -> Parser a w -> Parser a v
 (.*-) p q = p .*. q >@ fst
 infixl 7 .*-
 
 (-*.) :: Parser a v -> Parser a w -> Parser a w
-(-*.) p q = p .*. q >@ snd
+(-*.) p q = q .*- p
 infixl 7 -*.
 
 (>!) :: Parser a v -> w -> Parser a w
 (>!) p w = p >@ \_ -> w
 infixl 6 >!
 
-(\/) :: Parser a v -> Parser a v -> Parser a v
-(\/) = combine (++)
-infixl 5 \/
-
 (\</) :: Parser a v -> Parser a v -> Parser a v
-(\</) = combine (\a b -> if isEmpty a then b else a)
+(\</) p = cond p (yield id)
 infixl 5 \</
 
 (\>/) :: Parser a v -> Parser a v -> Parser a v
-(\>/) = combine (\a b -> if isEmpty b then a else b)
+(\>/) p q = q \</ p
 infixl 5 \>/
 
 opt :: Parser a v -> Parser a (Maybe v)
@@ -86,11 +95,6 @@ uplus p = p >@ (\v -> (v, [])) \</ p .*. uplus p >@ pair (id, uncurry (:))
 
 ustar :: Parser a v -> Parser a [v]
 ustar p = uopt (uplus p) >@ enlist
-
-satisfy :: (a -> Bool) -> Parser a a
-satisfy f l = case l of
-    a : r | f a -> [(a, r)]
-    _ -> []
 
 anything :: Parser a a
 anything = satisfy $ \_ -> True
