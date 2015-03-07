@@ -69,6 +69,9 @@ satisfy f l = case l of
     a : r | f a -> [(a, r)]
     _ -> []
 
+anything :: Parser a a
+anything = satisfy $ \_ -> True
+
 sym :: Eq a =>
     a -> Parser a a
 sym a = satisfy ((==) a)

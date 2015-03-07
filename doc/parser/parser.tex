@@ -62,6 +62,8 @@ We recall first the original grammar of the Simple Programming Language\footnote
 
     <int> ::= [\,`-'\,] <digit>+
 
+    <char> ::= `\'' <any> `\''
+
     <id> ::= <alpha> (\,`_' | <alphaNum>\,)*
 \end{grammar}
 
@@ -118,6 +120,8 @@ Note that only list construction is right-associative.
 
     <int> ::= [\,`-'\,] <digit>+
 
+    <char> ::= `\'' <any> `\''
+
     <id> ::= <alpha> (\,`_' | <alphaNum>\,)*
 \end{grammar}
 
@@ -173,6 +177,8 @@ These are only present in the \synt{Field} rule, which we easily adapt.
 
     <int> ::= [\,`-'\,] <digit>+
 
+    <char> ::= `\'' <any> `\''
+
     <id> ::= <alpha> (\,`_' | <alphaNum>\,)*
 \end{grammar}
 
@@ -225,6 +231,8 @@ Fortunately, there are no cycles in our current grammar, so we skip to the last 
     <ActArgs> ::= <Exp> [\,`,' <ActArgs>\,]
 
     <int> ::= [\,`-'\,] <digit>+
+
+    <char> ::= `\'' <any> `\''
 
     <id> ::= <alpha> (\,`_' | <alphaNum>\,)*
 \end{grammar}
