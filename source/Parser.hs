@@ -1,4 +1,5 @@
 module Parser where
+import Enlist
 import Utils
 
 type Parser a v = [a] -> [(v, [a])]
@@ -64,9 +65,27 @@ plus :: Parser a v -> Parser a (v, [v])
 plus p = p >@ (\v -> (v, [])) \/ p .*. plus p >@ pair (id, uncurry (:))
 
 star :: Parser a v -> Parser a [v]
-star p = opt (plus p) >@ \m -> case m of
-    Nothing -> []
-    Just (v, r) -> v : r
+star p = opt (plus p) >@ enlist
+
+-- Asymmetric (greedy and ungreedy) variants of these are also useful.
+
+gopt :: Parser a v -> Parser a (Maybe v)
+gopt p = p >@ Just \</ yield Nothing
+
+gplus :: Parser a v -> Parser a (v, [v])
+gplus p = p >@ (\v -> (v, [])) \>/ p .*. gplus p >@ pair (id, uncurry (:))
+
+gstar :: Parser a v -> Parser a [v]
+gstar p = gopt (gplus p) >@ enlist
+
+uopt :: Parser a v -> Parser a (Maybe v)
+uopt p = p >@ Just \>/ yield Nothing
+
+uplus :: Parser a v -> Parser a (v, [v])
+uplus p = p >@ (\v -> (v, [])) \</ p .*. uplus p >@ pair (id, uncurry (:))
+
+ustar :: Parser a v -> Parser a [v]
+ustar p = uopt (uplus p) >@ enlist
 
 satisfy :: (a -> Bool) -> Parser a a
 satisfy f l = case l of

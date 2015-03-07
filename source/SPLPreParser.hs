@@ -7,7 +7,7 @@ pPre = star (pUniWS \>/ pLineComment \>/ pBlockComment) >@ concat
 
 pUniWS :: Parser Char String
 pUniWS = anything >@ enlist \>/
-    plus (sym ' ' \/ sym '\t' \/ sym '\n' \/ sym '\r') >! " "
+    gplus (sym ' ' \/ sym '\t' \/ sym '\n' \/ sym '\r') >! " "
 
 pLineComment :: Parser Char String
 pLineComment = sseq "//" .*. star (nsym '\n') .*. sym '\n' >! ""
