@@ -6,7 +6,7 @@ import Enlist
 import Data.Char
 
 pSPL :: Parser Char Stmt
-pSPL = ows -*. star (pDecl .*- ows) >@ Stmts
+pSPL = ows -*. gstar (pDecl .*- ows) >@ Stmts
 
 pDecl :: Parser Char Stmt
 pDecl = pVarDecl \/ pFunDecl
@@ -17,8 +17,8 @@ pVarDecl = pType .*-*. pId .*?*. (sym '=' -*?*. pExp .*?*- sym ';') >@
 
 pFunDecl :: Parser Char Stmt
 pFunDecl = pRetType .*-*. pId .*?*- sym '(' .*?*. pFArgs .*?*- sym ')' .*?*-
-    sym '{' .*?*. (star (pVarDecl .*- ows) .*.
-        star (pStmt .*- ows) >@ uncurry (++)) .*- sym '}' >@
+    sym '{' .*?*. (gstar (pVarDecl .*- ows) .*.
+        gstar (pStmt .*- ows) >@ uncurry (++)) .*- sym '}' >@
     (uncurry . uncurry . uncurry) FunDecl
 
 pRetType :: Parser Char Type
@@ -33,13 +33,13 @@ pType =
         sym '[' -*?*. pType .*?*- sym ']' >@ TList)
 
 pFArgs :: Parser Char [(Type, String)]
-pFArgs = opt (pType .*-*. pId .*?*. star (sym ',' -*?*. pType .*-*. pId)) >@
+pFArgs = gopt (pType .*-*. pId .*?*. gstar (sym ',' -*?*. pType .*-*. pId)) >@
     enlist
 
 pStmt :: Parser Char Stmt
-pStmt = sym '{' -*?*. star (pStmt .*- ows) .*- sym '}' >@ Stmts \/
+pStmt = sym '{' -*?*. gstar (pStmt .*- ows) .*- sym '}' >@ Stmts \/
     pFunCall .*?*- sym ';' >@ uncurry FunCall \/
-    sseq "return" -*-*. opt pExp .*?*- sym ';' >@ Return \/
+    sseq "return" -*-*. gopt pExp .*?*- sym ';' >@ Return \/
     pId .*?*. pField .*?*. (sym '=' -*?*. pExp .*?*- sym ';') >@
         (uncurry . uncurry) Assign \/
     sseq "if" -*?*. (sym '(' -*?*. pExp .*?*- sym ')') .*?*.
@@ -58,7 +58,7 @@ pOpExp =
         Just b -> ECons a b
 
 (.<<) :: Parser Char v -> Parser Char (v -> v) -> Parser Char v
-(.<<) p q = p .*. star (ows -*. q) >@ uncurry (foldl (\a f -> f a))
+(.<<) p q = p .*. gstar (ows -*. q) >@ uncurry (foldl (\a f -> f a))
 infixl 4 .<<
 
 pOpExp1 :: Parser Char Exp
@@ -104,7 +104,7 @@ pNonOpExp =
     sym '(' -*?*. pExp .*?*- sym ')'
 
 pField :: Parser Char [Field]
-pField = star (ows -*. sym '.' -*?*. (
+pField = gstar (ows -*. sym '.' -*?*. (
     sseq "hd" >! Head \/
     sseq "tl" >! Tail \/
     sseq "fst" >! First \/
@@ -112,10 +112,10 @@ pField = star (ows -*. sym '.' -*?*. (
 
 pFunCall :: Parser Char (String, [Exp])
 pFunCall = pId .*?*. (sym '(' -*?*. opt pExp .*?*.
-    star (sym ',' -*?*. pExp .*- ows) .*- sym ')' >@ enlist)
+    gstar (sym ',' -*?*. pExp .*- ows) .*- sym ')' >@ enlist)
 
 pInt :: Parser Char Int
-pInt = opt (sym '-') .*?*. plus (satisfy isDigit) >@ read . enlist
+pInt = opt (sym '-') .*?*. gplus (satisfy isDigit) >@ read . enlist
 
 pBool :: Parser Char Bool
 pBool = sseq "False" >! False \/ sseq "True" >! True
@@ -124,4 +124,4 @@ pChar :: Parser Char Char
 pChar = sym '\'' -*. anything .*- sym '\''
 
 pId :: Parser Char String
-pId = satisfy isAlpha .*. star (sym '_' \/ satisfy isAlphaNum) >@ enlist
+pId = satisfy isAlpha .*. gstar (sym '_' \/ satisfy isAlphaNum) >@ enlist

@@ -98,15 +98,6 @@ gplus = _plus (\</)
 gstar :: Parser a v -> Parser a [v]
 gstar = _star (\</)
 
-uopt :: Parser a v -> Parser a (Maybe v)
-uopt = _opt (\>/)
-
-uplus :: Parser a v -> Parser a (v, [v])
-uplus = _plus (\>/)
-
-ustar :: Parser a v -> Parser a [v]
-ustar = _star (\>/)
-
 anything :: Parser a a
 anything = satisfy $ \_ -> True
 
