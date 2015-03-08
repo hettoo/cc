@@ -3,6 +3,8 @@
    First the recursive version.
 */
 Int facR (Int n) {
+    Int n = 1;
+    Int n = 1;
     if (n < 2)
         return 1;
     else

@@ -33,8 +33,7 @@ pType =
         sym '[' -*?*. pType .*?*- sym ']' >@ TList)
 
 pFArgs :: Parser Char [(Type, String)]
-pFArgs = gopt (pType .*-*. pId .*?*. gstar (sym ',' -*?*. pType .*-*. pId)) >@
-    enlist
+pFArgs = gopt (neCommaList (pType .*-*. pId)) >@ enlist
 
 pStmt :: Parser Char Stmt
 pStmt = sym '{' -*?*. gstar (pStmt .*- ows) .*- sym '}' >@ Stmts \/
@@ -43,7 +42,7 @@ pStmt = sym '{' -*?*. gstar (pStmt .*- ows) .*- sym '}' >@ Stmts \/
     pId .*?*. pField .*?*. (sym '=' -*?*. pExp .*?*- sym ';') >@
         (uncurry . uncurry) Assign \/
     sseq "if" -*?*. (sym '(' -*?*. pExp .*?*- sym ')') .*?*.
-        pStmt .*?*. opt (sseq "else" -*?*. pStmt) >@ (uncurry . uncurry) If \/
+        pStmt .*?*. gopt (sseq "else" -*?*. pStmt) >@ (uncurry . uncurry) If \/
     sseq "while" -*?*. (sym '(' -*?*. pExp .*?*- sym ')') .*?*. pStmt >@
     uncurry While
 
@@ -52,7 +51,7 @@ pExp = pOpExp \/ pNonOpExp
 
 pOpExp :: Parser Char Exp
 pOpExp =
-    pOpExp1 .*?*. opt (sym ':' -*?*. pOpExp) >@
+    pOpExp1 .*?*. gopt (sym ':' -*?*. pOpExp) >@
     \(a, m) -> case m of
         Nothing -> a
         Just b -> ECons a b
@@ -104,18 +103,17 @@ pNonOpExp =
     sym '(' -*?*. pExp .*?*- sym ')'
 
 pField :: Parser Char [Field]
-pField = gstar (ows -*. sym '.' -*?*. (
+pField = gstar (ows .*. sym '.' -*?*. (
     sseq "hd" >! Head \/
     sseq "tl" >! Tail \/
     sseq "fst" >! First \/
     sseq "snd" >! Second)) >@ enlist
 
 pFunCall :: Parser Char (String, [Exp])
-pFunCall = pId .*?*. (sym '(' -*?*. opt pExp .*?*.
-    gstar (sym ',' -*?*. pExp .*- ows) .*- sym ')' >@ enlist)
+pFunCall = pId .*?*. (sym '(' -*?*. (commaList pExp) .*?*- sym ')')
 
 pInt :: Parser Char Int
-pInt = opt (sym '-') .*?*. gplus (satisfy isDigit) >@ read . enlist
+pInt = gopt (sym '-') .*?*. gplus (satisfy isDigit) >@ read . enlist
 
 pBool :: Parser Char Bool
 pBool = sseq "False" >! False \/ sseq "True" >! True
