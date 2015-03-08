@@ -94,7 +94,8 @@ pOpExp6 =
 
 pNonOpExp :: Parser Char Exp
 pNonOpExp =
-    pInt >@ EInt \/ pBool >@ EBool \/ pChar >@ EChar \/ sseq "[]" >! ENil \/
+    pInt >@ EInt \/ pBool >@ EBool \/ pChar >@ EChar \/
+    sym '[' .*?*. sym ']' >! ENil \/
     sym '(' -*?*. pExp .*?*- sym ',' .*?*. pExp .*?*- sym ')' >@
     uncurry ETuple \/
     pId .*?*. pField >@ uncurry EId \/ pFunCall >@ uncurry EFunCall \/
