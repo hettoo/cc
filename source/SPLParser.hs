@@ -29,20 +29,20 @@ pType :: Parser Char Type
 pType =
     pId >@ TCustom \>/ (
         sseq "Int" >! TInt \/ sseq "Bool" >! TBool \/ sseq "Char" >! TChar \/
+        sym '[' -*?*. pType .*?*- sym ']' >@ TList) \/
         sym '(' -*?*. pType .*?*- sym ',' .*?*. pType .*?*- sym ')' >@
-        uncurry TTuple \/
-        sym '[' -*?*. pType .*?*- sym ']' >@ TList)
+        uncurry TTuple
 
 pStmt :: Parser Char Stmt
 pStmt = sym '{' -*?*. gstar (pStmt .*- ows) .*- sym '}' >@ Stmts \/
-    pFunCall .*?*- sym ';' >@ uncurry FunCall \/
-    sseq "return" -*-*. gopt pExp .*?*- sym ';' >@ Return \/
     pId .*?*. pField .*?*. (sym '=' -*?*. pExp .*?*- sym ';') >@
         (uncurry . uncurry) Assign \/
+    pFunCall .*?*- sym ';' >@ uncurry FunCall \/
     sseq "if" -*?*. (sym '(' -*?*. pExp .*?*- sym ')') .*?*.
         pStmt .*?*. gopt (sseq "else" -*?*. pStmt) >@ (uncurry . uncurry) If \/
     sseq "while" -*?*. (sym '(' -*?*. pExp .*?*- sym ')') .*?*. pStmt >@
-    uncurry While
+    uncurry While \/
+    sseq "return" -*-*. gopt pExp .*?*- sym ';' >@ Return
 
 pExp :: Parser Char Exp
 pExp = pOpExp \/ pNonOpExp

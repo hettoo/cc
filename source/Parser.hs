@@ -40,7 +40,7 @@ infixl 6 >@
 
 (\/) :: Parser a v -> Parser a v -> Parser a v
 (\/) p q l = p l ++ q l
-infixl 5 \/
+infixr 5 \/
 
 -- Some useful abbreviations
 
@@ -62,11 +62,11 @@ infixl 6 >!
 
 (\</) :: Parser a v -> Parser a v -> Parser a v
 (\</) p = cond p (yield id)
-infixl 5 \</
+infixr 5 \</
 
 (\>/) :: Parser a v -> Parser a v -> Parser a v
 (\>/) p q = q \</ p
-infixl 5 \>/
+infixr 5 \>/
 
 _opt :: (forall v. Parser a v -> Parser a v -> Parser a v) ->
     Parser a v -> Parser a (Maybe v)

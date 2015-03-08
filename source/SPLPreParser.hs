@@ -3,7 +3,7 @@ import Parser
 import Enlist
 
 pPre :: Parser Char String
-pPre = star pUniWS >@ concat
+pPre = gstar pUniWS >@ concat
 
 pSingleWS :: Parser Char Char
 pSingleWS = sym ' ' \/ sym '\t' \/ sym '\n' \/ sym '\r'
@@ -14,8 +14,8 @@ pUniWS = anything >@ enlist \>/
     gplus (pLineComment \/ pBlockComment) >! ""
 
 pLineComment :: Parser Char String
-pLineComment = sseq "//" .*. star (nsym '\n') .*. sym '\n' >! ""
+pLineComment = sseq "//" .*. gstar (nsym '\n') .*. sym '\n' >! ""
 
 pBlockComment :: Parser Char String
-pBlockComment = sseq "/*" .*. star (sym '*' -*. nsym '/' \/ nsym '*') .*.
+pBlockComment = sseq "/*" .*. gstar (sym '*' -*. nsym '/' \/ nsym '*') .*.
     sseq "*/" >! ""
