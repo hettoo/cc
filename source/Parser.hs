@@ -57,7 +57,7 @@ infixl 7 .*-
 infixl 7 -*.
 
 (>!) :: Parser a v -> w -> Parser a w
-(>!) p w = p >@ \_ -> w
+(>!) p w = p >@ const w
 infixl 6 >!
 
 (\</) :: Parser a v -> Parser a v -> Parser a v
@@ -99,7 +99,7 @@ gstar :: Parser a v -> Parser a [v]
 gstar = _star (\</)
 
 anything :: Parser a a
-anything = satisfy $ \_ -> True
+anything = satisfy $ const True
 
 sym :: Eq a =>
     a -> Parser a a
