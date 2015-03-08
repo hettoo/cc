@@ -5,13 +5,13 @@ import Utils
 
 type Parser a v = [a] -> [(v, [a])]
 
-parse :: (Eq a, Eq v) =>
+parse :: (Eq a, Eq v, Show v) =>
     Parser a v -> [a] -> v
 parse p l = case (map fst . rm . fullParses . p) l of
     [] -> error "parse failed"
     v : r -> case r of
         [] -> v
-        _ -> error "ambiguous parse"
+        _ -> error $ "ambiguous parse " ++ show (v : r)
     where
     fullParses :: [(v, [a])] -> [(v, [a])]
     fullParses = filter (\(_, l) -> isEmpty l)

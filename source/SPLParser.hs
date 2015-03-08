@@ -6,7 +6,7 @@ import Enlist
 import Data.Char
 
 pSPL :: Parser Char Stmt
-pSPL = star (pDecl .*- ows) >@ Stmts
+pSPL = ows -*. star (pDecl .*- ows) >@ Stmts
 
 pDecl :: Parser Char Stmt
 pDecl = pVarDecl \/ pFunDecl
@@ -104,14 +104,15 @@ pNonOpExp =
     sym '(' -*?*. pExp .*?*- sym ')'
 
 pField :: Parser Char [Field]
-pField = sym '.' -*?*. (
+pField = star (ows -*. sym '.' -*?*. (
     sseq "hd" >! Head \/
     sseq "tl" >! Tail \/
     sseq "fst" >! First \/
-    sseq "snd" >! Second) .*. opt (ows -*. pField) >@ enlist
+    sseq "snd" >! Second)) >@ enlist
 
 pFunCall :: Parser Char (String, [Exp])
-pFunCall = pId .*?*. (sym '(' -*?*. star (pExp .*- ows) .*- sym ')')
+pFunCall = pId .*?*. (sym '(' -*?*. opt pExp .*?*.
+    star (sym ',' -*?*. pExp .*- ows) .*- sym ')' >@ enlist)
 
 pInt :: Parser Char Int
 pInt = opt (sym '-') .*?*. plus (satisfy isDigit) >@ read . enlist

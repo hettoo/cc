@@ -3,11 +3,15 @@ import Parser
 import Enlist
 
 pPre :: Parser Char String
-pPre = star (pUniWS \>/ pLineComment \>/ pBlockComment) >@ concat
+pPre = star pUniWS >@ concat
+
+pSingleWS :: Parser Char Char
+pSingleWS = sym ' ' \/ sym '\t' \/ sym '\n' \/ sym '\r'
 
 pUniWS :: Parser Char String
 pUniWS = anything >@ enlist \>/
-    gplus (sym ' ' \/ sym '\t' \/ sym '\n' \/ sym '\r') >! " "
+    gplus (pSingleWS .*. gopt (pLineComment \/ pBlockComment)) >! " " \>/
+    gplus (pLineComment \/ pBlockComment) >! ""
 
 pLineComment :: Parser Char String
 pLineComment = sseq "//" .*. star (nsym '\n') .*. sym '\n' >! ""
