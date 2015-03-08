@@ -9,6 +9,7 @@ data Stmt =
     | Assign String [Field] Exp
     | If Exp Stmt (Maybe Stmt)
     | While Exp Stmt
+    deriving (Eq, Show)
 
 data Type =
     TCustom String
@@ -18,12 +19,14 @@ data Type =
     | TTuple Type Type
     | TList Type
     | TVoid
+    deriving (Eq, Show)
 
 data Field =
     Head
     | Tail
     | First
     | Second
+    deriving (Eq, Show)
 
 data Exp =
     EInt Int
@@ -49,3 +52,4 @@ data Exp =
     | EMod Exp Exp
     | ENot Exp
     | ENeg Exp
+    deriving (Eq, Show)

@@ -4,8 +4,8 @@ import Parser
 import Enlist
 import Data.Char
 
-pSPL :: Parser Char [Stmt]
-pSPL = star pDecl
+pSPL :: Parser Char Stmt
+pSPL = star pDecl >@ Stmts
 
 pDecl :: Parser Char Stmt
 pDecl = pVarDecl \/ pFunDecl
