@@ -53,7 +53,7 @@ infixl 7 .*.
 infixl 7 .*-
 
 (-*.) :: Parser a v -> Parser a w -> Parser a w
-(-*.) p q = q .*- p
+(-*.) p q = p .*. q >@ snd
 infixl 7 -*.
 
 (>!) :: Parser a v -> w -> Parser a w

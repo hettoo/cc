@@ -9,4 +9,4 @@ parseSPL = parse $ pPre >@ parse pSPL
 
 main = do
     s <- getContents
-    print $ parse (pInt .*- sym '\n') s
+    print $ parseSPL s
