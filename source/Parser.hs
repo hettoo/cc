@@ -74,7 +74,7 @@ _opt c p = (p >@ Just) `c` (yield Nothing)
 
 _plus :: (forall v. Parser a v -> Parser a v -> Parser a v) ->
     Parser a v -> Parser a (v, [v])
-_plus c p = (p >@ (\v -> (v, []))) `c` (p .*. _plus c p >@ pair (id, uncurry (:)))
+_plus c p = (p .*. _plus c p >@ pair (id, uncurry (:))) `c` (p >@ (\v -> (v, [])))
 
 _star :: (forall v. Parser a v -> Parser a v -> Parser a v) ->
     Parser a v -> Parser a [v]
