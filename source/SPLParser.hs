@@ -16,9 +16,10 @@ pVarDecl = pType .*-*. pId .*?*. (sym '=' -*?*. pExp .*?*- sym ';') >@
     (uncurry . uncurry) VarDecl
 
 pFunDecl :: Parser Char Stmt
-pFunDecl = pRetType .*-*. pId .*?*- sym '(' .*?*. pFArgs .*?*- sym ')' .*?*-
-    sym '{' .*?*. (gstar (pVarDecl .*- ows) .*.
-        gstar (pStmt .*- ows) >@ uncurry (++)) .*- sym '}' >@
+pFunDecl = pRetType .*-*. pId .*?*.
+    (sym '(' -*?*. commaList (pType .*-*. pId) .*?*- sym ')') .*?*.
+    (sym '{' -*?*. (gstar (pVarDecl .*- ows) .*.
+        gstar (pStmt .*- ows) >@ uncurry (++)) .*- sym '}') >@
     (uncurry . uncurry . uncurry) FunDecl
 
 pRetType :: Parser Char Type
@@ -31,9 +32,6 @@ pType =
         sym '(' -*?*. pType .*?*- sym ',' .*?*. pType .*?*- sym ')' >@
         uncurry TTuple \/
         sym '[' -*?*. pType .*?*- sym ']' >@ TList)
-
-pFArgs :: Parser Char [(Type, String)]
-pFArgs = gopt (neCommaList (pType .*-*. pId)) >@ enlist
 
 pStmt :: Parser Char Stmt
 pStmt = sym '{' -*?*. gstar (pStmt .*- ows) .*- sym '}' >@ Stmts \/
