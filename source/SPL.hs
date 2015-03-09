@@ -12,7 +12,7 @@ data Stmt =
     deriving (Eq, Show)
 
 data Type =
-    TCustom String
+    TPoly String
     | TInt
     | TBool
     | TChar
