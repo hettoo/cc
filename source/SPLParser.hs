@@ -12,8 +12,8 @@ pDecl :: Parser Char Stmt
 pDecl = pVarDecl \/ pFunDecl
 
 pVarDecl :: Parser Char Stmt
-pVarDecl = pType .*-*. pId .*?*. (sym '=' -*?*. pExp .*?*- sym ';') >@
-    (uncurry . uncurry) VarDecl
+pVarDecl l = (pType .*-*. pId .*?*. (sym '=' -*?*. pExp .*?*- sym ';') >@
+    (uncurry . uncurry) VarDecl) l
 
 pFunDecl :: Parser Char Stmt
 pFunDecl = pRetType .*-*. pId .*?*.
@@ -45,11 +45,8 @@ pStmt = sym '{' -*?*. gstar (pStmt .*- ows) .*- sym '}' >@ Stmts \/
     sseq "return" -*-*. gopt pExp .*?*- sym ';' >@ Return
 
 pExp :: Parser Char Exp
-pExp = pOpExp \/ pNonOpExp
-
-pOpExp :: Parser Char Exp
-pOpExp =
-    pOpExp1 .*?*. gopt (sym ':' -*?*. pOpExp) >@
+pExp =
+    pExp1 .*?*. gopt (sym ':' -*?*. pExp) >@
     \(a, m) -> case m of
         Nothing -> a
         Just b -> ECons a b
@@ -58,38 +55,38 @@ pOpExp =
 (.<<) p q = p .*. gstar (ows -*. q) >@ uncurry (foldl (\a f -> f a))
 infixl 4 .<<
 
-pOpExp1 :: Parser Char Exp
-pOpExp1 = pOpExp2 .<<
-    sseq "&&" -*?*. pOpExp2 >@ EAnd \/
-    sseq "||" -*?*. pOpExp2 >@ EOr
+pExp1 :: Parser Char Exp
+pExp1 = pExp2 .<<
+    sseq "&&" -*?*. pExp2 >@ EAnd \/
+    sseq "||" -*?*. pExp2 >@ EOr
 
-pOpExp2 :: Parser Char Exp
-pOpExp2 = pOpExp3 .<<
-    sseq "==" -*?*. pOpExp3 >@ EEq \/
-    sseq "!=" -*?*. pOpExp3 >@ ENeq
+pExp2 :: Parser Char Exp
+pExp2 = pExp3 .<<
+    sseq "==" -*?*. pExp3 >@ EEq \/
+    sseq "!=" -*?*. pExp3 >@ ENeq
 
-pOpExp3 :: Parser Char Exp
-pOpExp3 = pOpExp4 .<<
-    sym '<' -*?*. pOpExp4 >@ ELt \/
-    sym '>' -*?*. pOpExp4 >@ EGt \/
-    sseq "<=" -*?*. pOpExp4 >@ ELe \/
-    sseq ">=" -*?*. pOpExp4 >@ EGe
+pExp3 :: Parser Char Exp
+pExp3 = pExp4 .<<
+    sym '<' -*?*. pExp4 >@ ELt \/
+    sym '>' -*?*. pExp4 >@ EGt \/
+    sseq "<=" -*?*. pExp4 >@ ELe \/
+    sseq ">=" -*?*. pExp4 >@ EGe
 
-pOpExp4 :: Parser Char Exp
-pOpExp4 = pOpExp5 .<<
-    sym '+' -*?*. pOpExp5 >@ EPlus \/
-    sym '-' -*?*. pOpExp5 >@ EMinus
+pExp4 :: Parser Char Exp
+pExp4 = pExp5 .<<
+    sym '+' -*?*. pExp5 >@ EPlus \/
+    sym '-' -*?*. pExp5 >@ EMinus
 
-pOpExp5 :: Parser Char Exp
-pOpExp5 = pOpExp6 .<<
-    sym '*' -*?*. pOpExp6 >@ ETimes \/
-    sym '/' -*?*. pOpExp6 >@ EDiv \/
-    sym '%' -*?*. pOpExp6 >@ EMod
+pExp5 :: Parser Char Exp
+pExp5 = pExp6 .<<
+    sym '*' -*?*. pExp6 >@ ETimes \/
+    sym '/' -*?*. pExp6 >@ EDiv \/
+    sym '%' -*?*. pExp6 >@ EMod
 
-pOpExp6 :: Parser Char Exp
-pOpExp6 =
-    sym '!' -*?*. pOpExp6 >@ ENot \/
-    sym '-' -*?*. pOpExp6 >@ ENeg \/
+pExp6 :: Parser Char Exp
+pExp6 =
+    sym '!' -*?*. pExp6 >@ ENot \/
+    sym '-' -*?*. pExp6 >@ ENeg \/
     pNonOpExp
 
 pNonOpExp :: Parser Char Exp

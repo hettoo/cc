@@ -7,11 +7,11 @@ type Parser a v = [a] -> [(v, [a])]
 
 parse :: (Eq a, Eq v, Show v) =>
     Parser a v -> [a] -> v
-parse p l = case (map fst . rm . fullParses . p) l of
+parse p l = case (map fst . fullParses . p) l of -- minimize with rm after fullParses if performance is not an issue
     [] -> error "parse failed"
     v : r -> case r of
         [] -> v
-        _ -> error $ "ambiguous parse " ++ show (v : r)
+        _ -> error $ "ambiguous grammar yielding " ++ show (v : r)
     where
     fullParses :: [(v, [a])] -> [(v, [a])]
     fullParses = filter (\(_, l) -> isEmpty l)

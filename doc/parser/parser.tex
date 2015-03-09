@@ -93,21 +93,19 @@ Note that only list construction is right-associative.
     \alt `if' `(' <Exp> `)' <Stmt> [\,`else' <Stmt>\,]
     \alt `while' `(' <Exp> `)' <Stmt>
 
-    <Exp> ::= <OpExp> | <NonOpExp>
+    <Exp> ::= <Exp1> [\,`:' <Exp>\,]
 
-    <OpExp> ::= <OpExp1> [\,`:' <OpExp>\,]
+    <Exp1> ::= [\,<Exp1> (\,`&&' | `||'\,)\,] <Exp2>
 
-    <OpExp1> ::= [\,<OpExp1> (\,`&&' | `||'\,)\,] <OpExp2>
+    <Exp2> ::= [\,<Exp2> (\,`==' | `!='\,)\,] <Exp3>
 
-    <OpExp2> ::= [\,<OpExp2> (\,`==' | `!='\,)\,] <OpExp3>
+    <Exp3> ::= [\,<Exp3> (\,`<' | `>' | `<=' | `>='\,)\,] <Exp4>
 
-    <OpExp3> ::= [\,<OpExp3> (\,`<' | `>' | `<=' | `>='\,)\,] <OpExp4>
+    <Exp4> ::= [\,<Exp4> (\,`+' | `-'\,)\,] <Exp5>
 
-    <OpExp4> ::= [\,<OpExp4> (\,`+' | `-'\,)\,] <OpExp5>
+    <Exp5> ::= [\,<Exp5> (\,`*' | `/' | `%'\,)\,] <Exp6>
 
-    <OpExp5> ::= [\,<OpExp5> (\,`*' | `/' | `%'\,)\,] <OpExp6>
-
-    <OpExp6> ::= (\,`!' | `-'\,) <OpExp6> | <NonOpExp>
+    <Exp6> ::= (\,`!' | `-'\,) <Exp6> | <NonOpExp>
 
     <NonOpExp> ::= <int> | <char> | `False' | `True' | `[]' | <id> <Field>
     \alt <FunCall> | `(' <Exp> `)' | `(' <Exp> `,' <Exp> `)'
@@ -150,21 +148,19 @@ These are only present in the \synt{Field} rule, which we easily adapt.
     \alt `if' `(' <Exp> `)' <Stmt> [\,`else' <Stmt>\,]
     \alt `while' `(' <Exp> `)' <Stmt>
 
-    <Exp> ::= <OpExp> | <NonOpExp>
+    <Exp> ::= <Exp1> [\,`:' <Exp>\,]
 
-    <OpExp> ::= <OpExp1> [\,`:' <OpExp>\,]
+    <Exp1> ::= [\,<Exp1> (\,`&&' | `||'\,)\,] <Exp2>
 
-    <OpExp1> ::= [\,<OpExp1> (\,`&&' | `||'\,)\,] <OpExp2>
+    <Exp2> ::= [\,<Exp2> (\,`==' | `!='\,)\,] <Exp3>
 
-    <OpExp2> ::= [\,<OpExp2> (\,`==' | `!='\,)\,] <OpExp3>
+    <Exp3> ::= [\,<Exp3> (\,`<' | `>' | `<=' | `>='\,)\,] <Exp4>
 
-    <OpExp3> ::= [\,<OpExp3> (\,`<' | `>' | `<=' | `>='\,)\,] <OpExp4>
+    <Exp4> ::= [\,<Exp4> (\,`+' | `-'\,)\,] <Exp5>
 
-    <OpExp4> ::= [\,<OpExp4> (\,`+' | `-'\,)\,] <OpExp5>
+    <Exp5> ::= [\,<Exp5> (\,`*' | `/' | `%'\,)\,] <Exp6>
 
-    <OpExp5> ::= [\,<OpExp5> (\,`*' | `/' | `%'\,)\,] <OpExp6>
-
-    <OpExp6> ::= (\,`!' | `-'\,) <OpExp6> | <NonOpExp>
+    <Exp6> ::= (\,`!' | `-'\,) <Exp6> | <NonOpExp>
 
     <NonOpExp> ::= <int> | <char> | `False' | `True' | `[]' | <id> [\,<Field>\,]
     \alt <FunCall> | `(' <Exp> `)' | `(' <Exp> `,' <Exp> `)'
@@ -205,21 +201,19 @@ Fortunately, there are no cycles in our current grammar, so we skip to the last 
     \alt `if' `(' <Exp> `)' <Stmt> [\,`else' <Stmt>\,]
     \alt `while' `(' <Exp> `)' <Stmt>
 
-    <Exp> ::= <OpExp> | <NonOpExp>
+    <Exp> ::= <Exp1> [\,`:' <Exp>\,]
 
-    <OpExp> ::= <OpExp1> [\,`:' <OpExp>\,]
+    <Exp1> ::= <Exp2> (\,(\,`&&' | `||'\,) <Exp2>\,)*
 
-    <OpExp1> ::= <OpExp2> (\,(\,`&&' | `||'\,) <OpExp2>\,)*
+    <Exp2> ::= <Exp3> (\,(\,`==' | `!='\,) <Exp3>\,)*
 
-    <OpExp2> ::= <OpExp3> (\,(\,`==' | `!='\,) <OpExp3>\,)*
+    <Exp3> ::= <Exp4> (\,(\,`<' | `>' | `<=' | `>='\,) <Exp4>\,)*
 
-    <OpExp3> ::= <OpExp4> (\,(\,`<' | `>' | `<=' | `>='\,) <OpExp4>\,)*
+    <Exp4> ::= <Exp5> (\,(\,`+' | `-'\,) <Exp5>\,)*
 
-    <OpExp4> ::= <OpExp5> (\,(\,`+' | `-'\,) <OpExp5>\,)*
+    <Exp5> ::= <Exp6> (\,(\,`*' | `/' | `%'\,) <Exp6>\,)*
 
-    <OpExp5> ::= <OpExp6> (\,(\,`*' | `/' | `%'\,) <OpExp6>\,)*
-
-    <OpExp6> ::= (\,`!' | `-'\,) <OpExp6> | <NonOpExp>
+    <Exp6> ::= (\,`!' | `-'\,) <Exp6> | <NonOpExp>
 
     <NonOpExp> ::= <int> | <char> | `False' | `True' | `[]' | <id> [\,<Field>\,]
     \alt <FunCall> | `(' <Exp> `)' | `(' <Exp> `,' <Exp> `)'
