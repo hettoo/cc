@@ -41,7 +41,7 @@ cond p q r l = if isEmpty m then r l else m
     m = [(f v, l'') | (v, l') <- p l, (f, l'') <- q l']
 
 (>@) :: Parser a v -> (v -> w) -> Parser a w
-(>@) p f l = map (\(v, c) -> (f v, c)) (p l)
+(>@) p f l = map (left f) (p l)
 infixl 6 >@
 
 (\/) :: Parser a v -> Parser a v -> Parser a v
@@ -83,7 +83,7 @@ _opt c p = (p >@ Just) `c` (yield Nothing)
 
 _plus :: (forall v. Parser a v -> Parser a v -> Parser a v) ->
     Parser a v -> Parser a (v, [v])
-_plus c p = (p .*. _plus c p >@ pair (id, uncurry (:))) `c` (p >@ (\v -> (v, [])))
+_plus c p = (p .*. _plus c p >@ right (uncurry (:))) `c` (p >@ (\v -> (v, [])))
 
 _star :: (forall v. Parser a v -> Parser a v -> Parser a v) ->
     Parser a v -> Parser a [v]

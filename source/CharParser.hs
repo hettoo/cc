@@ -21,7 +21,7 @@ nalphanum_ = sep (satisfy (\c -> not (c == '_' || isAlphaNum c)))
 infixl 7 .*?*.
 
 (-*?*.) :: Parser Char v -> Parser Char w -> Parser Char w
-(-*?*.) p q = p .*. ows -*. q
+(-*?*.) p q = (p .*. ows) -*. q
 infixl 7 -*?*.
 
 (.*?*-) :: Parser Char v -> Parser Char w -> Parser Char v
