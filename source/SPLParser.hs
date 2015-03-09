@@ -23,7 +23,7 @@ pFunDecl = pRetType .*-*. pId .*?*.
     (uncurry . uncurry . uncurry) FunDecl
 
 pRetType :: Parser Char Type
-pRetType = pType \</ sseq "Void" >! TVoid
+pRetType = pType \>/ sseq "Void" >! TVoid
 
 pType :: Parser Char Type
 pType = pId >@ TPoly \>/
