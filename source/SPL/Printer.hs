@@ -20,7 +20,7 @@ instance PrettyPrinter Stmt where
             VarDecl t s e -> simplePrint t ++ " " ++ s ++ " = " ++
                 simplePrint e ++ ";\n"
             FunDecl t s a b -> simplePrint t ++ " " ++ s ++
-                " (" ++ simplePrint a ++ ")" ++ blockPrint True (Stmts b) ++ "\n"
+                " (" ++ simplePrint a ++ ")" ++ blockPrint True (Stmts b)
             FunCall s l -> s ++ "(" ++ simplePrint l ++ ");\n"
             Return m -> "return" ++ (case m of
                 Nothing -> ""
@@ -48,10 +48,30 @@ instance SimplePrinter [(Type, String)] where
             [] -> ""
             _ -> ", " ++ simplePrint r
 
+data DeclState =
+    DSPre
+    | DSNormal
+    | DSFun
+    | DSVar
+    deriving Eq
+
 instance PrettyPrinter [Stmt] where
-    prettyPrint' n l = case l of
-        [] -> ""
-        a : r -> prettyPrint' n a ++ prettyPrint' n r
+    prettyPrint' = prettyPrint'' DSPre
+        where
+        prettyPrint'' s n l = case l of
+            [] -> ""
+            a : r -> case a of
+                FunDecl _ _ _ _ | s /= DSPre ->
+                    "\n" ++ e ++ prettyPrint'' DSFun n r
+                VarDecl _ _ _ | not (s `elem` [DSPre, DSVar]) ->
+                    "\n" ++ e ++ prettyPrint'' DSVar n r
+                FunDecl _ _ _ _ -> e ++ prettyPrint'' DSFun n r
+                VarDecl _ _ _ -> e ++ prettyPrint'' DSVar n r
+                _ | not (s `elem` [DSPre, DSNormal]) ->
+                    "\n" ++ e ++ prettyPrint'' DSNormal n r
+                _ -> e ++ prettyPrint'' DSNormal n r
+                where
+                e = prettyPrint' n a
 
 instance SimplePrinter Field where
     simplePrint f = "." ++ case f of
