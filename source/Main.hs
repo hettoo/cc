@@ -1,8 +1,8 @@
 module Main where
-import SPL
+import SPL.Structure
 import Parser
-import SPLPreParser
-import SPLParser
+import SPL.PreParser
+import SPL.Parser
 
 parseSPL :: String -> Stmt
 parseSPL = parse $ pPre >@ parse pSPL

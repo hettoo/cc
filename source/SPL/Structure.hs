@@ -1,4 +1,4 @@
-module SPL where
+module SPL.Structure where
 
 data Stmt =
     Stmts [Stmt]

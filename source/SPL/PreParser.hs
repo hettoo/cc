@@ -1,4 +1,4 @@
-module SPLPreParser where
+module SPL.PreParser where
 import Parser
 import Enlist
 

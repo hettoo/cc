@@ -1,5 +1,5 @@
-module SPLParser where
-import SPL
+module SPL.Parser where
+import SPL.Structure
 import Parser
 import CharParser
 import Enlist
