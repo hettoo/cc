@@ -112,7 +112,7 @@ pFunCall :: Parser Char (String, [Exp])
 pFunCall = pId .*?*. (sym '(' -*?*. (commaList pExp) .*?*- sym ')')
 
 pInt :: Parser Char Int
-pInt = gopt (sym '-') .*?*. gplus (satisfy isDigit) >@ read . enlist
+pInt = gopt (sym '-' .*- ows) .*. gplus (satisfy isDigit) >@ read . enlist
 
 pBool :: Parser Char Bool
 pBool = sseq "False" >! False \/ sseq "True" >! True
