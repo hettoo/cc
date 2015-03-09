@@ -105,31 +105,40 @@ instance SimplePrinter Type where
         TList u -> "[" ++ simplePrint u ++ "]"
         TVoid -> "Void"
 
+instance SimplePrinter Op1 where
+    simplePrint o = case o of
+        ONot -> "!"
+        ONeg -> "-"
+
+instance SimplePrinter Op2 where
+    simplePrint o = case o of
+        OCons -> ":"
+        OAnd -> "&&"
+        OOr -> "||"
+        OEq -> "=="
+        ONeq -> "!="
+        OLt -> "<"
+        OGt -> ">"
+        OLe -> "<="
+        OGe -> ">="
+        OPlus -> "+"
+        OMinus -> "-"
+        OTimes -> "*"
+        ODiv -> "/"
+        OMod -> "%"
+
 instance SimplePrinter Exp where
     simplePrint e = case e of
         EInt n -> show n
         EBool b -> show b
         EChar c -> show c
         ENil -> "[]"
-        ECons a b -> "(" ++ simplePrint a ++ ") : (" ++ simplePrint b ++ ")"
         ETuple a b -> "(" ++ simplePrint a ++ ", " ++ simplePrint b ++ ")"
         EId s l -> s ++ simplePrint l
         EFunCall s l -> s ++ "(" ++ simplePrint l ++ ")"
-        EAnd a b -> "(" ++ simplePrint a ++ ") && (" ++ simplePrint b ++ ")"
-        EOr a b -> "(" ++ simplePrint a ++ ") || (" ++ simplePrint b ++ ")"
-        EEq a b -> "(" ++ simplePrint a ++ ") == (" ++ simplePrint b ++ ")"
-        ENeq a b -> "(" ++ simplePrint a ++ ") != (" ++ simplePrint b ++ ")"
-        ELt a b -> "(" ++ simplePrint a ++ ") < (" ++ simplePrint b ++ ")"
-        EGt a b -> "(" ++ simplePrint a ++ ") > (" ++ simplePrint b ++ ")"
-        ELe a b -> "(" ++ simplePrint a ++ ") <= (" ++ simplePrint b ++ ")"
-        EGe a b -> "(" ++ simplePrint a ++ ") >= (" ++ simplePrint b ++ ")"
-        EPlus a b -> "(" ++ simplePrint a ++ ") + (" ++ simplePrint b ++ ")"
-        EMinus a b -> "(" ++ simplePrint a ++ ") - (" ++ simplePrint b ++ ")"
-        ETimes a b -> "(" ++ simplePrint a ++ ") * (" ++ simplePrint b ++ ")"
-        EDiv a b -> "(" ++ simplePrint a ++ ") / (" ++ simplePrint b ++ ")"
-        EMod a b -> "(" ++ simplePrint a ++ ") % (" ++ simplePrint b ++ ")"
-        ENot a -> "!(" ++ simplePrint a ++ ")"
-        ENeg a -> "-(" ++ simplePrint a ++ ")"
+        EOp1 o a -> simplePrint o ++ "(" ++ simplePrint a ++ ")"
+        EOp2 o a b -> "(" ++ simplePrint a ++ ") " ++ simplePrint o ++
+            " (" ++ simplePrint b ++ ")"
 
 instance SimplePrinter [Exp] where
     simplePrint l = case l of

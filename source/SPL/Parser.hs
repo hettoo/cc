@@ -52,7 +52,7 @@ pExp =
     pExp1 .*?*. gopt (sym ':' -*?*. pExp) >@
     \(a, m) -> case m of
         Nothing -> a
-        Just b -> ECons a b
+        Just b -> EOp2 OCons a b
 
 (.<<) :: Parser Char v -> Parser Char (v -> v) -> Parser Char v
 (.<<) p q = p .*. gstar (ows -*. q) >@ uncurry (foldl (\a f -> f a))
@@ -60,37 +60,36 @@ infixl 4 .<<
 
 pExp1 :: Parser Char Exp
 pExp1 = pExp2 .<<
-    sseq "&&" -*?*. pExp2 >@ flip EAnd \/
-    sseq "||" -*?*. pExp2 >@ flip EOr
+    sseq "&&" -*?*. pExp2 >@ flip (EOp2 OAnd) \/
+    sseq "||" -*?*. pExp2 >@ flip (EOp2 OOr)
 
 pExp2 :: Parser Char Exp
 pExp2 = pExp3 .<<
-    sseq "==" -*?*. pExp3 >@ flip EEq \/
-    sseq "!=" -*?*. pExp3 >@ flip ENeq
+    sseq "==" -*?*. pExp3 >@ flip (EOp2 OEq) \/
+    sseq "!=" -*?*. pExp3 >@ flip (EOp2 ONeq)
 
 pExp3 :: Parser Char Exp
 pExp3 = pExp4 .<<
-    sym '<' -*?*. pExp4 >@ flip ELt \/
-    sym '>' -*?*. pExp4 >@ flip EGt \/
-    sseq "<=" -*?*. pExp4 >@ flip ELe \/
-    sseq ">=" -*?*. pExp4 >@ flip EGe
+    sym '<' -*?*. pExp4 >@ flip (EOp2 OLt) \/
+    sym '>' -*?*. pExp4 >@ flip (EOp2 OGt) \/
+    sseq "<=" -*?*. pExp4 >@ flip (EOp2 OLe) \/
+    sseq ">=" -*?*. pExp4 >@ flip (EOp2 OGe)
 
 pExp4 :: Parser Char Exp
 pExp4 = pExp5 .<<
-    sym '+' -*?*. pExp5 >@ flip EPlus \/
-    sym '-' -*?*. pExp5 >@ flip EMinus
+    sym '+' -*?*. pExp5 >@ flip (EOp2 OPlus) \/
+    sym '-' -*?*. pExp5 >@ flip (EOp2 OMinus)
 
 pExp5 :: Parser Char Exp
 pExp5 = pExp6 .<<
-    sym '*' -*?*. pExp6 >@ flip ETimes \/
-    sym '/' -*?*. pExp6 >@ flip EDiv \/
-    sym '%' -*?*. pExp6 >@ flip EMod
+    sym '*' -*?*. pExp6 >@ flip (EOp2 OTimes) \/
+    sym '/' -*?*. pExp6 >@ flip (EOp2 ODiv) \/
+    sym '%' -*?*. pExp6 >@ flip (EOp2 OMod)
 
 pExp6 :: Parser Char Exp
-pExp6 =
-    sym '!' -*?*. pExp6 >@ ENot \/
-    sym '-' -*?*. pExp6 >@ ENeg \/
-    pNonOpExp
+pExp6 = pNonOpExp \/
+    sym '!' -*?*. pExp6 >@ EOp1 ONot \/
+    sym '-' -*?*. pExp6 >@ EOp1 ONeg
 
 pNonOpExp :: Parser Char Exp
 pNonOpExp = pId .*?*. pField >@ uncurry EId \>/
