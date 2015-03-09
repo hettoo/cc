@@ -35,11 +35,7 @@ cond p q r l = case m of
     Nothing -> r l
     _ -> m
     where
-    m = case p l of
-        Nothing -> Nothing
-        Just (v, l') -> case q l' of
-            Nothing -> Nothing
-            Just (f, l'') -> Just (f v, l'')
+    m = p l >>= \(v, l') -> fmap (\(f, l'') -> (f v, l'')) (q l')
 
 (>@) :: Parser a v -> (v -> w) -> Parser a w
 (>@) p f l = fmap (left f) (p l)
