@@ -2,7 +2,7 @@ module SPL.Parser where
 import SPL.Structure
 import Parser
 import CharParser
-import Enlist
+import Listify
 import Data.Char
 
 pSPL :: Parser Char Stmt
@@ -106,13 +106,13 @@ pField = gstar (ows .*. sym '.' -*?*. (
     sseq "hd" >! Head \/
     sseq "tl" >! Tail \/
     sseq "fst" >! First \/
-    sseq "snd" >! Second)) >@ enlist
+    sseq "snd" >! Second)) >@ listify
 
 pFunCall :: Parser Char (String, [Exp])
 pFunCall = pId .*?*. (sym '(' -*?*. (commaList pExp) .*?*- sym ')')
 
 pInt :: Parser Char Int
-pInt = gopt (sym '-' .*- ows) .*. gplus (satisfy isDigit) >@ read . enlist
+pInt = gopt (sym '-' .*- ows) .*. gplus (satisfy isDigit) >@ read . listify
 
 pBool :: Parser Char Bool
 pBool = sseq "False" >! False \/ sseq "True" >! True
@@ -121,4 +121,4 @@ pChar :: Parser Char Char
 pChar = sym '\'' -*. anything .*- sym '\''
 
 pId :: Parser Char String
-pId = satisfy isAlpha .*. gstar (sym '_' \/ satisfy isAlphaNum) >@ enlist
+pId = satisfy isAlpha .*. gstar (sym '_' \/ satisfy isAlphaNum) >@ listify

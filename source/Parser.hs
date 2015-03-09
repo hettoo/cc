@@ -1,6 +1,6 @@
 {-# LANGUAGE RankNTypes #-}
 module Parser where
-import Enlist
+import Listify
 import Utils
 
 type Parser a v = [a] -> [(v, [a])]
@@ -87,7 +87,7 @@ _plus c p = (p .*. _plus c p >@ right (uncurry (:))) `c` (p >@ (\v -> (v, [])))
 
 _star :: (forall v. Parser a v -> Parser a v -> Parser a v) ->
     Parser a v -> Parser a [v]
-_star c p = _opt c (_plus c p) >@ enlist
+_star c p = _opt c (_plus c p) >@ listify
 
 opt :: Parser a v -> Parser a (Maybe v)
 opt = _opt (\/)

@@ -1,12 +1,12 @@
 module SPL.PreParser where
 import Parser
-import Enlist
+import Listify
 
 pPre :: Parser Char String
 pPre = gstar pUniWS >@ concat
 
 pUniWS :: Parser Char String
-pUniWS = anything >@ enlist \>/
+pUniWS = anything >@ listify \>/
     (pLineComment \/ pBlockComment) >! ""
 
 pLineComment :: Parser Char String

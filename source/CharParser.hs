@@ -1,6 +1,6 @@
 module CharParser where
 import Parser
-import Enlist
+import Listify
 import Utils
 import Data.Char
 
@@ -11,7 +11,7 @@ ws :: Parser Char (Char, [Char])
 ws = gplus (satisfy wspred)
 
 ows :: Parser Char [Char]
-ows = gopt ws >@ enlist
+ows = gopt ws >@ listify
 
 nalphanum_ :: Parser Char ()
 nalphanum_ = sep (satisfy (\c -> not (c == '_' || isAlphaNum c)))
@@ -32,4 +32,4 @@ neCommaList :: Parser Char v -> Parser Char (v, [v])
 neCommaList p = p .*?*. gstar (sym ',' -*?*. p)
 
 commaList :: Parser Char v -> Parser Char [v]
-commaList p = gopt (neCommaList p) >@ enlist
+commaList p = gopt (neCommaList p) >@ listify
