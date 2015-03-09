@@ -20,7 +20,8 @@ instance PrettyPrinter Stmt where
             VarDecl t s e -> simplePrint t ++ " " ++ s ++ " = " ++
                 simplePrint e ++ ";\n"
             FunDecl t s a b -> simplePrint t ++ " " ++ s ++
-                " (" ++ simplePrint a ++ ")" ++ blockPrint True (Stmts b)
+                " (" ++ simplePrint a ++ ")" ++
+                blockPrint True (Stmts b) ([Stmts b])
             FunCall s l -> s ++ "(" ++ simplePrint l ++ ");\n"
             Return m -> "return" ++ (case m of
                 Nothing -> ""
@@ -29,17 +30,26 @@ instance PrettyPrinter Stmt where
                 simplePrint e ++ ";\n"
             If c b m -> "if (" ++ simplePrint c ++ ")" ++
                 case m of
-                    Nothing -> blockPrint True b
-                    Just e -> blockPrint False b ++ "else" ++ blockPrint True e
-            While e b -> "while (" ++ simplePrint e ++ ")" ++ blockPrint True b
+                    Nothing -> blockPrint True b [b]
+                    Just e -> blockPrint False b [b, e] ++
+                        "else" ++ blockPrint True e [b, e]
+            While e b -> "while (" ++ simplePrint e ++ ")" ++
+                blockPrint True b [b]
         where
-        blockPrint b s = case s of
-                Stmts _ -> " " ++ prettyPrint' n s ++ case b of
+        blockPrint b s l = case foldl (||) False (map checkStmts l) of
+                True -> " " ++ prettyPrint' n w ++ case b of
                     True -> "\n"
                     False -> " "
-                _ -> "\n" ++ prettyPrint' (n + 1) s ++ "" ++ case b of
+                False -> "\n" ++ prettyPrint' (n + 1) s ++ "" ++ case b of
                     True -> ""
                     False -> prettyPrint' n ()
+                where
+                checkStmts s = case s of
+                    Stmts _ -> True
+                    _ -> False
+                w = case checkStmts s of
+                    True -> s
+                    False -> Stmts [s]
 
 instance SimplePrinter [(Type, String)] where
     simplePrint l = case l of
