@@ -3,46 +3,46 @@ module Parser where
 import Listify
 import Utils
 
-type Parser a v = [a] -> [(v, [a])]
+type Parser a v = [a] -> Maybe (v, [a])
 
 parse :: (Eq a, Eq v, Show v) =>
     Parser a v -> [a] -> v
--- minimize with rm after fullParses if performance is not an issue
-parse p l = case (map fst . fullParses . p) l of
-    [] -> error "parse failed"
-    v : r -> case r of
-        [] -> v
-        _ -> error $ "ambiguous grammar yielding " ++ show (v : r)
-    where
-    fullParses :: [(v, [a])] -> [(v, [a])]
-    fullParses = filter (\(_, l) -> isEmpty l)
+parse p l = case (fmap fst . p) l of
+    Nothing -> error "parse failed"
+    Just v -> v
 
 -- Main parser building blocks
 
 nop :: Parser a v
-nop _ = []
+nop _ = Nothing
 
 yield :: v -> Parser a v
-yield v l = [(v, l)]
+yield v l = Just (v, l)
 
 eof :: Parser a ()
-eof l = if isEmpty l then yield () l else []
+eof l = if isEmpty l then yield () l else Nothing
 
 phantom :: Parser a v -> Parser a v
-phantom p l = map (\t -> (fst t, l)) (p l)
+phantom p l = fmap (\t -> (fst t, l)) (p l)
 
 satisfy :: (a -> Bool) -> Parser a a
 satisfy f l = case l of
-    a : r | f a -> [(a, r)]
-    _ -> []
+    a : r | f a -> Just (a, r)
+    _ -> Nothing
 
 cond :: Parser a v -> Parser a (v -> w) -> Parser a w -> Parser a w
-cond p q r l = if isEmpty m then r l else m
+cond p q r l = case m of
+    Nothing -> r l
+    _ -> m
     where
-    m = [(f v, l'') | (v, l') <- p l, (f, l'') <- q l']
+    m = case p l of
+        Nothing -> Nothing
+        Just (v, l') -> case q l' of
+            Nothing -> Nothing
+            Just (f, l'') -> Just (f v, l'')
 
 (>@) :: Parser a v -> (v -> w) -> Parser a w
-(>@) p f l = map (left f) (p l)
+(>@) p f l = fmap (left f) (p l)
 infixl 6 >@
 
 -- Some useful abbreviations
