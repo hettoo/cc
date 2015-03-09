@@ -127,6 +127,17 @@ instance SimplePrinter Op2 where
         ODiv -> "/"
         OMod -> "%"
 
+stronger1 :: Op1 -> Exp -> Bool
+stronger1 _ e = case e of
+    EOp2 _ _ _ -> True
+    _ -> False
+
+data Side = SLeft | SRight
+
+-- TODO
+stronger2 :: Op2 -> Exp -> Side -> Bool
+stronger2 o e s = True
+
 instance SimplePrinter Exp where
     simplePrint e = case e of
         EInt n -> show n
@@ -136,9 +147,14 @@ instance SimplePrinter Exp where
         ETuple a b -> "(" ++ simplePrint a ++ ", " ++ simplePrint b ++ ")"
         EId s l -> s ++ simplePrint l
         EFunCall s l -> s ++ "(" ++ simplePrint l ++ ")"
-        EOp1 o a -> simplePrint o ++ "(" ++ simplePrint a ++ ")"
-        EOp2 o a b -> "(" ++ simplePrint a ++ ") " ++ simplePrint o ++
-            " (" ++ simplePrint b ++ ")"
+        EOp1 o a -> simplePrint o ++ wrap (simplePrint a) (stronger1 o a)
+        EOp2 o a b -> wrap (simplePrint a) (stronger2 o a SLeft) ++
+            " " ++ simplePrint o ++ " " ++
+            wrap (simplePrint b) (stronger2 o b SRight)
+        where
+        wrap s b = case b of
+            True -> "(" ++ s ++ ")"
+            False -> s
 
 instance SimplePrinter [Exp] where
     simplePrint l = case l of
