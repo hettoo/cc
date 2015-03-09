@@ -4,11 +4,8 @@ import Listify
 import Utils
 import Data.Char
 
-wspred :: Char -> Bool
-wspred c = c `elem` [' ', '\n', '\r', '\t']
-
 ws :: Parser Char (Char, [Char])
-ws = gplus (satisfy wspred)
+ws = gplus (satisfy (\c -> c `elem` [' ', '\n', '\r', '\t']))
 
 ows :: Parser Char [Char]
 ows = gopt ws >@ listify

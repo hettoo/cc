@@ -7,7 +7,8 @@ type Parser a v = [a] -> [(v, [a])]
 
 parse :: (Eq a, Eq v, Show v) =>
     Parser a v -> [a] -> v
-parse p l = case (map fst . fullParses . p) l of -- minimize with rm after fullParses if performance is not an issue
+-- minimize with rm after fullParses if performance is not an issue
+parse p l = case (map fst . fullParses . p) l of
     [] -> error "parse failed"
     v : r -> case r of
         [] -> v

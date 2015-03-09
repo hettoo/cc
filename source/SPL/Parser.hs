@@ -5,8 +5,8 @@ import CharParser
 import Listify
 import Data.Char
 
-pSPL :: Parser Char Stmt
-pSPL = ows -*. gstar (pDecl .*- ows) >@ Stmts
+pSPL :: Parser Char [Stmt]
+pSPL = ows -*. gstar (pDecl .*- ows)
 
 pDecl :: Parser Char Stmt
 pDecl = pVarDecl \/ pFunDecl
