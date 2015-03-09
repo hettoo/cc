@@ -45,10 +45,6 @@ cond p q r l = if isEmpty m then r l else m
 (>@) p f l = map (left f) (p l)
 infixl 6 >@
 
-(\/) :: Parser a v -> Parser a v -> Parser a v
-(\/) p q l = p l ++ q l
-infixr 5 \/
-
 -- Some useful abbreviations
 
 (.*.) :: Parser a v -> Parser a w -> Parser a (v, w)
@@ -67,46 +63,21 @@ infixl 7 -*.
 (>!) p w = p >@ const w
 infixl 6 >!
 
-(\</) :: Parser a v -> Parser a v -> Parser a v
-(\</) p = cond p (yield id)
-infixr 5 \</
-
-(\>/) :: Parser a v -> Parser a v -> Parser a v
-(\>/) p q = q \</ p
-infixr 5 \>/
+(\/) :: Parser a v -> Parser a v -> Parser a v
+(\/) p = cond p (yield id)
+infixr 5 \/
 
 sep :: Parser a v -> Parser a ()
 sep p = phantom p >! () \/ eof
 
-_opt :: (forall v. Parser a v -> Parser a v -> Parser a v) ->
-    Parser a v -> Parser a (Maybe v)
-_opt c p = (p >@ Just) `c` (yield Nothing)
-
-_plus :: (forall v. Parser a v -> Parser a v -> Parser a v) ->
-    Parser a v -> Parser a (v, [v])
-_plus c p = (p .*. _plus c p >@ right (uncurry (:))) `c` (p >@ (\v -> (v, [])))
-
-_star :: (forall v. Parser a v -> Parser a v -> Parser a v) ->
-    Parser a v -> Parser a [v]
-_star c p = _opt c (_plus c p) >@ listify
-
 opt :: Parser a v -> Parser a (Maybe v)
-opt = _opt (\/)
+opt p = p >@ Just \/ yield Nothing
 
 plus :: Parser a v -> Parser a (v, [v])
-plus = _plus (\/)
+plus p = p .*. plus p >@ right (uncurry (:)) \/ p >@ \v -> (v, [])
 
 star :: Parser a v -> Parser a [v]
-star = _star (\/)
-
-gopt :: Parser a v -> Parser a (Maybe v)
-gopt = _opt (\</)
-
-gplus :: Parser a v -> Parser a (v, [v])
-gplus = _plus (\</)
-
-gstar :: Parser a v -> Parser a [v]
-gstar = _star (\</)
+star p = opt (plus p) >@ listify
 
 anything :: Parser a a
 anything = satisfy $ const True

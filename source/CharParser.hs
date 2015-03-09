@@ -5,10 +5,10 @@ import Utils
 import Data.Char
 
 ws :: Parser Char (Char, [Char])
-ws = gplus (satisfy (\c -> c `elem` [' ', '\n', '\r', '\t']))
+ws = plus (satisfy (\c -> c `elem` [' ', '\n', '\r', '\t']))
 
 ows :: Parser Char [Char]
-ows = gopt ws >@ listify
+ows = opt ws >@ listify
 
 nalphanum_ :: Parser Char ()
 nalphanum_ = sep (satisfy (\c -> not (c == '_' || isAlphaNum c)))
@@ -26,7 +26,7 @@ infixl 7 -*?*.
 infixl 7 .*?*-
 
 neCommaList :: Parser Char v -> Parser Char (v, [v])
-neCommaList p = p .*?*. gstar (sym ',' -*?*. p)
+neCommaList p = p .*?*. star (sym ',' -*?*. p)
 
 commaList :: Parser Char v -> Parser Char [v]
-commaList p = gopt (neCommaList p) >@ listify
+commaList p = opt (neCommaList p) >@ listify
