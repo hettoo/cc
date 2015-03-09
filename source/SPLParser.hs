@@ -12,28 +12,29 @@ pDecl :: Parser Char Stmt
 pDecl = pVarDecl \/ pFunDecl
 
 pVarDecl :: Parser Char Stmt
-pVarDecl l = (pType .*-*. pId .*?*. (sym '=' -*?*. pExp .*?*- sym ';') >@
+pVarDecl l = (pType .*?*. pId .*?*. (sym '=' -*?*. pExp .*?*- sym ';') >@
     (uncurry . uncurry) VarDecl) l
 
 pFunDecl :: Parser Char Stmt
-pFunDecl = pRetType .*-*. pId .*?*.
-    (sym '(' -*?*. commaList (pType .*-*. pId) .*?*- sym ')') .*?*.
+pFunDecl = pRetType .*?*. pId .*?*.
+    (sym '(' -*?*. commaList (pType .*?*. pId) .*?*- sym ')') .*?*.
     (sym '{' -*?*. (gstar (pVarDecl .*- ows) .*.
         gstar (pStmt .*- ows) >@ uncurry (++)) .*- sym '}') >@
-    (uncurry . uncurry . uncurry) FunDecl
+        (uncurry . uncurry . uncurry) FunDecl
 
 pRetType :: Parser Char Type
-pRetType = pType \>/ sseq "Void" >! TVoid
+pRetType = pType \>/ sseq "Void" .*- nalphanum_ >! TVoid
 
 pType :: Parser Char Type
 pType = pId >@ TPoly \>/
     pBasicType \/
     sym '[' -*?*. pType .*?*- sym ']' >@ TList \/
-    sym '(' -*?*. pType .*?*- sym ',' .*?*. pType .*?*- sym ')' >@
-    uncurry TTuple
+    sym '(' -*?*. (pType .*?*- sym ',') .*?*. pType .*?*- sym ')' >@
+        uncurry TTuple
 
 pBasicType :: Parser Char Type
-pBasicType = sseq "Int" >! TInt \/ sseq "Bool" >! TBool \/ sseq "Char" >! TChar
+pBasicType = (sseq "Int" >! TInt \/ sseq "Bool" >! TBool \/
+    sseq "Char" >! TChar) .*- nalphanum_
 
 pStmt :: Parser Char Stmt
 pStmt = pFunCall .*?*- sym ';' >@ uncurry FunCall \>/
@@ -43,8 +44,8 @@ pStmt = pFunCall .*?*- sym ';' >@ uncurry FunCall \>/
     sseq "if" -*?*. (sym '(' -*?*. pExp .*?*- sym ')') .*?*.
         pStmt .*?*. gopt (sseq "else" -*?*. pStmt) >@ (uncurry . uncurry) If \/
     sseq "while" -*?*. (sym '(' -*?*. pExp .*?*- sym ')') .*?*. pStmt >@
-    uncurry While \/
-    sseq "return" -*-*. gopt pExp .*?*- sym ';' >@ Return
+        uncurry While \/
+    (sseq "return" .*. nalphanum_) -*?*. gopt pExp .*?*- sym ';' >@ Return
 
 pExp :: Parser Char Exp
 pExp =
@@ -96,7 +97,7 @@ pNonOpExp = pId .*?*. pField >@ uncurry EId \>/
     pInt >@ EInt \/ pBool >@ EBool \/ pChar >@ EChar \/
     sym '[' .*?*. sym ']' >! ENil \/
     sym '(' -*?*. pExp .*?*- sym ',' .*?*. pExp .*?*- sym ')' >@
-    uncurry ETuple \/
+        uncurry ETuple \/
     pFunCall >@ uncurry EFunCall \/
     sym '(' -*?*. pExp .*?*- sym ')'
 

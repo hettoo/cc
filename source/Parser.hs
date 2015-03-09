@@ -24,6 +24,12 @@ nop _ = []
 yield :: v -> Parser a v
 yield v l = [(v, l)]
 
+eof :: Parser a ()
+eof l = if isEmpty l then yield () l else []
+
+phantom :: Parser a v -> Parser a v
+phantom p l = map (\t -> (fst t, l)) (p l)
+
 satisfy :: (a -> Bool) -> Parser a a
 satisfy f l = case l of
     a : r | f a -> [(a, r)]
@@ -67,6 +73,9 @@ infixr 5 \</
 (\>/) :: Parser a v -> Parser a v -> Parser a v
 (\>/) p q = q \</ p
 infixr 5 \>/
+
+sep :: Parser a v -> Parser a ()
+sep p = phantom p >! () \/ eof
 
 _opt :: (forall v. Parser a v -> Parser a v -> Parser a v) ->
     Parser a v -> Parser a (Maybe v)

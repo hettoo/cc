@@ -1,24 +1,20 @@
 module CharParser where
 import Parser
 import Enlist
+import Utils
+import Data.Char
+
+wspred :: Char -> Bool
+wspred c = c `elem` [' ', '\n', '\r', '\t']
 
 ws :: Parser Char (Char, [Char])
-ws = gplus (sym ' ' \/ sym '\n' \/ sym '\r' \/ sym '\t')
+ws = gplus (satisfy wspred)
 
 ows :: Parser Char [Char]
 ows = gopt ws >@ enlist
 
-(.*-*.) :: Parser Char v -> Parser Char w -> Parser Char (v, w)
-(.*-*.) p q = p .*- ws .*. q
-infixl 7 .*-*.
-
-(-*-*.) :: Parser Char v -> Parser Char w -> Parser Char w
-(-*-*.) p q = p .*. ws -*. q
-infixl 7 -*-*.
-
-(.*-*-) :: Parser Char v -> Parser Char w -> Parser Char v
-(.*-*-) p q = p .*- (ws .*. q)
-infixl 7 .*-*-
+nalphanum_ :: Parser Char ()
+nalphanum_ = sep (satisfy (\c -> not (c == '_' || isAlphaNum c)))
 
 (.*?*.) :: Parser Char v -> Parser Char w -> Parser Char (v, w)
 (.*?*.) p q = p .*- ows .*. q
