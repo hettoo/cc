@@ -37,7 +37,9 @@ pBasicType = (sseq "Int" >! TInt \/ sseq "Bool" >! TBool \/
     sseq "Char" >! TChar) .*- nalphanum_
 
 pStmt :: Parser Char Stmt
-pStmt = sym '{' -*?*. star (pStmt .*- ows) .*- sym '}' >@ Stmts \/
+pStmt = sym '{' -*?*. star (pStmt .*- ows) .*- sym '}' >@ (\l -> case l of
+        [s] -> s
+        _ -> Stmts l) \/
     sseq "if" -*?*. (sym '(' -*?*. pExp .*?*- sym ')') .*?*.
         pStmt .*?*. opt (sseq "else" -*?*. pStmt) >@ (uncurry . uncurry) If \/
     sseq "while" -*?*. (sym '(' -*?*. pExp .*?*- sym ')') .*?*. pStmt >@
