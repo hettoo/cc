@@ -132,11 +132,38 @@ stronger1 _ e = case e of
     EOp2 _ _ _ -> True
     _ -> False
 
-data Side = SLeft | SRight
+data Side =
+    SLeft
+    | SRight
+    deriving Eq
 
--- TODO
 stronger2 :: Op2 -> Exp -> Side -> Bool
-stronger2 o e s = True
+stronger2 o e s = case e of
+    EOp2 o' a b -> (if s == assoc o then (>) else (>=))
+        (strength o) (strength o')
+    _ -> False
+
+assoc :: Op2 -> Side
+assoc o = case o of
+    OCons -> SRight
+    _ -> SLeft
+
+strength :: Op2 -> Int
+strength o = case o of
+    OCons -> 0
+    OAnd -> 1
+    OOr -> 1
+    OEq -> 2
+    ONeq -> 2
+    OLt -> 3
+    OGt -> 3
+    OLe -> 3
+    OGe -> 3
+    OPlus -> 4
+    OMinus -> 4
+    OTimes -> 5
+    ODiv -> 5
+    OMod -> 5
 
 instance SimplePrinter Exp where
     simplePrint e = case e of
