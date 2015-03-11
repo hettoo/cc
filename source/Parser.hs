@@ -1,4 +1,3 @@
-{-# LANGUAGE RankNTypes #-}
 module Parser where
 import Listify
 import Utils
@@ -24,8 +23,13 @@ skip l = case l of
     [] -> Nothing
     a : r -> yield a r
 
-inspect :: ([a] -> Parser a v) -> Parser a v
-inspect f l = f l l
+eof :: Parser a ()
+eof l = (if isEmpty l then yield () else nop) l
+
+satisfy :: (a -> Bool) -> Parser a a
+satisfy f l = case l of
+    a : r | f a -> yield a r
+    _ -> Nothing
 
 phantom :: Parser a v -> Parser a v
 phantom p l = fmap (\t -> (fst t, l)) (p l)
@@ -67,9 +71,6 @@ infixl 6 >!
 (\/) p = cond (p .< yield id)
 infixr 5 \/
 
-eof :: Parser a ()
-eof = inspect $ \l -> if isEmpty l then yield () else nop
-
 sep :: Parser a v -> Parser a ()
 sep p = phantom p >! () \/ eof
 
@@ -81,11 +82,6 @@ plus p = p .*. plus p >@ right (uncurry (:)) \/ p >@ \v -> (v, [])
 
 star :: Parser a v -> Parser a [v]
 star p = opt (plus p) >@ listify
-
-satisfy :: (a -> Bool) -> Parser a a
-satisfy f = inspect (\l -> case l of
-    a : r | f a -> skip
-    _ -> nop)
 
 anything :: Parser a a
 anything = satisfy $ const True
