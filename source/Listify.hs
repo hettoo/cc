@@ -6,6 +6,9 @@ module Listify where
 class Listify a b where
     listify :: a -> [b]
 
+instance Listify [a] a where
+    listify = id
+
 instance Listify a a where
     listify a = [a]
 

@@ -78,7 +78,7 @@ opt :: Parser a v -> Parser a (Maybe v)
 opt p = p >@ Just \/ yield Nothing
 
 plus :: Parser a v -> Parser a (v, [v])
-plus p = p .*. plus p >@ right (uncurry (:)) \/ p >@ \v -> (v, [])
+plus p = p .*. (opt (plus p >@ uncurry (:)) >@ listify)
 
 star :: Parser a v -> Parser a [v]
 star p = opt (plus p) >@ listify
