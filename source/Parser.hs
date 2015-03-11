@@ -34,16 +34,16 @@ satisfy f l = case l of
 phantom :: Parser a v -> Parser a v
 phantom p l = fmap (\t -> (fst t, l)) (p l)
 
-(>.) :: Parser a v -> Parser a (v -> w) -> Parser a w
-(>.) p q l = p l >>= \(v, l') -> fmap (\(f, l'') -> (f v, l'')) (q l')
-infixl 7 >.
-
 cond :: Parser a w -> Parser a w -> Parser a w
 cond p q l = case r of
     Nothing -> q l
     _ -> r
     where
     r = p l
+
+(>.) :: Parser a v -> Parser a (v -> w) -> Parser a w
+(>.) p q l = p l >>= \(v, l') -> fmap (\(f, l'') -> (f v, l'')) (q l')
+infixl 7 >.
 
 -- Some useful abbreviations
 
