@@ -4,6 +4,11 @@ isEmpty l = case l of
     [] -> True
     _ -> False
 
+sm :: (a -> b) -> ([a] -> b) -> [a] -> b
+sm f g l = case l of
+    [a] -> f a
+    _ -> g l
+
 rm :: Eq a =>
     [a] -> [a]
 rm = foldl (\seen x -> if x `elem` seen then seen else seen ++ [x]) []

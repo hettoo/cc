@@ -4,6 +4,7 @@ import Parser
 import CharParser
 import Listify
 import Data.Char
+import Utils
 
 pSPL :: Parser Char [Stmt]
 pSPL = ows -*. star (pDecl .*- ows)
@@ -37,9 +38,7 @@ pBasicType = (sseq "Int" >! TInt \/ sseq "Bool" >! TBool \/
     sseq "Char" >! TChar) .*- nalphanum_
 
 pStmt :: Parser Char Stmt
-pStmt = sym '{' -*?*. star (pStmt .*- ows) .*- sym '}' >@ (\l -> case l of
-        [s] -> s
-        _ -> Stmts l) \/
+pStmt = sym '{' -*?*. star (pStmt .*- ows) .*- sym '}' >@ sm id Stmts \/
     sseq "if" -*?*. (sym '(' -*?*. pExp .*?*- sym ')') .*?*.
         pStmt .*?*. opt (sseq "else" -*?*. pStmt) >@ (uncurry . uncurry) If \/
     sseq "while" -*?*. (sym '(' -*?*. pExp .*?*- sym ')') .*?*. pStmt >@
@@ -55,34 +54,34 @@ pExp = pExp1 .*?*. opt (sym ':' -*?*. pExp) >@
         Nothing -> a
         Just b -> EOp2 OCons a b
 
-(.<<) :: Parser Char v -> Parser Char (v -> v) -> Parser Char v
-(.<<) p q = p .*. star (ows -*. q) >@ uncurry (foldl (\a f -> f a))
-infixl 4 .<<
+(+<<) :: Parser Char v -> Parser Char (v -> v) -> Parser Char v
+(+<<) p q = p .*. star (ows -*. q) >@ uncurry (foldl (\a f -> f a))
+infixl 4 +<<
 
 pExp1 :: Parser Char Exp
-pExp1 = pExp2 .<<
+pExp1 = pExp2 +<<
     sseq "&&" -*?*. pExp2 >@ flip (EOp2 OAnd) \/
     sseq "||" -*?*. pExp2 >@ flip (EOp2 OOr)
 
 pExp2 :: Parser Char Exp
-pExp2 = pExp3 .<<
+pExp2 = pExp3 +<<
     sseq "==" -*?*. pExp3 >@ flip (EOp2 OEq) \/
     sseq "!=" -*?*. pExp3 >@ flip (EOp2 ONeq)
 
 pExp3 :: Parser Char Exp
-pExp3 = pExp4 .<<
+pExp3 = pExp4 +<<
     sym '<' -*?*. pExp4 >@ flip (EOp2 OLt) \/
     sym '>' -*?*. pExp4 >@ flip (EOp2 OGt) \/
     sseq "<=" -*?*. pExp4 >@ flip (EOp2 OLe) \/
     sseq ">=" -*?*. pExp4 >@ flip (EOp2 OGe)
 
 pExp4 :: Parser Char Exp
-pExp4 = pExp5 .<<
+pExp4 = pExp5 +<<
     sym '+' -*?*. pExp5 >@ flip (EOp2 OPlus) \/
     sym '-' -*?*. pExp5 >@ flip (EOp2 OMinus)
 
 pExp5 :: Parser Char Exp
-pExp5 = pExp6 .<<
+pExp5 = pExp6 +<<
     sym '*' -*?*. pExp6 >@ flip (EOp2 OTimes) \/
     sym '/' -*?*. pExp6 >@ flip (EOp2 ODiv) \/
     sym '%' -*?*. pExp6 >@ flip (EOp2 OMod)
@@ -103,10 +102,8 @@ pNonOpExp = pInt >@ EInt \/ pBool >@ EBool \/ pChar >@ EChar \/
 
 pField :: Parser Char [Field]
 pField = star (ows .*. sym '.' -*?*. (
-    sseq "hd" >! Head \/
-    sseq "tl" >! Tail \/
-    sseq "fst" >! First \/
-    sseq "snd" >! Second)) >@ listify
+    sseq "hd" >! Head \/ sseq "tl" >! Tail \/
+    sseq "fst" >! First \/ sseq "snd" >! Second)) >@ listify
 
 pFunCall :: Parser Char (String, [Exp])
 pFunCall = pId .*?*. (sym '(' -*?*. (commaList pExp) .*?*- sym ')')
