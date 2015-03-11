@@ -30,12 +30,16 @@ instance PrettyPrinter Stmt where
                 simplePrint e ++ ";\n"
             If c b m -> "if (" ++ simplePrint c ++ ")" ++
                 case m of
-                    Nothing -> blockPrint True b [b]
-                    Just e -> blockPrint False b [b, e] ++
-                        "else" ++ blockPrint True e [b, e]
+                    Nothing -> blockPrint True (makeBlock b) [makeBlock b]
+                    Just e -> blockPrint False (makeBlock b) (map makeBlock [b, e]) ++
+                        "else" ++ blockPrint True (makeBlock e) (map makeBlock [b, e])
             While e b -> "while (" ++ simplePrint e ++ ")" ++
-                blockPrint True b [b]
+                blockPrint True (makeBlock b) [makeBlock b]
         where
+        makeBlock s = case s of
+            If _ _ _ -> Stmts [s]
+            While _ _ -> Stmts [s]
+            _ -> s
         blockPrint b s l = case foldl (||) False (map checkStmts l) of
                 True -> " " ++ prettyPrint' n w ++ case b of
                     True -> "\n"
