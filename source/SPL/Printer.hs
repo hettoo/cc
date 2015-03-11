@@ -30,30 +30,33 @@ instance PrettyPrinter Stmt where
                 simplePrint e ++ ";\n"
             If c b m -> "if (" ++ simplePrint c ++ ")" ++
                 case m of
-                    Nothing -> blockPrint True (makeBlock b) [makeBlock b]
-                    Just e -> blockPrint False (makeBlock b) (map makeBlock [b, e]) ++
-                        "else" ++ blockPrint True (makeBlock e) (map makeBlock [b, e])
+                    Nothing -> blockPrint True b [b]
+                    Just e -> blockPrint False b [b, e] ++
+                        "else" ++ blockPrint True e [b, e]
             While e b -> "while (" ++ simplePrint e ++ ")" ++
-                blockPrint True (makeBlock b) [makeBlock b]
+                blockPrint True b [b]
         where
+        blockPrint b s l = case foldl (||) False (map checkStmts l') of
+                True -> " " ++ prettyPrint' n w ++ case b of
+                    True -> "\n"
+                    False -> " "
+                False -> "\n" ++ prettyPrint' (n + 1) s' ++ "" ++
+                    case b of
+                        True -> ""
+                        False -> prettyPrint' n ()
+                where
+                w = case checkStmts s of
+                    True -> s
+                    False -> Stmts [s]
+                s' = makeBlock s
+                l' = map makeBlock l
+                checkStmts s = case s of
+                    Stmts _ -> True
+                    _ -> False
         makeBlock s = case s of
             If _ _ _ -> Stmts [s]
             While _ _ -> Stmts [s]
             _ -> s
-        blockPrint b s l = case foldl (||) False (map checkStmts l) of
-                True -> " " ++ prettyPrint' n w ++ case b of
-                    True -> "\n"
-                    False -> " "
-                False -> "\n" ++ prettyPrint' (n + 1) s ++ "" ++ case b of
-                    True -> ""
-                    False -> prettyPrint' n ()
-                where
-                checkStmts s = case s of
-                    Stmts _ -> True
-                    _ -> False
-                w = case checkStmts s of
-                    True -> s
-                    False -> Stmts [s]
 
 instance SimplePrinter [(Type, String)] where
     simplePrint l = case l of
