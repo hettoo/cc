@@ -8,12 +8,18 @@ import SPL.Printer
 parseSPL :: String -> [Stmt]
 parseSPL = parse $ pPre >@ parse pSPL
 
-test :: String -> Bool
-test s = p == (parseSPL . prettyPrint) p
+testPrinter :: String -> Bool
+testPrinter s = p == (parseSPL . prettyPrint) p
     where
     p = parseSPL s
 
+testParser :: [Stmt] -> Bool
+testParser l = s == (prettyPrint . parseSPL) s
+    where
+    s = prettyPrint l
+
 main = do
     s <- getContents
-    putStr . prettyPrint $ parseSPL s
-    print . test $ s
+    putStr . prettyPrint . parseSPL $ s
+    putStrLn $ "Parser |= Printer: " ++ show (testPrinter s)
+    putStrLn $ "Printer |= Parser: " ++ show (testParser (parseSPL s))

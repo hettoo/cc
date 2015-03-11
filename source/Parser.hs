@@ -6,9 +6,9 @@ type Parser a v = [a] -> Maybe (v, [a])
 
 parse :: (Eq a, Eq v, Show v) =>
     Parser a v -> [a] -> v
-parse p l = case (fmap fst . p) l of
-    Nothing -> error "parse failed"
-    Just v -> v
+parse p l = case p l of
+    Just (v, r) | isEmpty r -> v
+    _ -> error "parse failed"
 
 -- Main parser building blocks
 
