@@ -22,4 +22,3 @@ main = do
     s <- getContents
     putStr . prettyPrint . parseSPL $ s
     putStrLn $ "Parser |= Printer: " ++ show (testPrinter s)
-    putStrLn $ "Printer |= Parser: " ++ show (testParser (parseSPL s))
