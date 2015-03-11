@@ -96,7 +96,7 @@ pNonOpExp = pInt >@ EInt \/ pBool >@ EBool \/ pChar >@ EChar \/
     pFunCall >@ uncurry EFunCall \/
     sym '(' -*?*. pExp .*?*- sym ')' \/
     sym '[' .*?*. sym ']' >! ENil \/
-    sym '(' -*?*. pExp .*?*- sym ',' .*?*. pExp .*?*- sym ')' >@
+    sym '(' -*?*. (pExp .*?*- sym ',') .*?*. pExp .*?*- sym ')' >@
         uncurry ETuple \/
     pId .*?*. pField >@ uncurry EId
 

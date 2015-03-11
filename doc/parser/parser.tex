@@ -42,8 +42,8 @@ We recall first the original grammar of the Simple Programming Language.
     \alt `if' `(' <Exp> `)' <Stmt> [\,`else' <Stmt>\,]
     \alt `while' `(' <Exp> `)' <Stmt>
 
-    <Exp> ::= <int> | <char> | `False' | `True' | `[]' | <id> <Field>
-    \alt <FunCall> | <Op1> <Exp> | <Exp> <Op2> <Exp>
+    <Exp> ::= <int> | <char> | <bool> | `[]' | <id> <Field> | <FunCall>
+    \alt <Op1> <Exp> | <Exp> <Op2> <Exp>
     \alt `(' <Exp> `)' | `(' <Exp> `,' <Exp> `)'
 
     <Field> ::= [\,<Field> `.' (\,`hd' | `tl' | `fst' | `snd'\,)\,]
@@ -62,11 +62,14 @@ We recall first the original grammar of the Simple Programming Language.
 
     <char> ::= `\'' <any> `\''
 
+    <bool> ::= `False' | `True'
+
     <id> ::= <alpha> (\,`_' | <alphaNum>\,)*
 \end{grammar}
 Note that we made some slight changes to the original grammar.
 Most importantly, we added the \synt{char} rule that was missing in the assignment.
-It is assumed that the \synt{digit}, \synt{any}, \synt{alpha}, and \synt{alphaNum} rules are clear.
+
+It is assumed that the \synt{digit}, \synt{any}, \synt{alpha}, and \synt{alphaNum} rules are clear; enumerating these would not be practical.
 
 The operators should adhere to the usual precedence and associativity rules.
 The following grammar is transformed from the previous one in order to achieve that.
@@ -108,8 +111,8 @@ Note that only list construction is right-associative.
 
     <Exp6> ::= (\,`!' | `-'\,) <Exp6> | <NonOpExp>
 
-    <NonOpExp> ::= <int> | <char> | `False' | `True' | `[]' | <id> <Field>
-    \alt <FunCall> | `(' <Exp> `)' | `(' <Exp> `,' <Exp> `)'
+    <NonOpExp> ::= <int> | <char> | <bool> | `[]' | <id> <Field> | <FunCall>
+    \alt `(' <Exp> `)' | `(' <Exp> `,' <Exp> `)'
 
     <Field> ::= [\,<Field> `.' (\,`hd' | `tl' | `fst' | `snd'\,)\,]
 
@@ -120,6 +123,8 @@ Note that only list construction is right-associative.
     <int> ::= [\,`-'\,] <digit>+
 
     <char> ::= `\'' <any> `\''
+
+    <bool> ::= `False' | `True'
 
     <id> ::= <alpha> (\,`_' | <alphaNum>\,)*
 \end{grammar}
@@ -162,8 +167,8 @@ These are only present in the \synt{Field} rule, which we easily adapt.
 
     <Exp6> ::= (\,`!' | `-'\,) <Exp6> | <NonOpExp>
 
-    <NonOpExp> ::= <int> | <char> | `False' | `True' | `[]' | <id> [\,<Field>\,]
-    \alt <FunCall> | `(' <Exp> `)' | `(' <Exp> `,' <Exp> `)'
+    <NonOpExp> ::= <int> | <char> | <bool> | `[]' | <id> [\,<Field>\,] | <FunCall>
+    \alt `(' <Exp> `)' | `(' <Exp> `,' <Exp> `)'
 
     <Field> ::= [\,<Field>\,] `.' (\,`hd' | `tl' | `fst' | `snd'\,)
 
@@ -174,6 +179,8 @@ These are only present in the \synt{Field} rule, which we easily adapt.
     <int> ::= [\,`-'\,] <digit>+
 
     <char> ::= `\'' <any> `\''
+
+    <bool> ::= `False' | `True'
 
     <id> ::= <alpha> (\,`_' | <alphaNum>\,)*
 \end{grammar}
@@ -215,8 +222,8 @@ Fortunately there are no cycles in our current grammar, so we skip to the last s
 
     <Exp6> ::= (\,`!' | `-'\,) <Exp6> | <NonOpExp>
 
-    <NonOpExp> ::= <int> | <char> | `False' | `True' | `[]' | <id> [\,<Field>\,]
-    \alt <FunCall> | `(' <Exp> `)' | `(' <Exp> `,' <Exp> `)'
+    <NonOpExp> ::= <int> | <char> | <bool> | `[]' | <id> [\,<Field>\,] | <FunCall>
+    \alt `(' <Exp> `)' | `(' <Exp> `,' <Exp> `)'
 
     <Field> ::= `.' (\,`hd' | `tl' | `fst' | `snd'\,) [\,<Field>\,]
 
@@ -228,8 +235,10 @@ Fortunately there are no cycles in our current grammar, so we skip to the last s
 
     <char> ::= `\'' <any> `\''
 
+    <bool> ::= `False' | `True'
+
     <id> ::= <alpha> (\,`_' | <alphaNum>\,)*
 \end{grammar}
-There is still some ambiguity in this grammar, but we solve that seperately.
+There is still some ambiguity in this grammar, but we solve that in our specific implementation by favoring certain options over others.
 
 \end{document}
