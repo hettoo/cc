@@ -19,20 +19,20 @@ nop _ = Nothing
 yield :: v -> Parser a v
 yield v l = Just (v, l)
 
-eof :: Parser a ()
-eof l = (if isEmpty l then yield () else nop) l
+skip :: Parser a a
+skip l = case l of
+    [] -> Nothing
+    a : r -> yield a r
+
+inspect :: ([a] -> Parser a v) -> Parser a v
+inspect f l = f l l
 
 phantom :: Parser a v -> Parser a v
 phantom p l = fmap (\t -> (fst t, l)) (p l)
 
-satisfy :: (a -> Bool) -> Parser a a
-satisfy f l = case l of
-    a : r | f a -> Just (a, r)
-    _ -> Nothing
-
-(.<.) :: Parser a v -> Parser a (v -> w) -> Parser a w
-(.<.) p q l = p l >>= \(v, l') -> fmap (\(f, l'') -> (f v, l'')) (q l')
-infixl 7 .<.
+(.<) :: Parser a v -> Parser a (v -> w) -> Parser a w
+(.<) p q l = p l >>= \(v, l') -> fmap (\(f, l'') -> (f v, l'')) (q l')
+infixl 7 .<
 
 cond :: Parser a w -> Parser a w -> Parser a w
 cond p q l = case r of
@@ -44,7 +44,7 @@ cond p q l = case r of
 -- Some useful abbreviations
 
 (.*.) :: Parser a v -> Parser a w -> Parser a (v, w)
-(.*.) p q = cond (p .<. (q >@ \w v -> (v, w))) nop
+(.*.) p q = cond (p .< (q >@ \w v -> (v, w))) nop
 infixl 7 .*.
 
 (.*-) :: Parser a v -> Parser a w -> Parser a v
@@ -56,7 +56,7 @@ infixl 7 .*-
 infixl 7 -*.
 
 (>@) :: Parser a v -> (v -> w) -> Parser a w
-(>@) p f = p .<. yield f
+(>@) p f = p .< yield f
 infixl 6 >@
 
 (>!) :: Parser a v -> w -> Parser a w
@@ -64,8 +64,11 @@ infixl 6 >@
 infixl 6 >!
 
 (\/) :: Parser a v -> Parser a v -> Parser a v
-(\/) p = cond (p .<. yield id)
+(\/) p = cond (p .< yield id)
 infixr 5 \/
+
+eof :: Parser a ()
+eof = inspect $ \l -> if isEmpty l then yield () else nop
 
 sep :: Parser a v -> Parser a ()
 sep p = phantom p >! () \/ eof
@@ -78,6 +81,11 @@ plus p = p .*. plus p >@ right (uncurry (:)) \/ p >@ \v -> (v, [])
 
 star :: Parser a v -> Parser a [v]
 star p = opt (plus p) >@ listify
+
+satisfy :: (a -> Bool) -> Parser a a
+satisfy f = inspect (\l -> case l of
+    a : r | f a -> skip
+    _ -> nop)
 
 anything :: Parser a a
 anything = satisfy $ const True
