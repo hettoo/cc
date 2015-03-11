@@ -34,9 +34,9 @@ satisfy f l = case l of
 phantom :: Parser a v -> Parser a v
 phantom p l = fmap (\t -> (fst t, l)) (p l)
 
-(.<) :: Parser a v -> Parser a (v -> w) -> Parser a w
-(.<) p q l = p l >>= \(v, l') -> fmap (\(f, l'') -> (f v, l'')) (q l')
-infixl 7 .<
+(>.) :: Parser a v -> Parser a (v -> w) -> Parser a w
+(>.) p q l = p l >>= \(v, l') -> fmap (\(f, l'') -> (f v, l'')) (q l')
+infixl 7 >.
 
 cond :: Parser a w -> Parser a w -> Parser a w
 cond p q l = case r of
@@ -48,7 +48,7 @@ cond p q l = case r of
 -- Some useful abbreviations
 
 (.*.) :: Parser a v -> Parser a w -> Parser a (v, w)
-(.*.) p q = cond (p .< (q >@ \w v -> (v, w))) nop
+(.*.) p q = cond (p >. (q >@ \w v -> (v, w))) nop
 infixl 7 .*.
 
 (.*-) :: Parser a v -> Parser a w -> Parser a v
@@ -60,7 +60,7 @@ infixl 7 .*-
 infixl 7 -*.
 
 (>@) :: Parser a v -> (v -> w) -> Parser a w
-(>@) p f = p .< yield f
+(>@) p f = p >. yield f
 infixl 6 >@
 
 (>!) :: Parser a v -> w -> Parser a w
@@ -68,7 +68,7 @@ infixl 6 >@
 infixl 6 >!
 
 (\/) :: Parser a v -> Parser a v -> Parser a v
-(\/) p = cond (p .< yield id)
+(\/) p = cond (p >. yield id)
 infixr 5 \/
 
 sep :: Parser a v -> Parser a ()
