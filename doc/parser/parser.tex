@@ -18,9 +18,7 @@
 
 \maketitle
 
-We recall first the original grammar of the Simple Programming Language\footnote{%
-    tl;dr: the final grammar is at the end of this document.
-}.
+We recall first the original grammar of the Simple Programming Language.
 \setlength{\grammarindent}{6.8em}
 \begin{grammar}
     <SPL> ::= <Decl>+
@@ -66,6 +64,9 @@ We recall first the original grammar of the Simple Programming Language\footnote
 
     <id> ::= <alpha> (\,`_' | <alphaNum>\,)*
 \end{grammar}
+Note that we made some slight changes to the original grammar.
+Most importantly, we added the \synt{char} rule that was missing in the assignment.
+It is assumed that the \synt{digit}, \synt{any}, \synt{alpha}, and \synt{alphaNum} rules are clear.
 
 The operators should adhere to the usual precedence and associativity rules.
 The following grammar is transformed from the previous one in order to achieve that.
@@ -123,8 +124,7 @@ Note that only list construction is right-associative.
     <id> ::= <alpha> (\,`_' | <alphaNum>\,)*
 \end{grammar}
 
-We will now eliminate left recursion.
-The first step is to remove empty productions.
+We will now eliminate left recursion by first removing empty productions.
 These are only present in the \synt{Field} rule, which we easily adapt.
 \begin{grammar}
     <SPL> ::= <Decl>+
