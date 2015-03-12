@@ -185,7 +185,7 @@ These are only present in the \synt{Field} rule, which we easily adapt.
     <id> ::= <alpha> (\,`_' | <alphaNum>\,)*
 \end{grammar}
 
-Fortunately there are no cycles in our current grammar, so we skip to the last step: eliminating immediate left recursion.
+Fortunately there are no cycles in our current grammar, so we skip to the elimination of immediate left recursion.
 \begin{grammar}
     <SPL> ::= <Decl>+
 
@@ -239,6 +239,62 @@ Fortunately there are no cycles in our current grammar, so we skip to the last s
 
     <id> ::= <alpha> (\,`_' | <alphaNum>\,)*
 \end{grammar}
-There is still some ambiguity in this grammar, but we solve that in our specific implementation by favoring certain options over others.
+
+Finally, we remove the ambiguity in our grammar that induces arbitrary backtracking: currently both variables and function calls begin with an identifier.
+\begin{grammar}
+    <SPL> ::= <Decl>+
+
+    <Decl> ::= <VarDecl> | <FunDecl>
+
+    <VarDecl> ::= <Type> <id> `=' <Exp> `;'
+
+    <FunDecl> ::= <RetType> <id> `(' [\,<FArgs>\,] `)' `{' <VarDecl>* <Stmt>+ `}'
+
+    <RetType> ::= <Type> | `Void'
+
+    <Type> ::= <id> | <BasicType> | `(' <Type> `,' <Type> `)' | `[' <Type> `]'
+
+    <BasicType> ::= `Int' | `Bool' | `Char'
+
+    <FArgs> ::= <Type> <id> [\,`,' <FArgs>\,]
+
+    <Stmt> ::= `{' <Stmt>* `}' | <StmtId> `;' | `return' [\,<Exp>\,] `;'
+    \alt `if' `(' <Exp> `)' <Stmt> [\,`else' <Stmt>\,]
+    \alt `while' `(' <Exp> `)' <Stmt>
+
+    <StmtId> ::= <id> (\,[\,<Field>\,] `=' <Exp> | `(' [\,<ActArgs>\,] `)'\,)
+
+    <Exp> ::= <Exp1> [\,`:' <Exp>\,]
+
+    <Exp1> ::= <Exp2> (\,(\,`&&' | `||'\,) <Exp2>\,)*
+
+    <Exp2> ::= <Exp3> (\,(\,`==' | `!='\,) <Exp3>\,)*
+
+    <Exp3> ::= <Exp4> (\,(\,`<' | `>' | `<=' | `>='\,) <Exp4>\,)*
+
+    <Exp4> ::= <Exp5> (\,(\,`+' | `-'\,) <Exp5>\,)*
+
+    <Exp5> ::= <Exp6> (\,(\,`*' | `/' | `%'\,) <Exp6>\,)*
+
+    <Exp6> ::= (\,`!' | `-'\,) <Exp6> | <NonOpExp>
+
+    <NonOpExp> ::= <int> | <char> | <bool> | `[]' | <ExpId>
+    \alt `(' <Exp> `)' | `(' <Exp> `,' <Exp> `)'
+
+    <ExpId> ::= <id> (\,[\,<Field>\,] | `(' [\,<ActArgs>\,] `)'\,)
+
+    <Field> ::= `.' (\,`hd' | `tl' | `fst' | `snd'\,) [\,<Field>\,]
+
+    <ActArgs> ::= <Exp> [\,`,' <ActArgs>\,]
+
+    <int> ::= [\,`-'\,] <digit>+
+
+    <char> ::= `\'' <any> `\''
+
+    <bool> ::= `False' | `True'
+
+    <id> ::= <alpha> (\,`_' | <alphaNum>\,)*
+\end{grammar}
+There is still some ambiguity in this grammar, but we solve this in our specific implementation by favoring keywords over arbitrary identifiers.
 
 \end{document}
