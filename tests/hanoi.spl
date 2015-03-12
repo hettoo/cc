@@ -14,9 +14,9 @@ Void hanoi (Int discs) {
     c = u.snd;
 }
 
-([Int], ([Int], [Int])) transport (Int n, [Int] from, [Int] via, [Int] to) {
-    ([Int], ([Int], [Int])) t = ([], ([], []));
-    ([Int], [Int]) u = ([], []);
+([t], ([t], [t])) transport (Int n, [t] from, [t] via, [t] to) {
+    ([t], ([t], [t])) t = ([], ([], []));
+    ([t], [t]) u = ([], []);
     if (n > 1) {
         t = transport(n - 1, from, to, via);
         from = t.fst;
@@ -38,7 +38,7 @@ Void hanoi (Int discs) {
 }
 
 // Print the towers (in a list).
-Void printTowers ([Int] a, [Int] b, [Int] c) {
+Void printTowers ([t] a, [t] b, [t] c) {
     print(a : b : c : []);
 }
 
