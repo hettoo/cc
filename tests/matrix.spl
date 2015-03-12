@@ -1,0 +1,26 @@
+
+[[a]] update([[a]] matrix, (Int, Int) pos, a val) {
+	if (pos.snd == 0) { // right row
+		[a] row = matrix.hd;
+		if (pos.fst == 0) { // right column
+			return (e : row.tl) : matrix.tl;
+		} else {
+			[[a]] res = update(row.tl : matrix.tl, (pos.fst - 1, pos.snd), val);
+			return (row.hd : res.hd) : res.tl;	
+		}
+	} else {
+		return matrix.hd : update(matrix.tl, (pos.fst, pos.snd - 1), val);
+	}
+}
+
+a get([[a]] matrix, (Int, Int) pos) {
+	if (pos.snd == 0) { // right row
+		if (pos.fst == 0) { // right column
+			return matrix.hd.hd;
+		} else {
+			return get(matrix.hd.tl : matrix.tl, (pos.fst - 1, pos.snd));
+		}
+	} else {
+		return get(matrix.tl, (pos.fst, pos.snd - 1));
+	}
+}
