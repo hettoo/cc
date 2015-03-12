@@ -1,4 +1,3 @@
-
 a max([a] l) {
 	if (l.hd > max(l.tl))
 		return l.hd;
@@ -14,6 +13,12 @@ a min([a] l) {
 a at([a] l, Int i) {
 	if (i == 0) return l.hd;
 	else return at(l.tl, i - 1);
+}
+
+[a] insert([a] l, Int i, a v) {
+    if (i == 0)
+        return v : l;
+    return l.hd : insert(l.tl, i - 1, v);
 }
 
 a last([a] l) {
