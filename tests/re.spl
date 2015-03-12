@@ -1,0 +1,24 @@
+/*
+ * Determines if the input string matches the expression, which may contain
+ * special characters '*' (any string) and '.' (any character).
+ */
+Bool match([Char] input, [Char] re) {
+    if (re == [])
+        return input == [];
+    if (input == [])
+        return all(re, '*');
+    if (re.hd == '*')
+        return match(input, re.tl) || match(input.tl, re);
+    if (re.hd == '.' || re.hd == input.hd)
+        return match(input.tl, re.tl);
+    return False;
+}
+
+// Determine if all characters in a list equal the given element.
+Bool all([a] l, a e) {
+    if (l == [])
+        return True;
+    if (l.hd != e)
+        return False;
+    return all(l.tl, e);
+}
