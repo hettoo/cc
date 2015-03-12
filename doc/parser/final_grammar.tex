@@ -1,0 +1,73 @@
+\documentclass{article}
+
+\usepackage[latin1]{inputenc}
+\usepackage[english]{babel}
+\usepackage{mathtools}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[nounderscore]{syntax}
+
+\setlength{\grammarparsep}{0pt}
+\renewcommand{\syntleft}{\normalfont\itshape}
+\renewcommand{\syntright}{}
+
+\pagestyle{empty}
+
+\begin{document}
+
+\setlength{\grammarindent}{7.1em}
+\begin{grammar}
+    <SPL> ::= <Decl>+
+
+    <Decl> ::= <VarDecl> | <FunDecl>
+
+    <VarDecl> ::= <Type> <id> `=' <Exp> `;'
+
+    <FunDecl> ::= <RetType> <id> `(' [\,<FArgs>\,] `)' `{' <VarDecl>* <Stmt>+ `}'
+
+    <RetType> ::= <Type> | `Void'
+
+    <Type> ::= <id> | <BasicType> | `(' <Type> `,' <Type> `)' | `[' <Type> `]'
+
+    <BasicType> ::= `Int' | `Bool' | `Char'
+
+    <FArgs> ::= <Type> <id> [\,`,' <FArgs>\,]
+
+    <Stmt> ::= `{' <Stmt>* `}' | <FunCall> `;' | `return' [\,<Exp>\,] `;'
+    \alt <id> [\,<Field>\,] `=' <Exp> `;'
+    \alt `if' `(' <Exp> `)' <Stmt> [\,`else' <Stmt>\,]
+    \alt `while' `(' <Exp> `)' <Stmt>
+
+    <Exp> ::= <Exp1> [\,`:' <Exp>\,]
+
+    <Exp1> ::= <Exp2> (\,(\,`&&' | `||'\,) <Exp2>\,)*
+
+    <Exp2> ::= <Exp3> (\,(\,`==' | `!='\,) <Exp3>\,)*
+
+    <Exp3> ::= <Exp4> (\,(\,`<' | `>' | `<=' | `>='\,) <Exp4>\,)*
+
+    <Exp4> ::= <Exp5> (\,(\,`+' | `-'\,) <Exp5>\,)*
+
+    <Exp5> ::= <Exp6> (\,(\,`*' | `/' | `%'\,) <Exp6>\,)*
+
+    <Exp6> ::= (\,`!' | `-'\,) <Exp6> | <NonOpExp>
+
+    <NonOpExp> ::= <int> | <char> | <bool> | `[]' | <id> [\,<Field>\,] | <FunCall>
+    \alt `(' <Exp> `)' | `(' <Exp> `,' <Exp> `)'
+
+    <Field> ::= `.' (\,`hd' | `tl' | `fst' | `snd'\,) [\,<Field>\,]
+
+    <FunCall> ::= <id> `(' [\,<ActArgs>\,] `)'
+
+    <ActArgs> ::= <Exp> [\,`,' <ActArgs>\,]
+
+    <int> ::= [\,`-'\,] <digit>+
+
+    <char> ::= `\'' <any> `\''
+
+    <bool> ::= `False' | `True'
+
+    <id> ::= <alpha> (\,`_' | <alphaNum>\,)*
+\end{grammar}
+
+\end{document}
