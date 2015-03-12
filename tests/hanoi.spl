@@ -1,5 +1,5 @@
 /*
- * Recursive towers of hanoi implementation.
+ * Recursive towers of Hanoi implementation.
  */
 
 Void hanoi (Int discs) {
