@@ -2,7 +2,7 @@
  * Recursive towers of Hanoi implementation.
  */
 
-([t], ([t], [t])) hanoiR (Int discs) {
+([Int], ([Int], [Int])) hanoiR (Int discs) {
     [Int] a = createTower(discs);
     [Int] b = [];
     [Int] c = [];
@@ -47,4 +47,59 @@ Void printTowers ([t] a, [t] b, [t] c) {
         i = i - 1;
     }
     return l;
+}
+
+([Int], ([Int], [Int])) hanoiI (Int discs) {
+    [Int] a = createTower(discs);
+    [Int] b = [];
+    [Int] c = [];
+    ([Int], [Int]) t = ([], []);
+    if (discs % 2 == 0) {
+        while (!isEmpty(a)) {
+            t = legalMove(a, b);
+            a = t.fst;
+            b = t.snd;
+            t = legalMove(a, c);
+            a = t.fst;
+            c = t.snd;
+            t = legalMove(b, c);
+            b = t.fst;
+            c = t.snd;
+        }
+    } else {
+        while (!isEmpty(a)) {
+            t = legalMove(a, c);
+            a = t.fst;
+            c = t.snd;
+            t = legalMove(a, b);
+            a = t.fst;
+            b = t.snd;
+            t = legalMove(c, b);
+            b = t.fst;
+            c = t.snd;
+        }
+    }
+    return (a, (b, c));
+}
+
+([Int], [Int]) legalMove([Int] a, [Int] b) {
+    if (isEmpty(b)) {
+        b = a.hd : b;
+        a = a.tl;
+    } else if (isEmpty(b)) {
+        a = b.hd : a;
+        b = b.tl;
+    } else if (a.hd < b.hd) {
+        b = a.hd : b;
+        a = a.tl;
+    } else {
+        a = b.hd : a;
+        b = b.tl;
+    }
+    return (a, b);
+}
+
+Void main () {
+    Int discs = 10;
+    print(hanoiR(discs) == hanoiI(discs));
 }
