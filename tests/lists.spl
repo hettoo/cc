@@ -1,0 +1,32 @@
+
+a max([a] l) {
+	if (l.hd > max(l.tl))
+		return l.hd;
+	else return max(l.tl);
+}
+
+a min([a] l) {
+	if (l.hd < min(l.tl))
+		return l.hd;
+	else return min(l.tl);
+}
+
+a at([a] l, Int i) {
+	if (i == 0) return l.hd;
+	else return at(l.tl, i - 1);
+}
+
+a last([a] l) {
+	if (isEmpty(l.tl)) return l.hd;
+	else return last(l.tl);
+}
+
+[a] flatten([[a]] matrix) {
+	if (isEmpty(matrix)) return [];
+	return concat(matrix.hd, all(matrix.tl));
+}
+
+[a] concat([a] x, [a] b) {
+	if (isEmpty(a)) return b;
+	return a : concat(a.tl, b);
+}
