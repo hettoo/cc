@@ -24,7 +24,7 @@ Void hanoi (Int discs) {
         to = u.fst;
         via = u.snd;
     }
-    to = from.hd : c;
+    to = from.hd : to;
     from = from.tl;
     printTowers(from, via, to);
     if (n > 1) {
@@ -45,10 +45,10 @@ Void printTowers ([t] a, [t] b, [t] c) {
 // Initialize a tower with n discs.
 [Int] createTower (Int n) {
     [Int] l = [];
-    Int i = 0;
-    while (i < n) {
+    Int i = n;
+    while (i > 0) {
         l = n : l;
-        i = i + 1;
+        i = i - 1;
     }
     return l;
 }
