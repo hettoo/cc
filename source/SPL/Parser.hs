@@ -44,9 +44,14 @@ pStmt = sym '{' -*?*. star (pStmt .*- ows) .*- sym '}' >@ sm id Stmts \/
     sseq "while" -*?*. (sym '(' -*?*. pExp .*?*- sym ')') .*?*. pStmt >@
         uncurry While \/
     (sseq "return" .*. nalphanum_) -*?*. opt pExp .*?*- sym ';' >@ Return \/
-    pId .*?*. pField .*?*. (sym '=' -*?*. pExp .*?*- sym ';') >@
-        (uncurry . uncurry) Assign \/
-    pFunCall .*?*- sym ';' >@ uncurry FunCall
+    pStmtId
+
+pStmtId :: Parser Char Stmt
+pStmtId = pId .*?*. (pField .*?*. (sym '=' -*?*. pExp) \+/
+        sym '(' -*?*. commaList pExp .*?*- sym ')') .*?*- sym ';'
+    >@ \(i, p) -> case p of
+        Left (f, e) -> Assign i f e
+        Right l -> FunCall i l
 
 pExp :: Parser Char Exp
 pExp = pExp1 .*?*. opt (sym ':' -*?*. pExp) >@
