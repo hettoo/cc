@@ -96,21 +96,22 @@ pExp6 = pNonOpExp \/
     sym '-' -*?*. pExp6 >@ EOp1 ONeg
 
 pNonOpExp :: Parser Char Exp
-pNonOpExp = pInt >@ EInt \/ pBool >@ EBool \/ pChar >@ EChar \/
-    pFunCall >@ uncurry EFunCall \/
-    pId .*?*. pField >@ uncurry EId \/
+pNonOpExp = pInt >@ EInt \/ pBool >@ EBool \/ pChar >@ EChar \/ pExpId \/
     sym '(' -*?*. pExp .*?*- sym ')' \/
     sym '[' .*?*. sym ']' >! ENil \/
     sym '(' -*?*. (pExp .*?*- sym ',') .*?*. pExp .*?*- sym ')' >@
         uncurry ETuple
 
+pExpId :: Parser Char Exp
+pExpId = pId .*?*. (sym '(' -*?*. commaList pExp .*?*- sym ')' \+/ pField)
+    >@ \(i, e) -> case e of
+        Left l -> EFunCall i l
+        Right f -> EId i f
+
 pField :: Parser Char [Field]
 pField = star (ows .*. sym '.' -*?*. (
     sseq "hd" >! Head \/ sseq "tl" >! Tail \/
     sseq "fst" >! First \/ sseq "snd" >! Second)) >@ listify
-
-pFunCall :: Parser Char (String, [Exp])
-pFunCall = pId .*?*. (sym '(' -*?*. (commaList pExp) .*?*- sym ')')
 
 pInt :: Parser Char Int
 pInt = opt (sym '-' .*- ows) .*. plus (satisfy isDigit) >@ read . listify
