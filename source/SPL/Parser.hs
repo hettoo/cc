@@ -11,11 +11,9 @@ parseSPL :: String -> [Stmt]
 parseSPL = parse $ pPre >@ parse pSPL
 
 pPre :: Parser Char String
-pPre = star (
-        (sseq "//" .*. star (nsym '\n') .*. (sym '\n' \+/ eof) \+/
-        sseq "/*" .*. star (sym '*' -*. nsym '/' \/ nsym '*') .*.
-            sseq "*/") \+/ anything
-    ) >@ rights
+pPre = star ((sseq "//" .*. star (nsym '\n') .*. (sym '\n' \+/ eof) \+/
+    sseq "/*" .*. star (sym '*' -*. nsym '/' \/ nsym '*') .*.  sseq "*/") \+/
+    anything) >@ rights
 
 pSPL :: Parser Char [Stmt]
 pSPL = ows -*. star (pDecl .*- ows)
