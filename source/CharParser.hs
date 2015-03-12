@@ -5,7 +5,7 @@ import Utils
 import Data.Char
 
 ws :: Parser Char (Char, [Char])
-ws = plus (satisfy (\c -> c `elem` [' ', '\n', '\r', '\t']))
+ws = plus (satisfy ((flip elem) [' ', '\n', '\r', '\t']))
 
 ows :: Parser Char [Char]
 ows = opt ws >@ listify
@@ -14,7 +14,7 @@ nalphanum_ :: Parser Char (Maybe Char)
 nalphanum_ = sep (satisfy (\c -> not (c == '_' || isAlphaNum c)))
 
 (.*?*.) :: Parser Char v -> Parser Char w -> Parser Char (v, w)
-(.*?*.) p q = p .*- ows .*. q
+(.*?*.) p q = (p .*- ows) .*. q
 infixl 7 .*?*.
 
 (-*?*.) :: Parser Char v -> Parser Char w -> Parser Char w
