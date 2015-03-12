@@ -49,6 +49,10 @@ Void printTowers ([t] a, [t] b, [t] c) {
     return l;
 }
 
+/*
+ * Iterative version.
+ */
+
 ([Int], ([Int], [Int])) hanoiI (Int discs) {
     [Int] a = createTower(discs);
     [Int] b = [];
