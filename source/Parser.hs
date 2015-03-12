@@ -68,8 +68,12 @@ infixl 6 >@
 infixl 6 >!
 
 (\/) :: Parser a v -> Parser a v -> Parser a v
-(\/) p = cond (p >. yield id)
+(\/) = cond
 infixr 5 \/
+
+(\+/) :: Parser a v -> Parser a w -> Parser a (Either v w)
+(\+/) p q = (p >@ Left) \/ (q >@ Right)
+infixr 5 \+/
 
 sep :: Parser a v -> Parser a ()
 sep p = phantom p >! () \/ eof
