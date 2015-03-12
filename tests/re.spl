@@ -2,7 +2,7 @@
  * Determines if the input string matches the expression, which may contain
  * special characters '*' (any string) and '.' (any character).
  */
-Bool match([Char] input, [Char] re) {
+Bool match ([Char] input, [Char] re) {
     if (re == [])
         return input == [];
     if (input == [])
@@ -15,7 +15,7 @@ Bool match([Char] input, [Char] re) {
 }
 
 // Determine if all characters in a list equal the given element.
-Bool all([a] l, a e) {
+Bool all ([a] l, a e) {
     if (l == [])
         return True;
     if (l.hd != e)

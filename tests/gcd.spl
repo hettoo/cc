@@ -1,7 +1,7 @@
 /*
  * Determines the greatest common divisor for positive integers a and b.
  */
-Int gcd(Int a, Int b) {
+Int gcd (Int a, Int b) {
     if (a < b)
         return gcd(b, a);
     else if (b == 0)
