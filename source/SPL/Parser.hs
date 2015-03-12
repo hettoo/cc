@@ -38,18 +38,17 @@ pBasicType = (sseq "Int" >! TInt \/ sseq "Bool" >! TBool \/
     sseq "Char" >! TChar) .*- nalphanum_
 
 pStmt :: Parser Char Stmt
-pStmt = sym '{' -*?*. star (pStmt .*- ows) .*- sym '}' >@ sm id Stmts \/
-    sseq "if" -*?*. (sym '(' -*?*. pExp .*?*- sym ')') .*?*.
+pStmt = sseq "if" -*?*. (sym '(' -*?*. pExp .*?*- sym ')') .*?*.
         pStmt .*?*. opt (sseq "else" -*?*. pStmt) >@ (uncurry . uncurry) If \/
     sseq "while" -*?*. (sym '(' -*?*. pExp .*?*- sym ')') .*?*. pStmt >@
         uncurry While \/
     (sseq "return" .*. nalphanum_) -*?*. opt pExp .*?*- sym ';' >@ Return \/
-    pStmtId
+    pStmtId \/ sym '{' -*?*. star (pStmt .*- ows) .*- sym '}' >@ sm id Stmts
 
 pStmtId :: Parser Char Stmt
 pStmtId = pId .*?*. (pField .*?*. (sym '=' -*?*. pExp) \+/
         sym '(' -*?*. commaList pExp .*?*- sym ')') .*?*- sym ';'
-    >@ \(i, p) -> case p of
+    >@ \(i, t) -> case t of
         Left (f, e) -> Assign i f e
         Right l -> FunCall i l
 
@@ -99,11 +98,11 @@ pExp6 = pNonOpExp \/
 pNonOpExp :: Parser Char Exp
 pNonOpExp = pInt >@ EInt \/ pBool >@ EBool \/ pChar >@ EChar \/
     pFunCall >@ uncurry EFunCall \/
+    pId .*?*. pField >@ uncurry EId \/
     sym '(' -*?*. pExp .*?*- sym ')' \/
     sym '[' .*?*. sym ']' >! ENil \/
     sym '(' -*?*. (pExp .*?*- sym ',') .*?*. pExp .*?*- sym ')' >@
-        uncurry ETuple \/
-    pId .*?*. pField >@ uncurry EId
+        uncurry ETuple
 
 pField :: Parser Char [Field]
 pField = star (ows .*. sym '.' -*?*. (
