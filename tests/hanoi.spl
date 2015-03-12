@@ -1,0 +1,42 @@
+void hanoi (Int discs) {
+    [Int] a = createDiscs(discs);
+    [Int] b = [];
+    [Int] c = [];
+    ([Int], ([Int], [Int])) t = transport(discs, a, b, c);
+    ([Int], [Int]) u = t.snd;
+    a = t.fst;
+    b = u.fst;
+    c = u.snd;
+}
+
+[Int] createDiscs (Int n) {
+    [Int] l = [];
+    Int i = 0;
+    while (i < n) {
+        l = n : l;
+        i = i + 1;
+    }
+    return l;
+}
+
+([Int], ([Int], [Int])) transport (Int n, [Int] from, [Int] via, [Int] to) {
+    ([Int], ([Int], [Int])) t = ([], ([], []));
+    ([Int], [Int]) u = ([], []);
+    if (n > 1) {
+        t = transport(n - 1, from, to, via);
+        from = t.fst;
+        u = t.snd;
+        to = u.fst;
+        via = u.snd;
+    }
+    to = from.hd : c;
+    from = from.tl;
+    if (n > 1) {
+        t = transport(n - 1, via, from, to);
+        via = t.fst;
+        u = t.snd;
+        from = u.fst;
+        to = u.snd;
+    }
+    return (from, (via, to));
+}
