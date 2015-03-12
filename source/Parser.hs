@@ -75,8 +75,8 @@ infixr 5 \/
 (\+/) p q = (p >@ Left) \/ (q >@ Right)
 infixr 5 \+/
 
-sep :: Parser a v -> Parser a ()
-sep p = phantom p >! () \/ eof
+sep :: Parser a v -> Parser a (Maybe v)
+sep p = phantom p >@ Just \/ eof >! Nothing
 
 opt :: Parser a v -> Parser a (Maybe v)
 opt p = p >@ Just \/ yield Nothing

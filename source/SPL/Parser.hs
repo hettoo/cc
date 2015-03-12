@@ -3,8 +3,19 @@ import SPL.Structure
 import Parser
 import CharParser
 import Listify
-import Data.Char
 import Utils
+import Data.Char
+import Data.Either
+
+parseSPL :: String -> [Stmt]
+parseSPL = parse $ pPre >@ parse pSPL
+
+pPre :: Parser Char String
+pPre = star (
+        (sseq "//" .*. star (nsym '\n') .*. (sym '\n' \+/ eof) \+/
+        sseq "/*" .*. star (sym '*' -*. nsym '/' \/ nsym '*') .*.
+            sseq "*/") \+/ anything
+    ) >@ rights
 
 pSPL :: Parser Char [Stmt]
 pSPL = ows -*. star (pDecl .*- ows)
@@ -27,8 +38,7 @@ pRetType :: Parser Char Type
 pRetType = sseq "Void" .*- nalphanum_ >! TVoid \/ pType
 
 pType :: Parser Char Type
-pType = pBasicType \/
-    pId >@ TPoly \/
+pType = pBasicType \/ pId >@ TPoly \/
     sym '[' -*?*. pType .*?*- sym ']' >@ TList \/
     sym '(' -*?*. (pType .*?*- sym ',') .*?*. pType .*?*- sym ')' >@
         uncurry TTuple
@@ -91,8 +101,7 @@ pExp5 = pExp6 +<<
     sym '%' -*?*. pExp6 >@ flip (EOp2 OMod)
 
 pExp6 :: Parser Char Exp
-pExp6 = pNonOpExp \/
-    sym '!' -*?*. pExp6 >@ EOp1 ONot \/
+pExp6 = pNonOpExp \/ sym '!' -*?*. pExp6 >@ EOp1 ONot \/
     sym '-' -*?*. pExp6 >@ EOp1 ONeg
 
 pNonOpExp :: Parser Char Exp

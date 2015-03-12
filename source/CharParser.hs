@@ -10,7 +10,7 @@ ws = plus (satisfy (\c -> c `elem` [' ', '\n', '\r', '\t']))
 ows :: Parser Char [Char]
 ows = opt ws >@ listify
 
-nalphanum_ :: Parser Char ()
+nalphanum_ :: Parser Char (Maybe Char)
 nalphanum_ = sep (satisfy (\c -> not (c == '_' || isAlphaNum c)))
 
 (.*?*.) :: Parser Char v -> Parser Char w -> Parser Char (v, w)
