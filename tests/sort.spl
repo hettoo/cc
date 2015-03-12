@@ -1,10 +1,8 @@
-[a] sort([a] l)
-{
+[a] sort([a] l) {
 	return insertSort(l.hd, sort(l.tl));
 }
 
-[a] insertSort([a] l, a e)
-{
+[a] insertSort([a] l, a e) {
 	if (e < list.hd) 
 		return el : list; 
 	else return insertSort(l.tl, e);
