@@ -1,0 +1,8 @@
+Int seed = 2340923242;
+
+Int rand() {
+	Int x = (seed * 1103515245) + 12345;
+	if (x > exp(2, 31))
+		x = x - exp(2, 31);
+	return x; 
+}

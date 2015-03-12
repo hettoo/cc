@@ -25,3 +25,13 @@ a get([[a]] matrix, (Int, Int) pos) {
 		return get(matrix.tl, (pos.fst, pos.snd - 1));
 	}
 }
+
+[a] all([[a]] matrix) {
+	if (isEmpty(matrix)) return [];
+	return concat(matrix.hd, all(matrix.tl));
+}
+
+[a] concat([a] x, [a] b) {
+	if (isEmpty(a)) return b;
+	return a : concat(a.tl, b);
+}
