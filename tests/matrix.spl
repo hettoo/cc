@@ -1,11 +1,12 @@
-
 [[a]] update([[a]] matrix, (Int, Int) pos, a val) {
+	[a] row = [];
+	[[a]] res = [];
 	if (pos.snd == 0) { // right row
-		[a] row = matrix.hd;
+		row = matrix.hd;
 		if (pos.fst == 0) { // right column
 			return (e : row.tl) : matrix.tl;
 		} else {
-			[[a]] res = update(row.tl : matrix.tl, (pos.fst - 1, pos.snd), val);
+			res = update(row.tl : matrix.tl, (pos.fst - 1, pos.snd), val);
 			return (row.hd : res.hd) : res.tl;	
 		}
 	} else {
