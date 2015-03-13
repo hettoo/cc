@@ -10,10 +10,10 @@ data CharState = CharState {
     aerror :: Maybe (String, (Int, Int))}
 
 instance ParserState CharState Char where
-    initial = CharState (1, 1) Nothing
+    initial = CharState (1, 0) Nothing
     update s c = case pos s of
         (a, b) -> case c of
-            '\n' -> s {pos = (a + 1, 1)}
+            '\n' -> s {pos = (a + 1, 0)}
             _ -> s {pos = (a, b + 1)}
     merge s t = case (aerror s, aerror t) of
         (e@(Just (m1, (a1, b1))), Just (m2, (a2, b2))) ->

@@ -46,9 +46,9 @@ eof l = (if isEmpty l then yield () else yieldError "expected eof") l
 satisfy :: (ParserState s b, Show a) =>
     (a -> Bool) -> Parser a b s a
 satisfy f l s = case l of
-    (a, b) : r -> case f a of
-        True -> yield a r (update s b)
-        False -> yieldError ("unexpected symbol " ++ show a) l s
+    (a, b) : r -> (case f a of
+        True -> yield a r
+        False -> yieldError ("unexpected symbol " ++ show a) l) (update s b)
     _ -> yieldError "unexpected eof" l s
 
 phantom :: Parser a b s v -> Parser a b s v
