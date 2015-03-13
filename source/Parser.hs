@@ -48,7 +48,7 @@ satisfy :: (ParserState s a, Show a) =>
 satisfy f l s = case l of
     a : r -> case f a of
         True -> yield a r s
-        False -> yieldError ("unexpected symbol `" ++ show a ++ "'") l s
+        False -> yieldError ("unexpected symbol " ++ show a) l s
     _ -> yieldError "unexpected eof" l s
 
 phantom :: Parser a s v -> Parser a s v
