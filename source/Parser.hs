@@ -47,7 +47,7 @@ satisfy :: (ParserState s a, Show a) =>
     (a -> Bool) -> Parser a s a
 satisfy f l s = case l of
     a : r -> case f a of
-        True -> yield a r s
+        True -> yield a r (update s a)
         False -> yieldError ("unexpected symbol " ++ show a) l s
     _ -> yieldError "unexpected eof" l s
 
