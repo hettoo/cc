@@ -1,17 +1,27 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
 module CharParser where
 import Parser
 import Listify
 import Utils
 import Data.Char
 
-type CharParser v = Parser Char () v
+data CharState = CharState {
+    pos :: (Int, Int),
+    merror :: Maybe (String, (Int, Int))}
 
-instance ParserState () where
-    initial = ()
-    update _ _ = ()
-    merge _ _ = ()
-    setError _ _ = ()
-    getError _ = Nothing
+type CharParser v = Parser Char CharState v
+
+instance ParserState CharState Char where
+    initial = CharState (1, 1) Nothing
+    update s c = case pos s of
+        (a, b) -> case c of
+            '\n' -> s {pos = (a + 1, 1)}
+            _ -> s {pos = (a, b + 1)}
+    merge s t = case (merror s, merror t) of -- TODO
+        (Just e, _) -> s
+        _ -> t
+    setError s e = s {merror = Just (e, pos s)}
+    getError s = fmap fst (merror s)
 
 ws :: CharParser (Char, [Char])
 ws = plus (satisfy ((flip elem) [' ', '\n', '\r', '\t']))

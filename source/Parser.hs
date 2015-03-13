@@ -1,17 +1,19 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FunctionalDependencies #-}
 module Parser where
 import Listify
 import Utils
 
 type Parser a s v = [a] -> s -> (s, Maybe (v, [a]))
 
-class ParserState s where
+class ParserState s a | s -> a where
     initial :: s
     update :: s -> a -> s
     merge :: s -> s -> s
     setError :: s -> String -> s
     getError :: s -> Maybe String
 
-parse :: (ParserState s, Eq a, Eq v, Show v) =>
+parse :: (ParserState s a, Eq a, Eq v, Show v) =>
     Parser a s v -> [a] -> v
 parse p l = case p l initial of
     (s, Just (v, r)) | isEmpty r -> v
@@ -27,21 +29,21 @@ nop _ s = (s, Nothing)
 yield :: v -> Parser a s v
 yield v l s = (s, Just (v, l))
 
-yieldError :: ParserState s =>
+yieldError :: ParserState s a =>
     String -> Parser a s v
 yieldError e l s = nop l (setError s e)
 
-skip :: ParserState s =>
+skip :: ParserState s a =>
     Parser a s a
 skip l s = case l of
     a : r -> yield a r (update s a)
     _ -> yieldError "unexpected eof" l s
 
-eof :: ParserState s =>
+eof :: ParserState s a =>
     Parser a s ()
 eof l = (if isEmpty l then yield () else yieldError "expected eof") l
 
-satisfy :: (ParserState s, Show a) =>
+satisfy :: (ParserState s a, Show a) =>
     (a -> Bool) -> Parser a s a
 satisfy f l s = case l of
     a : r -> case f a of
@@ -52,7 +54,7 @@ satisfy f l s = case l of
 phantom :: Parser a s v -> Parser a s v
 phantom p l s = pair (const s, fmap (\t -> (fst t, l))) (p l s)
 
-cond :: ParserState s =>
+cond :: ParserState s a =>
     Parser a s v -> Parser a s v -> Parser a s v
 cond p q l s = case p l s of
     (t, Nothing) -> case q l s of
@@ -68,17 +70,17 @@ infixl 7 >.
 
 -- Some useful abbreviations
 
-(.*.) :: ParserState s =>
+(.*.) :: ParserState s a =>
     Parser a s v -> Parser a s w -> Parser a s (v, w)
 (.*.) p q = cond (p >. (q >@ \w v -> (v, w))) nop
 infixl 7 .*.
 
-(.*-) :: ParserState s =>
+(.*-) :: ParserState s a =>
     Parser a s v -> Parser a s w -> Parser a s v
 (.*-) p q = p .*. q >@ fst
 infixl 7 .*-
 
-(-*.) :: ParserState s =>
+(-*.) :: ParserState s a =>
     Parser a s v -> Parser a s w -> Parser a s w
 (-*.) p q = p .*. q >@ snd
 infixl 7 -*.
@@ -91,45 +93,45 @@ infixl 6 >@
 (>!) p w = p >@ const w
 infixl 6 >!
 
-(\/) :: ParserState s =>
+(\/) :: ParserState s a =>
     Parser a s v -> Parser a s v -> Parser a s v
 (\/) = cond
 infixr 5 \/
 
-(\+/) :: ParserState s =>
+(\+/) :: ParserState s a =>
     Parser a s v -> Parser a s w -> Parser a s (Either v w)
 (\+/) p q = (p >@ Left) \/ (q >@ Right)
 infixr 5 \+/
 
-sep :: ParserState s =>
+sep :: ParserState s a =>
     Parser a s v -> Parser a s (Maybe v)
 sep p = phantom p >@ Just \/ eof >! Nothing
 
-opt :: ParserState s =>
+opt :: ParserState s a =>
     Parser a s v -> Parser a s (Maybe v)
 opt p = p >@ Just \/ yield Nothing
 
-plus :: ParserState s =>
+plus :: ParserState s a =>
     Parser a s v -> Parser a s (v, [v])
 plus p = p .*. (opt (plus p >@ uncurry (:)) >@ listify)
 
-star :: ParserState s =>
+star :: ParserState s a =>
     Parser a s v -> Parser a s [v]
 star p = opt (plus p) >@ listify
 
-anything :: (ParserState s, Show a) =>
+anything :: (ParserState s a, Show a) =>
     Parser a s a
 anything = satisfy $ const True
 
-sym :: (Eq a, ParserState s, Show a) =>
+sym :: (Eq a, ParserState s a, Show a) =>
     a -> Parser a s a
 sym a = satisfy ((==) a)
 
-nsym :: (Eq a, ParserState s, Show a) =>
+nsym :: (Eq a, ParserState s a, Show a) =>
     a -> Parser a s a
 nsym a = satisfy ((/=) a)
 
-sseq :: (Eq a, ParserState s, Show a) =>
+sseq :: (Eq a, ParserState s a, Show a) =>
     [a] -> Parser a s [a]
 sseq l = case l of
     [] -> yield []
