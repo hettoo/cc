@@ -17,8 +17,11 @@ instance ParserState CharState Char where
         (a, b) -> case c of
             '\n' -> s {pos = (a + 1, 1)}
             _ -> s {pos = (a, b + 1)}
-    merge s t = case (merror s, merror t) of -- TODO
-        (Just e, _) -> s
+    merge s t = case (merror s, merror t) of
+        (Just (_, (a1, b1)), Just (_, (a2, b2))) ->
+            if a1 > a2 || (a1 == a2 && b1 > b2) then s else t
+        (_, Just _) -> t
+        (Just _, _) -> s
         _ -> t
     setError s e = s {merror = Just (e, pos s)}
     getError s = case merror s of
