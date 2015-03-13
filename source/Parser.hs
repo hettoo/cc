@@ -16,7 +16,7 @@ class ParserState s a | s -> a where
 parse :: (ParserState s a, Eq a, Eq v, Show v) =>
     Parser a s v -> [a] -> v
 parse p l = case p l initial of
-    (s, Just (v, r)) | isEmpty r -> v
+    (_, Just (v, r)) -> v
     (s, _) -> error $ "parser error" ++ case getError s of
         Nothing -> ""
         Just e -> ": " ++ e

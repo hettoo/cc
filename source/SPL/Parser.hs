@@ -13,10 +13,10 @@ parseSPL = parse $ pPre >@ parse pSPL
 pPre :: CharParser String
 pPre = star ((sseq "//" .*. star (nsym '\n') .*. (sym '\n' \+/ eof) \+/
     sseq "/*" .*. star (sym '*' -*. nsym '/' \/ nsym '*') .*.  sseq "*/") \+/
-    anything) >@ rights
+    anything) .*- eof >@ rights
 
 pSPL :: CharParser [Stmt]
-pSPL = ows -*. star (pDecl .*- ows)
+pSPL = ows -*. star (pDecl .*- ows) .*- eof
 
 pDecl :: CharParser Stmt
 pDecl = pVarDecl \/ pFunDecl
