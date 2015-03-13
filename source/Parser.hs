@@ -60,9 +60,10 @@ cond p q l s = case p l s of
     (t, Nothing) -> left (merge t) (q l s)
     x -> x
 
-(>.) :: Parser a s v -> Parser a s (v -> w) -> Parser a s w
+(>.) :: ParserState s a =>
+    Parser a s v -> Parser a s (v -> w) -> Parser a s w
 (>.) p q l s = case p l s of
-    (t, Just (v, l')) -> pair (id, fmap (\(f, l'') -> (f v, l''))) (q l' t)
+    (t, Just (v, l')) -> pair (merge t, fmap (\(f, l'') -> (f v, l''))) (q l' t)
     (t, Nothing) -> (t, Nothing)
 infixl 7 >.
 
@@ -83,11 +84,13 @@ infixl 7 .*-
 (-*.) p q = p .*. q >@ snd
 infixl 7 -*.
 
-(>@) :: Parser a s v -> (v -> w) -> Parser a s w
+(>@) :: ParserState s a =>
+    Parser a s v -> (v -> w) -> Parser a s w
 (>@) p f = p >. yield f
 infixl 6 >@
 
-(>!) :: Parser a s v -> w -> Parser a s w
+(>!) :: ParserState s a =>
+    Parser a s v -> w -> Parser a s w
 (>!) p w = p >@ const w
 infixl 6 >!
 
