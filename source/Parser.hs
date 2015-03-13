@@ -29,9 +29,9 @@ nop _ s = (s, Nothing)
 yield :: v -> Parser a s v
 yield v l s = (s, Just (v, l))
 
-yieldError :: ParserState s a =>
-    String -> Parser a s v
-yieldError e l s = nop l (setError s e)
+injectError :: ParserState s a =>
+    Parser a s v -> String -> Parser a s v
+injectError p e l s = p l (setError s e)
 
 skip :: ParserState s a =>
     Parser a s a
@@ -57,9 +57,7 @@ phantom p l s = pair (const s, fmap (\t -> (fst t, l))) (p l s)
 cond :: ParserState s a =>
     Parser a s v -> Parser a s v -> Parser a s v
 cond p q l s = case p l s of
-    (t, Nothing) -> case q l s of
-        (u, Nothing) -> (merge t u, Nothing)
-        x -> x
+    (t, Nothing) -> left (merge t) (q l s)
     x -> x
 
 (>.) :: Parser a s v -> Parser a s (v -> w) -> Parser a s w
@@ -103,13 +101,17 @@ infixr 5 \/
 (\+/) p q = (p >@ Left) \/ (q >@ Right)
 infixr 5 \+/
 
+yieldError :: ParserState s a =>
+    String -> Parser a s v
+yieldError = injectError nop
+
 sep :: ParserState s a =>
     Parser a s v -> Parser a s (Maybe v)
 sep p = phantom p >@ Just \/ eof >! Nothing
 
 opt :: ParserState s a =>
     Parser a s v -> Parser a s (Maybe v)
-opt p = p >@ Just \/ yield Nothing
+opt p = p >@ Just \/ injectError (yield Nothing) ""
 
 plus :: ParserState s a =>
     Parser a s v -> Parser a s (v, [v])
