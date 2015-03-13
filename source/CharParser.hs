@@ -4,29 +4,38 @@ import Listify
 import Utils
 import Data.Char
 
-ws :: Parser Char (Char, [Char])
+type CharParser v = Parser Char () v
+
+instance ParserState () where
+    initial = ()
+    update _ _ = ()
+    merge _ _ = ()
+    setError _ _ = ()
+    getError _ = Nothing
+
+ws :: CharParser (Char, [Char])
 ws = plus (satisfy ((flip elem) [' ', '\n', '\r', '\t']))
 
-ows :: Parser Char [Char]
+ows :: CharParser [Char]
 ows = opt ws >@ listify
 
-nalphanum_ :: Parser Char (Maybe Char)
+nalphanum_ :: CharParser (Maybe Char)
 nalphanum_ = sep (satisfy (\c -> not (c == '_' || isAlphaNum c)))
 
-(.*?*.) :: Parser Char v -> Parser Char w -> Parser Char (v, w)
+(.*?*.) :: CharParser v -> CharParser w -> CharParser (v, w)
 (.*?*.) p q = (p .*- ows) .*. q
 infixl 7 .*?*.
 
-(-*?*.) :: Parser Char v -> Parser Char w -> Parser Char w
+(-*?*.) :: CharParser v -> CharParser w -> CharParser w
 (-*?*.) p q = (p .*. ows) -*. q
 infixl 7 -*?*.
 
-(.*?*-) :: Parser Char v -> Parser Char w -> Parser Char v
+(.*?*-) :: CharParser v -> CharParser w -> CharParser v
 (.*?*-) p q = p .*- (ows .*. q)
 infixl 7 .*?*-
 
-neCommaList :: Parser Char v -> Parser Char (v, [v])
+neCommaList :: CharParser v -> CharParser (v, [v])
 neCommaList p = p .*?*. star (sym ',' -*?*. p)
 
-commaList :: Parser Char v -> Parser Char [v]
+commaList :: CharParser v -> CharParser [v]
 commaList p = opt (neCommaList p) >@ listify
