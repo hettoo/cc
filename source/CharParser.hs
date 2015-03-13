@@ -21,7 +21,9 @@ instance ParserState CharState Char where
         (Just e, _) -> s
         _ -> t
     setError s e = s {merror = Just (e, pos s)}
-    getError s = fmap fst (merror s)
+    getError s = case merror s of
+        Nothing -> Nothing
+        Just (e, (a, b)) -> Just $ e ++ " at " ++ show a ++ ":" ++ show b
 
 ws :: CharParser (Char, [Char])
 ws = plus (satisfy ((flip elem) [' ', '\n', '\r', '\t']))
