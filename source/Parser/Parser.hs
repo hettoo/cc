@@ -1,6 +1,6 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FunctionalDependencies #-}
-module Parser where
+module Parser.Parser where
 import Listify
 import Utils
 

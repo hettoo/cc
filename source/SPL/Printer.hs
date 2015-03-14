@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 module SPL.Printer where
-import SPL.Structure
+import SPL.Algebra
 import Utils
 
 class PrettyPrinter a where

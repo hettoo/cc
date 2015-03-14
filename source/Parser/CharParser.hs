@@ -1,6 +1,6 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
-module CharParser where
-import Parser
+module Parser.CharParser where
+import Parser.Parser
 import Listify
 import Utils
 import Data.Char

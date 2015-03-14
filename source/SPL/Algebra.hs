@@ -1,4 +1,4 @@
-module SPL.Structure where
+module SPL.Algebra where
 
 data Stmt =
     Stmts [Stmt]

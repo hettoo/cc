@@ -1,6 +1,6 @@
 module Main where
-import SPL.Structure
-import Parser
+import SPL.Algebra
+import Parser.Parser
 import SPL.Parser
 import SPL.Printer
 

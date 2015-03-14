@@ -1,7 +1,7 @@
 module SPL.Parser where
-import SPL.Structure
-import Parser
-import CharParser
+import SPL.Algebra
+import Parser.Parser
+import Parser.CharParser
 import Listify
 import Utils
 import Data.Char
