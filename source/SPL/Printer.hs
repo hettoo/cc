@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 module SPL.Printer where
 import SPL.Structure
+import Utils
 
 class PrettyPrinter a where
     prettyPrint' :: Int -> a -> String
@@ -13,6 +14,19 @@ class SimplePrinter a where
 instance PrettyPrinter () where
     prettyPrint' n _ = concatMap (replicate n) "    "
 
+elseIfChain :: Maybe Stmt -> ([(Exp, Stmt)], Maybe Stmt)
+elseIfChain m = case m of
+    Nothing -> ([], Nothing)
+    Just (If c b m') -> left ((:) (c, b)) (elseIfChain m')
+    Just s -> ([], Just s)
+
+chainStmts :: ([(Exp, Stmt)], Maybe Stmt) -> [Stmt]
+chainStmts (l, m) = case l of
+    [] -> case m of
+        Nothing -> []
+        Just s -> [s]
+    (e, s) : r -> s : chainStmts (r, m)
+
 instance PrettyPrinter Stmt where
     prettyPrint' n stmt = case stmt of
         Stmts l -> "{\n" ++ prettyPrint' (n + 1) l ++ prettyPrint' n () ++ "}"
@@ -21,21 +35,30 @@ instance PrettyPrinter Stmt where
                 simplePrint e ++ ";\n"
             FunDecl t s a b -> simplePrint t ++ " " ++ s ++
                 " (" ++ simplePrint a ++ ")" ++
-                blockPrint True (Stmts b) ([Stmts b])
+                blockPrint True (Stmts b) [Stmts b]
             FunCall s l -> s ++ "(" ++ simplePrint l ++ ");\n"
             Return m -> "return" ++ (case m of
                 Nothing -> ""
                 Just e -> " " ++ simplePrint e ++ "") ++ ";\n"
             Assign s l e -> s ++ simplePrint l ++ " = " ++
                 simplePrint e ++ ";\n"
-            If c b m -> "if (" ++ simplePrint c ++ ")" ++
-                case m of
-                    Nothing -> blockPrint True b [b]
-                    Just e -> blockPrint False b [b, e] ++
-                        "else" ++ blockPrint True e [b, e]
+            If c b m -> printIfChain c b (elseIfChain m)
+                (b : (chainStmts . elseIfChain) m)
             While e b -> "while (" ++ simplePrint e ++ ")" ++
                 blockPrint True b [b]
         where
+        printIfChain c b p h = "if (" ++ simplePrint c ++ ")" ++ case p of
+            ([], Nothing) -> blockPrint True b h
+            _ -> blockPrint False b h ++ printElseIfChain p h
+        printElseIfChain p h = case p of
+            ([], m) -> printElse m h
+            ((c, b) : r, m) -> "else if (" ++ simplePrint c ++ ")" ++
+                case (r, m) of
+                    ([], Nothing) -> blockPrint True b h
+                    _ -> blockPrint False b h ++ printElseIfChain (r, m) h
+        printElse m h = case m of
+            Nothing -> ""
+            Just e -> "else" ++ blockPrint True e h
         blockPrint b s l = case foldl (||) False (map checkStmts l') of
                 True -> " " ++ prettyPrint' n w ++ case b of
                     True -> "\n"
