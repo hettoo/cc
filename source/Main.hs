@@ -3,6 +3,7 @@ import SPL.Algebra
 import Parser.Parser
 import SPL.Parser
 import SPL.Printer
+import SPL.TypeChecker
 
 testPrinter :: String -> Bool
 testPrinter s = p == (parseSPL . prettyPrint) p
