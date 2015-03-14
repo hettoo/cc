@@ -39,7 +39,7 @@ instance PrettyPrinter Stmt where
             FunCall s l -> s ++ "(" ++ simplePrint l ++ ");\n"
             Return m -> "return" ++ (case m of
                 Nothing -> ""
-                Just e -> " " ++ simplePrint e ++ "") ++ ";\n"
+                Just e -> " " ++ simplePrint e) ++ ";\n"
             Assign s l e -> s ++ simplePrint l ++ " = " ++
                 simplePrint e ++ ";\n"
             If c b m -> printIfChain c b (elseIfChain m)
@@ -63,7 +63,7 @@ instance PrettyPrinter Stmt where
                 True -> " " ++ prettyPrint' n w ++ case b of
                     True -> "\n"
                     False -> " "
-                False -> "\n" ++ prettyPrint' (n + 1) s' ++ "" ++
+                False -> "\n" ++ prettyPrint' (n + 1) s' ++
                     case b of
                         True -> ""
                         False -> prettyPrint' n ()
