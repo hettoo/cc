@@ -76,18 +76,63 @@ Recall our final version of the SPL grammar.
     <id> ::= <alpha> (\,`_' | <alphaNum>\,)*
 \end{grammar}
 
+What matters, however, is not the syntax used to recognize a program, but rather the syntax used to store it.
+For instance, the grammar describing our expressions is shown below.
+\setlength{\grammarindent}{4.1em}
+\begin{grammar}
+    <Exp> ::= Int $i$ | Bool $b$ | Char $c$ | Nil | $\ominus$<Exp> | <Exp> $\otimes$ <Exp>
+    \alt (\,<Exp>, <Exp>\,) | Var <id> (\,<Field>\,)* | Fun <id> (\,Exp\,)*
+\end{grammar}
+Here $\ominus$ stands for a unary operator, and $\otimes$ can be any binary operator.
+
 \begin{center}
-    \AxiomC{$x : \sigma \in \Gamma$}
-    \UnaryInfC{$\Gamma \vdash x : \sigma$}
+    \AxiomC{}
+    \UnaryInfC{$\Gamma \vdash \text{Int } i : \text{Int}$}
     \DisplayProof
     \qquad
-    \AxiomC{$\Gamma \vdash M : \sigma \to \tau$}
-    \AxiomC{$\Gamma \vdash N : \sigma$}
-    \BinaryInfC{$\Gamma \vdash (M N) : \tau$}
+    \AxiomC{}
+    \UnaryInfC{$\Gamma \vdash \text{Bool } i : \text{Bool}$}
     \DisplayProof
     \qquad
-    \AxiomC{$\Gamma, x : \sigma \vdash M : \tau$}
-    \UnaryInfC{$\Gamma \vdash (\lambda x.M) : \sigma \to \tau$}
+    \AxiomC{}
+    \UnaryInfC{$\Gamma \vdash \text{Char } i : \text{Char}$}
+    \DisplayProof
+\end{center}
+
+\begin{center}
+    \AxiomC{}
+    \UnaryInfC{$\Gamma \vdash \text{Nil} : \forall a.\,[a]$}
+    \DisplayProof
+    \qquad
+    \AxiomC{$\Gamma \vdash e_1 : \sigma_1$}
+    \AxiomC{$\Gamma \vdash e_2 : \sigma_2$}
+    \BinaryInfC{$\Gamma \vdash (e_1, e_2) : (\sigma_1, \sigma_2)$}
+    \DisplayProof
+\end{center}
+
+\begin{center}
+    \AxiomC{$(i, \sigma) \in \Gamma$}
+    \UnaryInfC{$\Gamma \vdash \text{Var } i\;[\,] : \sigma$}
+    \DisplayProof
+\end{center}
+
+\begin{center}
+    \AxiomC{$(i, \sigma) \in \Gamma$}
+    \AxiomC{$\Gamma \vdash f : \sigma \to \tau$}
+    \AxiomC{$\{(v, t) \in \Gamma \mid v \neq i\}, i : \tau \vdash \text{Var } i\;r : \upsilon$}
+    \TrinaryInfC{$\Gamma \vdash \text{Var } i\;(f :: r) : \upsilon$}
+    \DisplayProof
+\end{center}
+
+% TODO: split variable and function contexts
+\begin{center}
+    \AxiomC{$(i, \sigma) \in \Gamma$}
+    \UnaryInfC{$\Gamma \vdash \text{Fun } i\;[\,] : \sigma$}
+    \DisplayProof
+    \qquad
+    \AxiomC{$\Gamma \vdash e_j : \sigma_j$}
+    \AxiomC{$(i, (\sigma_1, \sigma_2, \ldots, \sigma_n) \to \tau) \in \Gamma$}
+    \BinaryInfC{$\Gamma \vdash \text{Fun } i\;[e_1, e_2, \ldots, e_n] : \tau$}
     \DisplayProof
 \end{center}
 
