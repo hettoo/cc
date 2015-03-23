@@ -81,7 +81,7 @@ For instance, the grammar describing our expressions is shown below.
 \setlength{\grammarindent}{4.1em}
 \begin{grammar}
     <Exp> ::= Int $i$ | Bool $b$ | Char $c$ | Nil | $\ominus$<Exp> | <Exp> $\otimes$ <Exp>
-    \alt (\,<Exp>, <Exp>\,) | Var <id> (\,<Field>\,)* | Fun <id> (\,Exp\,)*
+    \alt (\,<Exp>, <Exp>\,) | Var <id> <Field>* | Fun <id> <Exp>*
 \end{grammar}
 Here $\ominus$ stands for a unary operator, and $\otimes$ can be any binary operator.
 
@@ -205,5 +205,13 @@ The types of these are given by the axioms below.
     \UnaryInfC{$\Gamma \vdash \text{Second} : (\sigma_1, \sigma_2) \to \sigma_2$}
     \DisplayProof
 \end{center}
+
+Now consider our syntax of statements.
+\setlength{\grammarindent}{4.1em}
+\begin{grammar}
+    <Stmt> ::= Stmts <Stmt>* | FunCall <id> <Exp>* | Return [\,Exp\,] | Assign <id> <Field>*
+    \alt VarDecl <Type> <id> <Exp> | FunDecl <Type> <id> (\,<Type>, <id>\,)* <Stmt>
+    \alt If <Exp> <Stmt> [\,<Stmt>\,] | While <Exp> <Stmt>
+\end{grammar}
 
 \end{document}
