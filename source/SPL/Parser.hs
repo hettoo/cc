@@ -29,7 +29,7 @@ pFunDecl :: CharReParser Stmt
 pFunDecl = pRetType .*?*. pId .*?*.
     (sym '(' -*?*. commaList (pType .*?*. pId) .*?*- sym ')') .*?*.
     (sym '{' -*?*. (star (pVarDecl .*- ows) .*.
-        star (pStmt .*- ows) >@ uncurry (++)) .*- sym '}') >@
+        star (pStmt .*- ows) >@ Stmts . uncurry (++)) .*- sym '}') >@
         (uncurry . uncurry . uncurry) FunDecl
 
 pRetType :: CharReParser Type

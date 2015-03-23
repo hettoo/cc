@@ -34,8 +34,7 @@ instance PrettyPrinter Stmt where
             VarDecl t s e -> simplePrint t ++ " " ++ s ++ " = " ++
                 simplePrint e ++ ";\n"
             FunDecl t s a b -> simplePrint t ++ " " ++ s ++
-                " (" ++ simplePrint a ++ ")" ++
-                blockPrint True (Stmts b) [Stmts b]
+                " (" ++ simplePrint a ++ ")" ++ blockPrint True b [b]
             FunCall s l -> s ++ "(" ++ simplePrint l ++ ");\n"
             Return m -> "return" ++ (case m of
                 Nothing -> ""

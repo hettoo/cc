@@ -3,7 +3,7 @@ module SPL.Algebra where
 data Stmt =
     Stmts [Stmt]
     | VarDecl Type String Exp
-    | FunDecl Type String [(Type, String)] [Stmt]
+    | FunDecl Type String [(Type, String)] Stmt
     | FunCall String [Exp]
     | Return (Maybe Exp)
     | Assign String [Field] Exp
