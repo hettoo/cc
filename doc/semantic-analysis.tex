@@ -12,7 +12,7 @@
 \renewcommand{\syntleft}{\normalfont\itshape}
 \renewcommand{\syntright}{}
 
-\title{SPL Type Checker}
+\title{SPL Semantic Analysis}
 \author{Tom Sanders and Gerco van Heerdt}
 
 \begin{document}
@@ -148,10 +148,10 @@ Finally, we have to specify all operators.
     \qquad
     \AxiomC{$\Gamma \vdash e_1 : \sigma$}
     \AxiomC{$\Gamma \vdash e_2 : \sigma$}
-    \BinaryInfC{$\Gamma \vdash e_1 \diamond e_2 : \sigma$}
+    \BinaryInfC{$\Gamma \vdash e_1 \bullet e_2 : \sigma$}
     \DisplayProof
 \end{center}
-where $\diamond \in \{+, -, *, /, \%\}$.
+where $\bullet \in \{+, -, *, /, \%\}$.
 
 \begin{center}
     \AxiomC{$\Gamma \vdash e : \sigma$}
@@ -213,5 +213,13 @@ Now consider our syntax of statements.
     \alt VarDecl <Type> <id> <Exp> | FunDecl <Type> <id> (\,<Type>, <id>\,)* <Stmt>
     \alt If <Exp> <Stmt> [\,<Stmt>\,] | While <Exp> <Stmt>
 \end{grammar}
+
+Binding time analysis consists in determining where variables that are used in the program were bound.
+We use the usual precedence rules to do this: variables defined later override earlier ones, unless they were defined in the same scope (block of code or function parameter lists), which is an error.
+Note the more general formulation here resulting from our more general stored statement syntax.
+
+Typechecking a function consists in ensuring that the returned values for all possible executions of the function (assuming just that it terminates) are compatible with the type given to it.
+An execution not hitting a return statement is equivalent to it returning a variable of type Void in the end.
+Of course there are no such variables, but this is in turn modeled by the empty return statement.
 
 \end{document}
