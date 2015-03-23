@@ -76,7 +76,7 @@ Recall our final version of the SPL grammar.
     <id> ::= <alpha> (\,`_' | <alphaNum>\,)*
 \end{grammar}
 
-What matters, however, is not the syntax used to recognize a program, but rather the syntax used to store it.
+What matters, however, is not the syntax used to recognize a program, but rather the syntax used to store it (the relation with the above grammar should be clear).
 For instance, the grammar describing our expressions is shown below.
 \setlength{\grammarindent}{4.1em}
 \begin{grammar}
@@ -84,6 +84,8 @@ For instance, the grammar describing our expressions is shown below.
     \alt (\,<Exp>, <Exp>\,) | Var <id> (\,<Field>\,)* | Fun <id> (\,Exp\,)*
 \end{grammar}
 Here $\ominus$ stands for a unary operator, and $\otimes$ can be any binary operator.
+
+For convenience, we use the notation that a context $\Gamma$ is made up of a variable context $\Gamma_v$ and a function context $\Gamma_f$. Formally, $\Gamma = (\Gamma_v, \Gamma_f)$.
 
 \begin{center}
     \AxiomC{}
@@ -108,31 +110,99 @@ Here $\ominus$ stands for a unary operator, and $\otimes$ can be any binary oper
     \AxiomC{$\Gamma \vdash e_2 : \sigma_2$}
     \BinaryInfC{$\Gamma \vdash (e_1, e_2) : (\sigma_1, \sigma_2)$}
     \DisplayProof
-\end{center}
-
-\begin{center}
-    \AxiomC{$(i, \sigma) \in \Gamma$}
+    \qquad
+    \AxiomC{$(i, \sigma) \in \Gamma_v$}
     \UnaryInfC{$\Gamma \vdash \text{Var } i\;[\,] : \sigma$}
     \DisplayProof
 \end{center}
 
 \begin{center}
-    \AxiomC{$(i, \sigma) \in \Gamma$}
+    \AxiomC{$(i, \sigma) \in \Gamma_v$}
     \AxiomC{$\Gamma \vdash f : \sigma \to \tau$}
-    \AxiomC{$\{(v, t) \in \Gamma \mid v \neq i\}, i : \tau \vdash \text{Var } i\;r : \upsilon$}
-    \TrinaryInfC{$\Gamma \vdash \text{Var } i\;(f :: r) : \upsilon$}
+    \AxiomC{$((\Gamma_{v \setminus i}, i : \tau), \Gamma_f) \vdash \text{Var } i\;r : \chi$}
+    \TrinaryInfC{$\Gamma \vdash \text{Var } i\;(f :: r) : \chi$}
+    \DisplayProof
+\end{center}
+Here $\Gamma_{v \setminus i} = \{(v, t) \in \Gamma_v \mid v \neq i\}$.
+
+Note that the above rule requires us to type field specifiers as well.
+We will do this later.
+
+\begin{center}
+    \AxiomC{$\forall_{1 \le j \le n}\,\Gamma \vdash e_j : \sigma_j$}
+    \AxiomC{$(i, (\sigma_1, \sigma_2, \ldots, \sigma_n) \to \tau) \in \Gamma_f$}
+    \BinaryInfC{$\Gamma \vdash \text{Fun } i\;[e_1, e_2, \ldots, e_n] : \tau$}
     \DisplayProof
 \end{center}
 
-% TODO: split variable and function contexts
+Finally, we have to specify all operators.
+
 \begin{center}
-    \AxiomC{$(i, \sigma) \in \Gamma$}
-    \UnaryInfC{$\Gamma \vdash \text{Fun } i\;[\,] : \sigma$}
+    \AxiomC{$\Gamma \vdash e : \text{Int}$}
+    \UnaryInfC{$\Gamma \vdash -e : \text{Int}$}
     \DisplayProof
     \qquad
-    \AxiomC{$\Gamma \vdash e_j : \sigma_j$}
-    \AxiomC{$(i, (\sigma_1, \sigma_2, \ldots, \sigma_n) \to \tau) \in \Gamma$}
-    \BinaryInfC{$\Gamma \vdash \text{Fun } i\;[e_1, e_2, \ldots, e_n] : \tau$}
+    \AxiomC{$\Gamma \vdash e : \text{Bool}$}
+    \UnaryInfC{$\Gamma \vdash\;!e : \text{Bool}$}
+    \DisplayProof
+    \qquad
+    \AxiomC{$\Gamma \vdash e_1 : \sigma$}
+    \AxiomC{$\Gamma \vdash e_2 : \sigma$}
+    \BinaryInfC{$\Gamma \vdash e_1 \diamond e_2 : \sigma$}
+    \DisplayProof
+\end{center}
+where $\diamond \in \{+, -, *, /, \%\}$.
+
+\begin{center}
+    \AxiomC{$\Gamma \vdash e : \sigma$}
+    \AxiomC{$\Gamma \vdash l : [\sigma]$}
+    \BinaryInfC{$\Gamma \vdash (e : l) : [\sigma]$}
+    \DisplayProof
+    \qquad
+    \AxiomC{$\Gamma \vdash e_1 : \sigma$}
+    \AxiomC{$\Gamma \vdash e_2 : \sigma$}
+    \BinaryInfC{$\Gamma \vdash e_1 \diamond e_2 : \text{Bool}$}
+    \DisplayProof
+\end{center}
+with $\diamond \in \{==, <, >, <=, >=, !\!=\}$.
+
+\begin{center}
+    \AxiomC{$\Gamma \vdash e_1 : \text{Bool}$}
+    \AxiomC{$\Gamma \vdash e_2 : \text{Bool}$}
+    \BinaryInfC{$\Gamma \vdash e_1 \text{ \&\& } e_2 : \text{Bool}$}
+    \DisplayProof
+    \qquad
+    \AxiomC{$\Gamma \vdash e_1 : \text{Bool}$}
+    \AxiomC{$\Gamma \vdash e_2 : \text{Bool}$}
+    \BinaryInfC{$\Gamma \vdash e_1 \text{ \textbar\textbar{} } e_2 : \text{Bool}$}
+    \DisplayProof
+\end{center}
+
+The built-in functions will be typed through the initialization of the context.
+
+Field specifiers are given by the following grammar:
+\setlength{\grammarindent}{4.3em}
+\begin{grammar}
+    <Field> ::= Head | Tail | First | Second
+\end{grammar}
+
+The types of these are given by the axioms below.
+\begin{center}
+    \AxiomC{}
+    \UnaryInfC{$\Gamma \vdash \text{Head} : [\sigma] \to \sigma$}
+    \DisplayProof
+    \qquad
+    \AxiomC{}
+    \UnaryInfC{$\Gamma \vdash \text{Tail} : [\sigma] \to [\sigma]$}
+    \DisplayProof
+\end{center}
+\begin{center}
+    \AxiomC{}
+    \UnaryInfC{$\Gamma \vdash \text{First} : (\sigma_1, \sigma_2) \to \sigma_1$}
+    \DisplayProof
+    \qquad
+    \AxiomC{}
+    \UnaryInfC{$\Gamma \vdash \text{Second} : (\sigma_1, \sigma_2) \to \sigma_2$}
     \DisplayProof
 \end{center}
 
