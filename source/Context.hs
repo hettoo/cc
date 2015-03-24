@@ -8,8 +8,8 @@ cnew = (0, [])
 cdown :: Context t -> Context t
 cdown (i, l) = (i + 1, l)
 
-cadd :: Context t -> String -> t -> Context t
-cadd (i, l) s t = (i, cadd' l)
+caddc :: Bool -> Context t -> String -> t -> Context t
+caddc b (i, l) s t = (i, cadd' l)
     where
     cadd' l = case l of
         [] -> [(s, t, i)]
@@ -18,9 +18,18 @@ cadd (i, l) s t = (i, cadd' l)
                 if i' < i then
                     cadd' r
                 else
-                    error ("redefined entity " ++ s)
+                    if b then
+                        error ("redefined entity " ++ s)
+                    else
+                        cadd' r
             else
                 f : cadd' r
+
+cadd :: Context t -> String -> t -> Context t
+cadd = caddc True
+
+caddr :: Context t -> String -> t -> Context t
+caddr = caddc False
 
 crem :: Context t -> String -> Context t
 crem (i, l) s = (i, crem' l)
@@ -63,3 +72,10 @@ fresh = fresh' 0
         True -> fresh' (n + 1) c
         where
         f = createN n
+
+creplace :: Context t -> (t -> Maybe String) -> t -> t
+creplace c f t = case f t of
+    Nothing -> t
+    Just s -> case clookup c s of
+        Nothing -> t
+        Just t' -> t'

@@ -2,6 +2,7 @@ module SPL.TypeChecker where
 import SPL.Algebra
 import Context
 import Utils
+import Debug.Trace
 
 type Cv = Context Type
 type Cf = Context (Type, Type)
@@ -27,23 +28,33 @@ combineTypes l = case l of
         [] -> a
         _ -> TTuple a (combineTypes r)
 
-covers :: Type -> Type -> Bool
-covers t u = case (t, u) of
-    (TTuple t1 t2, TTuple t1' t2') -> covers t1 t1' && covers t2 t2'
-    (TList t', TList t'') -> covers t' t''
-    (TPoly a, t) -> True -- TODO: keep track of these
-    _ -> t == u
+covers :: Type -> Type -> Maybe (Context Type)
+covers = covers' cnew
+    where
+    covers' c t u = case (t, u) of
+        (TTuple t1 t2, TTuple t1' t2') ->
+            case covers' c t1 t1' of
+                Nothing -> Nothing
+                Just c' -> covers' c' t2 t2'
+        (TList t', TList t'') -> covers' c t' t''
+        (TPoly i, t) -> Just (caddr c i t)
+        _ -> if t == u then Just c else Nothing
 
-treplace :: Type -> Type -> Type -> Type
-treplace t r c = if c == t then r else case c of
-    TTuple t1 t2 -> TTuple (treplace t r t1) (treplace t r t2)
-    TList t' -> TList (treplace t r t')
-    _ -> c
+treplace :: Context Type -> Type -> Type
+treplace c t = case t of
+    TTuple t1 t2 -> TTuple (treplace c t1) (treplace c t2)
+    TList t' -> TList (treplace c t')
+    _ -> creplace c findPoly t
+    where
+    findPoly t = case t of
+        TPoly a -> Just a
+        _ -> Nothing
 
 checkApp :: (Type, Type) -> Type -> Type
-checkApp (t, t') a = if covers t a then treplace t a t' else -- TODO: replace elementary polymorphic unifications instead
-    error ("application mismatch: " ++ show t ++
+checkApp (t, t') a = case covers t a of
+    Nothing -> error ("application mismatch: " ++ show t ++
         " does not cover " ++ show a)
+    Just c -> treplace c t'
 
 op1Type :: Op1 -> (Type, Type)
 op1Type o = case o of
@@ -127,18 +138,23 @@ annotateProgram :: [Stmt] -> [StmtT]
 annotateProgram l = fst $ annotateMulti (pair (cdown, cdown) (initContext l)) l
 
 annotateMulti :: SPLC -> [Stmt] -> ([StmtT], SPLC)
-annotateMulti c = foldr (\s (l, c) ->
-    let (r, c') = annotateS c s in (r : l, c')) ([], c)
+annotateMulti c l = case l of
+    [] -> ([], c)
+    s : r -> let
+        (t, c') = annotateS c s
+        (ts, c'') = annotateMulti c' r
+        in
+        (t : ts, c'')
 
 annotateS :: SPLC -> Stmt -> (StmtT, SPLC)
 annotateS c@(cv, cf) s = case s of
     Stmts l -> let (l', c') = annotateMulti c l in (StmtsT l', c')
-    VarDecl t i e -> (VarDeclT t i (ae e), (cadd cv i (expType c e), cf))
+    VarDecl t i e -> (VarDeclT t i (ae e), (cadd cv i t, cf))
     FunDecl t i as b ->
         (FunDeclT t i as (fst (annotateS (cv', cf') b)), (cv, cf'))
         where
-        cv' = foldr (\(t, i) cv -> cadd cv i t) cv as
-        cf' = cadd cf i (combineTypes (map fst as), t)
+        cv' = cdown (foldr (\(t, i) cv -> cadd cv i t) (cdown cv) as)
+        cf' = cdown (cadd cf i (combineTypes (map fst as), t))
     FunCall i as -> (FunCallT i (map ae as), c)
     Return m -> (ReturnT (fmap ae m), c)
     Assign i fs e -> (AssignT i fs (ae e), c)
