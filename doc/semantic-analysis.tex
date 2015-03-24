@@ -222,4 +222,7 @@ Typechecking a function consists in ensuring that the returned values for all po
 An execution not hitting a return statement is equivalent to it returning a variable of type Void in the end.
 Of course there are no such variables, but this is in turn modeled by the empty return statement.
 
+We decorate the abstract syntax tree with type information for expressions and return type information for reachable statements in functions.
+For now this full tree is printed in order to trigger the errors detected by the decoration procedures.
+
 \end{document}
