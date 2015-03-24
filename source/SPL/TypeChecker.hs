@@ -4,23 +4,29 @@ import Context
 
 type SPLC = (Context Type, Context (Type, Type))
 
-fieldType :: Field -> (Type, Type)
-fieldType f = case f of
-    Head -> (TList (TPoly "?"), TPoly "?")
-    Tail -> (TList (TPoly "?"), TList (TPoly "?"))
-    First -> (TTuple (TPoly "?") (TPoly "?"), TPoly "?")
-    Second -> (TTuple (TPoly "?") (TPoly "?"), TPoly "?")
+instance DistinctSequence Type where
+    createN n = TPoly ("?" ++ show n)
+
+fieldType :: Context Type -> Field -> (Type, Type)
+fieldType c f = case f of
+    Head -> (TList a, a)
+    Tail -> (TList a, TList a)
+    First -> (TTuple a b, a)
+    Second -> (TTuple a b, b)
+    where
+    a = fresh c
+    b = fresh c -- I know!
 
 expType :: SPLC -> Exp -> Type
 expType c@(cv, cf) e = case e of
     EInt i -> TInt
     EBool b -> TBool
     EChar c -> TChar
-    ENil -> TList (TPoly "?")
+    ENil -> TList (fresh cv)
     ETuple e1 e2 -> TTuple (expType c e1) (expType c e2)
     EId i fs -> case fs of
         [] -> clookupe cv i
-        f : r -> case (clookupe cv i, fieldType f) of
+        f : r -> case (clookupe cv i, fieldType cv f) of
             (t, (t', t'')) ->
                 if t == t' then
                     expType (cadd (crem cv i) i t'', cf) (EId i r)

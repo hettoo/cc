@@ -1,17 +1,15 @@
 module SPL.Algebra where
 
-data StmtG e =
-    Stmts [StmtG e]
-    | VarDecl Type String e
-    | FunDecl Type String [(Type, String)] (StmtG e)
-    | FunCall String [e]
-    | Return (Maybe e)
-    | Assign String [Field] e
-    | If e (StmtG e) (Maybe (StmtG e))
-    | While e (StmtG e)
+data Stmt =
+    Stmts [Stmt]
+    | VarDecl Type String Exp
+    | FunDecl Type String [(Type, String)] Stmt
+    | FunCall String [Exp]
+    | Return (Maybe Exp)
+    | Assign String [Field] Exp
+    | If Exp Stmt (Maybe Stmt)
+    | While Exp Stmt
     deriving (Eq, Show)
-
-type Stmt = StmtG Exp
 
 data Type =
     TPoly String
