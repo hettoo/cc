@@ -10,17 +10,16 @@ type SPLC = (Cv, Cf)
 instance DistinctSequence Type where
     createN n = TPoly ("?" ++ show n)
 
--- TODO: track freshness in the context with a counter
-
-fieldType :: Context Type -> Field -> (Type, Type)
-fieldType c f = case f of
+fieldType :: SPLC -> Field -> ((Type, Type), SPLC)
+fieldType c@(cv, cf) f = ((case f of
     Head -> (TList a, a)
     Tail -> (TList a, TList a)
     First -> (TTuple a b, a)
-    Second -> (TTuple a b, b)
+    Second -> (TTuple a b, b)), (cv'', cf))
+    -- TODO: yield cv when no new variables have been added
     where
-    (a, c') = fresh c
-    (b, c'') = fresh c'
+    (a, cv') = fresh cv
+    (b, cv'') = fresh cv'
 
 combineTypes :: [Type] -> Type
 combineTypes l = case l of
@@ -38,6 +37,7 @@ covers = covers' cnew
                 Nothing -> Nothing
                 Just c' -> covers' c' t2 t2'
         (TList t', TList t'') -> covers' c t' t''
+        (TPoly i, TPoly j) -> Just c -- TODO: very unsure about this
         (TPoly i, t) -> Just (caddr c i t)
         _ -> if t == u then Just c else Nothing
 
@@ -194,7 +194,7 @@ annotateE c@(cv, cf) e = case e of
         t = case fs of
             [] -> clookupe cv i
             f : r -> (getType . fst) (annotateE (cadd (crem cv i) i
-                (checkApp (fieldType cv f) (clookupe cv i)), cf) (EId i r))
+                (checkApp (fst $ fieldType c f) (clookupe cv i)), cf) (EId i r))
     EFunCall i as -> (EFunCallT i es
         (checkApp (clookupe cf i) (combineTypes (map getType es))), c')
         where
