@@ -60,7 +60,7 @@ checkApp (t, t') a = case covers t a of
 op1Type :: Op1 -> (Type, Type)
 op1Type o = case o of
     ONot -> (TBool, TBool)
-    ONeg -> (TInt, TBool)
+    ONeg -> (TInt, TInt)
 
 op2Type :: SPLC -> Op2 -> ((Type, Type), SPLC)
 op2Type c@(cv, cf) o = ((case o of
