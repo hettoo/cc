@@ -34,8 +34,14 @@ covers t u = case (t, u) of
     (TPoly a, t) -> True -- TODO: keep track of these
     _ -> t == u
 
+treplace :: Type -> Type -> Type -> Type
+treplace t r c = if c == t then r else case c of
+    TTuple t1 t2 -> TTuple (treplace t r t1) (treplace t r t2)
+    TList t' -> TList (treplace t r t')
+    _ -> c
+
 checkApp :: (Type, Type) -> Type -> Type
-checkApp (t, t') a = if covers t a then t' else -- TODO: unify things
+checkApp (t, t') a = if covers t a then treplace t a t' else -- TODO: replace elementary polymorphic unifications instead
     error ("application mismatch: " ++ show t ++
         " does not cover " ++ show a)
 
