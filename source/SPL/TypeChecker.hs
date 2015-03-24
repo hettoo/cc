@@ -26,6 +26,37 @@ combineTypes l = case l of
         [] -> a
         _ -> TTuple a (combineTypes r)
 
+checkApp :: (Type, Type) -> Type -> Type
+checkApp (t, t') a =
+    if t == a then
+        t'
+    else
+        error "application mismatch"
+
+op1Type :: Op1 -> (Type, Type)
+op1Type o = case o of
+    ONot -> (TBool, TBool)
+    ONeg -> (TInt, TBool)
+
+op2Type :: Context Type -> Op2 -> (Type, Type)
+op2Type c o = case o of
+    OCons -> (TTuple a (TList a), TList a)
+    OAnd -> (TTuple TBool TBool, TBool)
+    OOr -> (TTuple TBool TBool, TBool)
+    OEq -> (TTuple a a, TBool)
+    ONeq -> (TTuple a a, TBool)
+    OLt -> (TTuple a a, TBool)
+    OGt -> (TTuple a a, TBool)
+    OLe -> (TTuple a a, TBool)
+    OGe -> (TTuple a a, TBool)
+    OPlus -> (TTuple a a, a)
+    OMinus -> (TTuple a a, a)
+    OTimes -> (TTuple a a, a)
+    ODiv -> (TTuple a a, a)
+    OMod -> (TTuple a a, a)
+    where
+    a = fresh c
+
 expType :: SPLC -> Exp -> Type
 expType c@(cv, cf) e = case e of
     EInt i -> TInt
@@ -41,11 +72,11 @@ expType c@(cv, cf) e = case e of
                     expType (cadd (crem cv i) i t'', cf) (EId i r)
                 else
                     error ("invalid use of field " ++ show f)
-    EFunCall i as -> let (t, t') = clookupe cf i in
-        if t == combineTypes (map (expType c) as) then
-            t'
-        else
-            error "function argument mismatch"
+    EFunCall i as ->
+        checkApp (clookupe cf i) (combineTypes (map (expType c) as))
+    EOp1 o e -> checkApp (op1Type o) (expType c e)
+    EOp2 o e1 e2 ->
+        checkApp (op2Type cv o) (TTuple (expType c e1) (expType c e2))
 
 initContext :: [Stmt] -> SPLC
 initContext l = case l of
@@ -56,6 +87,60 @@ initContext l = case l of
         _ -> p
         where
         p@(n, m) = initContext r
+
+data StmtT =
+    StmtsT [StmtT]
+    | VarDeclT Type String ExpT
+    | FunDeclT Type String [(Type, String)] StmtT
+    | FunCallT String [ExpT]
+    | ReturnT (Maybe ExpT)
+    | AssignT String [Field] ExpT
+    | IfT ExpT StmtT (Maybe StmtT)
+    | WhileT ExpT StmtT
+    deriving (Eq, Show)
+
+data ExpT =
+    EIntT Int Type
+    | EBoolT Bool Type
+    | ECharT Char Type
+    | ENilT Type
+    | ETupleT ExpT ExpT Type
+    | EIdT String [Field] Type
+    | EFunCallT String [ExpT] Type
+    | EOp1T Op1 ExpT Type
+    | EOp2T Op2 ExpT ExpT Type
+    deriving (Eq, Show)
+
+annotateMulti :: SPLC -> [Stmt] -> ([StmtT], SPLC)
+annotateMulti c = foldr (\s (l, c) ->
+    let (r, c') = annotateS c s in (r : l, c')) ([], c)
+
+annotateProgram :: [Stmt] -> [StmtT]
+annotateProgram l = fst $ annotateMulti (initContext l) (
+    filter (
+        \s -> case s of
+            VarDecl _ _ _ -> False
+            FunDecl _ _ _ _ -> False
+            _ -> True) l)
+
+annotateS :: SPLC -> Stmt -> (StmtT, SPLC)
+annotateS c@(cv, cf) s = case s of
+    Stmts l -> let (l', c') = annotateMulti c l in (StmtsT l', c')
+    VarDecl t i e -> (VarDeclT t i (annotateE c e), c)
+
+annotateE :: SPLC -> Exp -> ExpT
+annotateE c e = case e of
+    EInt i -> EIntT i r
+    EBool b -> EBoolT b r
+    EChar c -> ECharT c r
+    ENil -> ENilT r
+    ETuple e1 e2 -> ETupleT (annotateE c e1) (annotateE c e2) r
+    EId i fs -> EIdT i fs r
+    EFunCall i as -> EFunCallT i (map (annotateE c) as) r
+    EOp1 o e -> EOp1T o (annotateE c e) r
+    EOp2 o e1 e2 -> EOp2T o (annotateE c e1) (annotateE c e2) r
+    where
+    r = expType c e
 
 --data FullType =
 --    VarType Type
