@@ -2,7 +2,6 @@ module SPL.TypeChecker where
 import SPL.Algebra
 import Context
 import Utils
-import Debug.Trace
 
 type Cv = Context Type
 type Cf = Context (Type, Type)
@@ -82,31 +81,6 @@ op2Type c o = case o of
     where
     (a, c') = fresh c
 
-expType :: SPLC -> Exp -> (Type, SPLC)
-expType c@(cv, cf) e = case e of
-    EInt _ -> (TInt, c)
-    EBool _ -> (TBool, c)
-    EChar _ -> (TChar, c)
-    ENil -> let (t, cv') = fresh cv in (TList t, (cv', cf))
-    ETuple e1 e2 -> (TTuple t1 t2, c'')
-        where
-        (t1, c') = (expType c e1)
-        (t2, c'') = (expType c' e2)
-    EId i fs -> case fs of
-        [] -> (clookupe cv i, c)
-        f : r -> expType (cadd (crem cv i) i
-            (checkApp (fieldType cv f) (clookupe cv i)), cf) (EId i r)
-    EFunCall i as -> (checkApp (clookupe cf i) (combineTypes ts), c')
-        where
-        (ts, c') = sideMap expType c as
-    EOp1 o e -> (checkApp (op1Type o) t, c')
-        where
-        (t, c') = expType c e
-    EOp2 o e1 e2 -> (checkApp (op2Type cv o) (TTuple t1 t2), c'')
-        where
-        (t1, c') = expType c e1
-        (t2, c'') = expType c' e2
-
 sideMap :: (c -> a -> (b, c)) -> c -> [a] -> ([b], c)
 sideMap f c l = case l of
     [] -> ([], c)
@@ -137,6 +111,18 @@ data ExpT =
     | EOp1T Op1 ExpT Type
     | EOp2T Op2 ExpT ExpT Type
     deriving (Eq, Show)
+
+getType :: ExpT -> Type
+getType e = case e of
+    EIntT _ t -> t
+    EBoolT _ t -> t
+    ECharT _ t -> t
+    ENilT t -> t
+    ETupleT _ _ t -> t
+    EIdT _ _ t -> t
+    EFunCallT _ _ t -> t
+    EOp1T _ _ t -> t
+    EOp2T _ _ _ t -> t
 
 initContext :: [Stmt] -> SPLC
 initContext l = case l of
@@ -190,27 +176,33 @@ annotateS c@(cv, cf) s = case s of
     where
     ae = annotateE c
 
--- TODO: merge expType into this shit
 annotateE :: SPLC -> Exp -> (ExpT, SPLC)
-annotateE c e = case e of
-    EInt i -> (EIntT i r, ct)
-    EBool b -> (EBoolT b r, ct)
-    EChar c -> (ECharT c r, ct)
-    ENil -> (ENilT r, ct)
-    ETuple e1 e2 -> (ETupleT r1 r2 r, c2)
+annotateE c@(cv, cf) e = case e of
+    EInt i -> (EIntT i TInt, c)
+    EBool b -> (EBoolT b TBool, c)
+    EChar a -> (ECharT a TChar, c)
+    ENil -> (ENilT (TList t), (cv', cf))
+        where
+        (t, cv') = fresh cv
+    ETuple e1 e2 -> (ETupleT r1 r2 (TTuple (getType r1) (getType r2)), c2)
         where
         (r1, c1) = annotateE c e1
         (r2, c2) = annotateE c1 e2
-    EId i fs -> (EIdT i fs r, ct)
-    EFunCall i as -> (EFunCallT i es r, c')
+    EId i fs -> (EIdT i fs t, c)
+        where
+        t = case fs of
+            [] -> clookupe cv i
+            f : r -> (getType . fst) (annotateE (cadd (crem cv i) i
+                (checkApp (fieldType cv f) (clookupe cv i)), cf) (EId i r))
+    EFunCall i as -> (EFunCallT i es
+        (checkApp (clookupe cf i) (combineTypes (map getType es))), c')
         where
         (es, c') = sideMap annotateE c as
-    EOp1 o e -> (EOp1T o t r, c')
+    EOp1 o e -> (EOp1T o e' (checkApp (op1Type o) (getType e')), c')
         where
-        (t, c') = annotateE c e
-    EOp2 o e1 e2 -> (EOp2T o r1 r2 r, c2)
+        (e', c') = annotateE c e
+    EOp2 o e1 e2 -> (EOp2T o r1 r2 (checkApp (op2Type cv o) t), c2)
         where
         (r1, c1) = annotateE c e1
         (r2, c2) = annotateE c1 e2
-    where
-    (r, ct) = expType c e
+        t = TTuple (getType r1) (getType r2)
