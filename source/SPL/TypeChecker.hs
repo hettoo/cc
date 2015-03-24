@@ -91,12 +91,8 @@ expType c@(cv, cf) e = case e of
     ETuple e1 e2 -> TTuple (expType c e1) (expType c e2)
     EId i fs -> case fs of
         [] -> clookupe cv i
-        f : r -> case (clookupe cv i, fieldType cv f) of
-            (t, (t', t'')) ->
-                if t == t' then
-                    expType (cadd (crem cv i) i t'', cf) (EId i r)
-                else
-                    error ("invalid use of field " ++ show f)
+        f : r -> expType (cadd (crem cv i) i
+            (checkApp (fieldType cv f) (clookupe cv i)), cf) (EId i r)
     EFunCall i as ->
         checkApp (clookupe cf i) (combineTypes (map (expType c) as))
     EOp1 o e -> checkApp (op1Type o) (expType c e)
@@ -128,7 +124,11 @@ data ExpT =
 
 initContext :: [Stmt] -> SPLC
 initContext l = case l of
-    [] -> (cnew, cnew)
+    [] -> (cnew, (addRead . addPrint . addIsEmpty) cnew)
+        where
+        addIsEmpty c = cadd c "isEmpty" (TList (TPoly "t"), TBool)
+        addRead c = cadd c "read" (TVoid, TPoly "t")
+        addPrint c = cadd c "print" (TPoly "t", TVoid)
     s : r -> case s of
         VarDecl t i _ -> (cadd n i t, m)
         FunDecl t i as _ -> (n, cadd m i (combineTypes (map fst as), t))
