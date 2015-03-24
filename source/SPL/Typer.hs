@@ -1,4 +1,4 @@
-module SPL.TypeChecker where
+module SPL.Typer where
 import SPL.Algebra
 import Context
 import Utils

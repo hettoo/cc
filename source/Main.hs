@@ -3,7 +3,8 @@ import SPL.Algebra
 import Parser.Parser
 import SPL.Parser
 import SPL.Printer
-import SPL.TypeChecker
+import SPL.Typer
+import SPL.PrinterT
 
 testPrinter :: String -> Bool
 testPrinter s = p == (parseSPL . prettyPrint) p
@@ -18,5 +19,5 @@ testParser l = s == (prettyPrint . parseSPL) s
 main = do
     s <- getContents
     --putStr . prettyPrint . parseSPL $ s
-    putStrLn . show . annotateProgram . parseSPL $ s
+    putStr . prettyPrint . annotateProgram . parseSPL $ s
     --putStrLn $ "Parser |= Printer: " ++ show (testPrinter s)
