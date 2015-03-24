@@ -11,6 +11,8 @@ type SPLC = (Cv, Cf)
 instance DistinctSequence Type where
     createN n = TPoly ("?" ++ show n)
 
+-- TODO: track freshness in the context with a counter
+
 fieldType :: Context Type -> Field -> (Type, Type)
 fieldType c f = case f of
     Head -> (TList a, a)

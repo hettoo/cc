@@ -8,7 +8,8 @@ cnew = (0, [])
 cdown :: Context t -> Context t
 cdown (i, l) = (i + 1, l)
 
-caddc :: Bool -> Context t -> String -> t -> Context t
+caddc :: Eq t =>
+    Bool -> Context t -> String -> t -> Context t
 caddc b (i, l) s t = (i, cadd' l)
     where
     cadd' l = case l of
@@ -18,17 +19,19 @@ caddc b (i, l) s t = (i, cadd' l)
                 if i' < i then
                     cadd' r
                 else
-                    if b then
+                    if b || t == t' then
                         error ("redefined entity " ++ s)
                     else
                         cadd' r
             else
                 f : cadd' r
 
-cadd :: Context t -> String -> t -> Context t
+cadd :: Eq t =>
+    Context t -> String -> t -> Context t
 cadd = caddc True
 
-caddr :: Context t -> String -> t -> Context t
+caddr :: Eq t =>
+    Context t -> String -> t -> Context t
 caddr = caddc False
 
 crem :: Context t -> String -> Context t
