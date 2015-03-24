@@ -47,14 +47,15 @@ expType c@(cv, cf) e = case e of
         else
             error "function argument mismatch"
 
-initFunctions :: [Stmt] -> Cf
-initFunctions l = case l of
-    [] -> cnew
+initContext :: [Stmt] -> SPLC
+initContext l = case l of
+    [] -> (cnew, cnew)
     s : r -> case s of
-        FunDecl t i as _ -> cadd n i (combineTypes (map fst as), t)
-        _ -> n
+        VarDecl t i _ -> (cadd n i t, m)
+        FunDecl t i as _ -> (n, cadd m i (combineTypes (map fst as), t))
+        _ -> p
         where
-        n = initFunctions r
+        p@(n, m) = initContext r
 
 --data FullType =
 --    VarType Type
