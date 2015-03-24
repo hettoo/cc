@@ -20,8 +20,8 @@ fieldType c f = case f of
     First -> (TTuple a b, a)
     Second -> (TTuple a b, b)
     where
-    a = fresh c
-    b = fresh c -- I know!
+    (a, c') = fresh c
+    (b, c'') = fresh c'
 
 combineTypes :: [Type] -> Type
 combineTypes l = case l of
@@ -80,24 +80,40 @@ op2Type c o = case o of
     ODiv -> (TTuple a a, a)
     OMod -> (TTuple a a, a)
     where
-    a = fresh c
+    (a, c') = fresh c
 
-expType :: SPLC -> Exp -> Type
+expType :: SPLC -> Exp -> (Type, SPLC)
 expType c@(cv, cf) e = case e of
-    EInt i -> TInt
-    EBool b -> TBool
-    EChar c -> TChar
-    ENil -> TList (fresh cv)
-    ETuple e1 e2 -> TTuple (expType c e1) (expType c e2)
+    EInt _ -> (TInt, c)
+    EBool _ -> (TBool, c)
+    EChar _ -> (TChar, c)
+    ENil -> let (t, cv') = fresh cv in (TList t, (cv', cf))
+    ETuple e1 e2 -> (TTuple t1 t2, c'')
+        where
+        (t1, c') = (expType c e1)
+        (t2, c'') = (expType c' e2)
     EId i fs -> case fs of
-        [] -> clookupe cv i
+        [] -> (clookupe cv i, c)
         f : r -> expType (cadd (crem cv i) i
             (checkApp (fieldType cv f) (clookupe cv i)), cf) (EId i r)
-    EFunCall i as ->
-        checkApp (clookupe cf i) (combineTypes (map (expType c) as))
-    EOp1 o e -> checkApp (op1Type o) (expType c e)
-    EOp2 o e1 e2 ->
-        checkApp (op2Type cv o) (TTuple (expType c e1) (expType c e2))
+    EFunCall i as -> (checkApp (clookupe cf i) (combineTypes ts), c')
+        where
+        (ts, c') = sideMap expType c as
+    EOp1 o e -> (checkApp (op1Type o) t, c')
+        where
+        (t, c') = expType c e
+    EOp2 o e1 e2 -> (checkApp (op2Type cv o) (TTuple t1 t2), c'')
+        where
+        (t1, c') = expType c e1
+        (t2, c'') = expType c' e2
+
+sideMap :: (c -> a -> (b, c)) -> c -> [a] -> ([b], c)
+sideMap f c l = case l of
+    [] -> ([], c)
+    a : r -> let
+        (b, c') = f c a
+        (bs, c'') = sideMap f c' r
+        in (b : bs, c'')
 
 data StmtT =
     StmtsT [StmtT]
@@ -140,42 +156,61 @@ annotateProgram :: [Stmt] -> [StmtT]
 annotateProgram l = fst $ annotateMulti (pair (cdown, cdown) (initContext l)) l
 
 annotateMulti :: SPLC -> [Stmt] -> ([StmtT], SPLC)
-annotateMulti c l = case l of
-    [] -> ([], c)
-    s : r -> let
-        (t, c') = annotateS c s
-        (ts, c'') = annotateMulti c' r
-        in
-        (t : ts, c'')
+annotateMulti = sideMap annotateS
 
 annotateS :: SPLC -> Stmt -> (StmtT, SPLC)
 annotateS c@(cv, cf) s = case s of
-    Stmts l -> let (l', c') = annotateMulti c l in (StmtsT l', c')
-    VarDecl t i e -> (VarDeclT t i (ae e), (cadd cv i t, cf))
+    Stmts l -> let (l', c') = annotateMulti c l in (StmtsT l', c)
+    VarDecl t i e -> (VarDeclT t i e', (cadd cv' i t, cf'))
+        where
+        (e', (cv', cf')) = ae e
     FunDecl t i as b ->
         (FunDeclT t i as (fst (annotateS (cv', cf') b)), (cv, cf'))
         where
         cv' = cdown (foldr (\(t, i) cv -> cadd cv i t) (cdown cv) as)
         cf' = cdown (cadd cf i (combineTypes (map fst as), t))
-    FunCall i as -> (FunCallT i (map ae as), c)
-    Return m -> (ReturnT (fmap ae m), c)
-    Assign i fs e -> (AssignT i fs (ae e), c)
+    FunCall i as -> (FunCallT i es, c')
+        where
+        (es, c') = sideMap annotateE c as
+    Return m -> (ReturnT m', c')
+        where
+        (m', c') = case m of
+            Nothing -> (Nothing, c)
+            Just e -> left Just (ae e)
+    Assign i fs e -> (AssignT i fs e', c')
+        where
+        (e', c') = ae e
     If e s m ->
-        (IfT (ae e) (fst $ annotateS c s) (fmap (fst . annotateS c) m), c)
-    While e s -> (WhileT (ae e) (fst $ annotateS c s), c)
+        (IfT e' (fst $ annotateS c' s) (fmap (fst . annotateS c') m), c')
+        where
+        (e', c') = ae e
+    While e s -> (WhileT e' (fst $ annotateS c' s), c')
+        where
+        (e', c') = ae e
     where
     ae = annotateE c
 
-annotateE :: SPLC -> Exp -> ExpT
+-- TODO: merge expType into this shit
+annotateE :: SPLC -> Exp -> (ExpT, SPLC)
 annotateE c e = case e of
-    EInt i -> EIntT i r
-    EBool b -> EBoolT b r
-    EChar c -> ECharT c r
-    ENil -> ENilT r
-    ETuple e1 e2 -> ETupleT (annotateE c e1) (annotateE c e2) r
-    EId i fs -> EIdT i fs r
-    EFunCall i as -> EFunCallT i (map (annotateE c) as) r
-    EOp1 o e -> EOp1T o (annotateE c e) r
-    EOp2 o e1 e2 -> EOp2T o (annotateE c e1) (annotateE c e2) r
+    EInt i -> (EIntT i r, ct)
+    EBool b -> (EBoolT b r, ct)
+    EChar c -> (ECharT c r, ct)
+    ENil -> (ENilT r, ct)
+    ETuple e1 e2 -> (ETupleT r1 r2 r, c2)
+        where
+        (r1, c1) = annotateE c e1
+        (r2, c2) = annotateE c1 e2
+    EId i fs -> (EIdT i fs r, ct)
+    EFunCall i as -> (EFunCallT i es r, c')
+        where
+        (es, c') = sideMap annotateE c as
+    EOp1 o e -> (EOp1T o t r, c')
+        where
+        (t, c') = annotateE c e
+    EOp2 o e1 e2 -> (EOp2T o r1 r2 r, c2)
+        where
+        (r1, c1) = annotateE c e1
+        (r2, c2) = annotateE c1 e2
     where
-    r = expType c e
+    (r, ct) = expType c e

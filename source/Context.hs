@@ -1,16 +1,16 @@
 module Context where
 
-type Context t = (Int, [(String, t, Int)])
+type Context t = (Int, Int, [(String, t, Int)])
 
 cnew :: Context t
-cnew = (0, [])
+cnew = (0, 0, [])
 
 cdown :: Context t -> Context t
-cdown (i, l) = (i + 1, l)
+cdown (i, n, l) = (i + 1, n, l)
 
 caddc :: Eq t =>
     Bool -> Context t -> String -> t -> Context t
-caddc b (i, l) s t = (i, cadd' l)
+caddc b (i, n, l) s t = (i, n, cadd' l)
     where
     cadd' l = case l of
         [] -> [(s, t, i)]
@@ -35,7 +35,7 @@ caddr :: Eq t =>
 caddr = caddc False
 
 crem :: Context t -> String -> Context t
-crem (i, l) s = (i, crem' l)
+crem (i, n, l) s = (i, n, crem' l)
     where
     crem' l = case l of
         [] -> []
@@ -46,10 +46,10 @@ crem (i, l) s = (i, crem' l)
                 f : crem' r
 
 clookup :: Context t -> String -> Maybe t
-clookup (i, l) s = case l of
+clookup (i, n, l) s = case l of
     [] -> Nothing
     (s', t, _) : _ | s == s' -> Just t
-    _ : r -> clookup (i, r) s
+    _ : r -> clookup (i, n, r) s
 
 clookupe :: Context t -> String -> t
 clookupe c s = case clookup c s of
@@ -58,23 +58,10 @@ clookupe c s = case clookup c s of
 
 cfind :: Eq t =>
     Context t -> t -> Bool
-cfind (i, l) t = case l of
+cfind (i, n, l) t = case l of
     [] -> False
     (_, t', _) : _ | t == t' -> True
-    _ : r -> cfind (i, r) t
-
-class DistinctSequence t where
-    createN :: Int -> t
-
-fresh :: (Eq t, DistinctSequence t) =>
-    Context t -> t
-fresh = fresh' 0
-    where
-    fresh' n c = case cfind c f of
-        False -> f
-        True -> fresh' (n + 1) c
-        where
-        f = createN n
+    _ : r -> cfind (i, n, r) t
 
 creplace :: Context t -> (t -> Maybe String) -> t -> t
 creplace c f t = case f t of
@@ -82,3 +69,10 @@ creplace c f t = case f t of
     Just s -> case clookup c s of
         Nothing -> t
         Just t' -> t'
+
+class DistinctSequence t where
+    createN :: Int -> t
+
+fresh :: DistinctSequence t =>
+    Context t -> (t, Context t)
+fresh (i, n, l) = (createN n, (i, n + 1, l))
