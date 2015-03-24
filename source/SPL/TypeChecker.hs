@@ -2,7 +2,9 @@ module SPL.TypeChecker where
 import SPL.Algebra
 import Context
 
-type SPLC = (Context Type, Context (Type, Type))
+type Cv = Context Type
+type Cf = Context (Type, Type)
+type SPLC = (Cv, Cf)
 
 instance DistinctSequence Type where
     createN n = TPoly ("?" ++ show n)
@@ -16,6 +18,13 @@ fieldType c f = case f of
     where
     a = fresh c
     b = fresh c -- I know!
+
+combineTypes :: [Type] -> Type
+combineTypes l = case l of
+    [] -> TVoid
+    a : r -> case r of
+        [] -> a
+        _ -> TTuple a (combineTypes r)
 
 expType :: SPLC -> Exp -> Type
 expType c@(cv, cf) e = case e of
@@ -33,15 +42,19 @@ expType c@(cv, cf) e = case e of
                 else
                     error ("invalid use of field " ++ show f)
     EFunCall i as -> let (t, t') = clookupe cf i in
-        if t == argType as then
+        if t == combineTypes (map (expType c) as) then
             t'
         else
             error "function argument mismatch"
+
+initFunctions :: [Stmt] -> Cf
+initFunctions l = case l of
+    [] -> cnew
+    s : r -> case s of
+        FunDecl t i as _ -> cadd n i (combineTypes (map fst as), t)
+        _ -> n
         where
-        argType l = case l of
-            [] -> TVoid
-            [a] -> expType c a
-            a : r -> TTuple (expType c a) (argType r)
+        n = initFunctions r
 
 --data FullType =
 --    VarType Type
