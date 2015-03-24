@@ -17,5 +17,6 @@ testParser l = s == (prettyPrint . parseSPL) s
 
 main = do
     s <- getContents
-    putStr . prettyPrint . parseSPL $ s
-    putStrLn $ "Parser |= Printer: " ++ show (testPrinter s)
+    --putStr . prettyPrint . parseSPL $ s
+    putStrLn . show . annotateProgram . parseSPL $ s
+    --putStrLn $ "Parser |= Printer: " ++ show (testPrinter s)

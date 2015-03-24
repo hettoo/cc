@@ -1,6 +1,7 @@
 module SPL.TypeChecker where
 import SPL.Algebra
 import Context
+import Utils
 
 type Cv = Context Type
 type Cf = Context (Type, Type)
@@ -28,10 +29,10 @@ combineTypes l = case l of
 
 checkApp :: (Type, Type) -> Type -> Type
 checkApp (t, t') a =
-    if t == a then
+    if t == a then -- TODO: this should be weaker than an equality
         t'
     else
-        error "application mismatch"
+        error ("application mismatch: " ++ show t ++ " -- " ++ show a)
 
 op1Type :: Op1 -> (Type, Type)
 op1Type o = case o of
@@ -78,16 +79,6 @@ expType c@(cv, cf) e = case e of
     EOp2 o e1 e2 ->
         checkApp (op2Type cv o) (TTuple (expType c e1) (expType c e2))
 
-initContext :: [Stmt] -> SPLC
-initContext l = case l of
-    [] -> (cnew, cnew)
-    s : r -> case s of
-        VarDecl t i _ -> (cadd n i t, m)
-        FunDecl t i as _ -> (n, cadd m i (combineTypes (map fst as), t))
-        _ -> p
-        where
-        p@(n, m) = initContext r
-
 data StmtT =
     StmtsT [StmtT]
     | VarDeclT Type String ExpT
@@ -111,22 +102,40 @@ data ExpT =
     | EOp2T Op2 ExpT ExpT Type
     deriving (Eq, Show)
 
+initContext :: [Stmt] -> SPLC
+initContext l = case l of
+    [] -> (cnew, cnew)
+    s : r -> case s of
+        VarDecl t i _ -> (cadd n i t, m)
+        FunDecl t i as _ -> (n, cadd m i (combineTypes (map fst as), t))
+        _ -> p
+        where
+        p@(n, m) = initContext r
+
+annotateProgram :: [Stmt] -> [StmtT]
+annotateProgram l = fst $ annotateMulti (pair (cdown, cdown) (initContext l)) l
+
 annotateMulti :: SPLC -> [Stmt] -> ([StmtT], SPLC)
 annotateMulti c = foldr (\s (l, c) ->
     let (r, c') = annotateS c s in (r : l, c')) ([], c)
 
-annotateProgram :: [Stmt] -> [StmtT]
-annotateProgram l = fst $ annotateMulti (initContext l) (
-    filter (
-        \s -> case s of
-            VarDecl _ _ _ -> False
-            FunDecl _ _ _ _ -> False
-            _ -> True) l)
-
 annotateS :: SPLC -> Stmt -> (StmtT, SPLC)
 annotateS c@(cv, cf) s = case s of
     Stmts l -> let (l', c') = annotateMulti c l in (StmtsT l', c')
-    VarDecl t i e -> (VarDeclT t i (annotateE c e), c)
+    VarDecl t i e -> (VarDeclT t i (ae e), (cadd cv i (expType c e), cf))
+    FunDecl t i as b ->
+        (FunDeclT t i as (fst (annotateS (cv', cf') b)), (cv, cf'))
+        where
+        cv' = foldr (\(t, i) cv -> cadd cv i t) cv as
+        cf' = cadd cf i (combineTypes (map fst as), t)
+    FunCall i as -> (FunCallT i (map ae as), c)
+    Return m -> (ReturnT (fmap ae m), c)
+    Assign i fs e -> (AssignT i fs (ae e), c)
+    If e s m ->
+        (IfT (ae e) (fst $ annotateS c s) (fmap (fst . annotateS c) m), c)
+    While e s -> (WhileT (ae e) (fst $ annotateS c s), c)
+    where
+    ae = annotateE c
 
 annotateE :: SPLC -> Exp -> ExpT
 annotateE c e = case e of
