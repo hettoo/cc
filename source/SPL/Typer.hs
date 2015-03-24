@@ -37,8 +37,10 @@ covers = covers' cnew
                 Nothing -> Nothing
                 Just c' -> covers' c' t2 t2'
         (TList t', TList t'') -> covers' c t' t''
-        (TPoly i, TPoly j) -> Just c -- TODO: very unsure about this
-        (TPoly i, t) -> Just (caddr c i t)
+        (TPoly i, TPoly j) -> case clookup c i of
+            Nothing -> Just (caddr c i u)
+            Just t' -> Just c -- TODO: unsure about this
+        (TPoly i, _) -> Just (caddr c i u)
         _ -> if t == u then Just c else Nothing
 
 treplace :: Context Type -> Type -> Type
