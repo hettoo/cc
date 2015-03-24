@@ -62,8 +62,8 @@ op1Type o = case o of
     ONot -> (TBool, TBool)
     ONeg -> (TInt, TBool)
 
-op2Type :: Context Type -> Op2 -> (Type, Type)
-op2Type c o = case o of
+op2Type :: SPLC -> Op2 -> ((Type, Type), SPLC)
+op2Type c@(cv, cf) o = ((case o of
     OCons -> (TTuple a (TList a), TList a)
     OAnd -> (TTuple TBool TBool, TBool)
     OOr -> (TTuple TBool TBool, TBool)
@@ -77,9 +77,10 @@ op2Type c o = case o of
     OMinus -> (TTuple a a, a)
     OTimes -> (TTuple a a, a)
     ODiv -> (TTuple a a, a)
-    OMod -> (TTuple a a, a)
+    OMod -> (TTuple a a, a)), (cv', cf))
+    -- TODO: yield cv when no new variables have been added
     where
-    (a, c') = fresh c
+    (a, cv') = fresh cv
 
 sideMap :: (c -> a -> (b, c)) -> c -> [a] -> ([b], c)
 sideMap f c l = case l of
@@ -201,8 +202,9 @@ annotateE c@(cv, cf) e = case e of
     EOp1 o e -> (EOp1T o e' (checkApp (op1Type o) (getType e')), c')
         where
         (e', c') = annotateE c e
-    EOp2 o e1 e2 -> (EOp2T o r1 r2 (checkApp (op2Type cv o) t), c2)
+    EOp2 o e1 e2 -> (EOp2T o r1 r2 (checkApp ft t), c3)
         where
         (r1, c1) = annotateE c e1
         (r2, c2) = annotateE c1 e2
+        (ft, c3) = op2Type c2 o
         t = TTuple (getType r1) (getType r2)

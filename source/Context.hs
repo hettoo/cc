@@ -16,13 +16,10 @@ caddc b (i, n, l) s t = (i, n, cadd' l)
         [] -> [(s, t, i)]
         f@(s', t', i') : r ->
             if s == s' then
-                if i' < i then
-                    cadd' r
+                if i' >= i && (b || t /= t') then
+                    error ("redefined entity " ++ s)
                 else
-                    if b || t == t' then
-                        error ("redefined entity " ++ s)
-                    else
-                        cadd' r
+                    cadd' r
             else
                 f : cadd' r
 
