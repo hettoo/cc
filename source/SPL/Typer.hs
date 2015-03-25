@@ -11,12 +11,11 @@ instance DistinctSequence Type where
     createN n = TPoly ("?" ++ show n)
 
 fieldType :: SPLC -> Field -> ((Type, Type), SPLC)
-fieldType c@(cv, cf) f = ((case f of
-    Head -> (TList a, a)
-    Tail -> (TList a, TList a)
-    First -> (TTuple a b, a)
-    Second -> (TTuple a b, b)), (cv'', cf))
-    -- TODO: yield cv when no new variables have been added
+fieldType c@(cv, cf) f = case f of
+    Head -> ((TList a, a), (cv', cf))
+    Tail -> ((TList a, TList a), (cv', cf))
+    First -> ((TTuple a b, a), (cv'', cf))
+    Second -> ((TTuple a b, b), (cv'', cf))
     where
     (a, cv') = fresh cv
     (b, cv'') = fresh cv'
@@ -66,22 +65,21 @@ op1Type o = case o of
     ONeg -> (TInt, TInt)
 
 op2Type :: SPLC -> Op2 -> ((Type, Type), SPLC)
-op2Type c@(cv, cf) o = ((case o of
-    OCons -> (TTuple a (TList a), TList a)
-    OAnd -> (TTuple TBool TBool, TBool)
-    OOr -> (TTuple TBool TBool, TBool)
-    OEq -> (TTuple a a, TBool)
-    ONeq -> (TTuple a a, TBool)
-    OLt -> (TTuple a a, TBool)
-    OGt -> (TTuple a a, TBool)
-    OLe -> (TTuple a a, TBool)
-    OGe -> (TTuple a a, TBool)
-    OPlus -> (TTuple a a, a)
-    OMinus -> (TTuple a a, a)
-    OTimes -> (TTuple a a, a)
-    ODiv -> (TTuple a a, a)
-    OMod -> (TTuple a a, a)), (cv', cf))
-    -- TODO: yield cv when no new variables have been added
+op2Type c@(cv, cf) o = case o of
+    OCons -> ((TTuple a (TList a), TList a), (cv', cf))
+    OAnd -> ((TTuple TBool TBool, TBool), c)
+    OOr -> ((TTuple TBool TBool, TBool), c)
+    OEq -> ((TTuple a a, TBool), (cv', cf))
+    ONeq -> ((TTuple a a, TBool), (cv', cf))
+    OLt -> ((TTuple a a, TBool), (cv', cf))
+    OGt -> ((TTuple a a, TBool), (cv', cf))
+    OLe -> ((TTuple a a, TBool), (cv', cf))
+    OGe -> ((TTuple a a, TBool), (cv', cf))
+    OPlus -> ((TTuple a a, a), (cv', cf))
+    OMinus -> ((TTuple a a, a), (cv', cf))
+    OTimes -> ((TTuple a a, a), (cv', cf))
+    ODiv -> ((TTuple a a, a), (cv', cf))
+    OMod -> ((TTuple a a, a), (cv', cf))
     where
     (a, cv') = fresh cv
 
