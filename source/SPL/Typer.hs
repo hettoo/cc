@@ -142,19 +142,22 @@ initContext l = case l of
         p@(n, m) = initContext r
 
 annotateProgram :: [Stmt] -> [StmtT]
-annotateProgram l = fst $ annotateMulti (pair (cdown, cdown) (initContext l)) l
+annotateProgram l = fst $ annotateMulti [] (pair (cdown, cdown) (initContext l)) l
 
-annotateMulti :: SPLC -> [Stmt] -> ([StmtT], SPLC)
-annotateMulti = sideMap annotateS
+annotateMulti :: [Type] -> SPLC -> [Stmt] -> ([StmtT], SPLC)
+annotateMulti l = sideMap (annotateS' l)
 
 annotateS :: SPLC -> Stmt -> (StmtT, SPLC)
-annotateS c@(cv, cf) s = case s of
-    Stmts l -> let (l', c') = annotateMulti c l in (StmtsT l', c)
+annotateS = annotateS' []
+
+annotateS' :: [Type] -> SPLC -> Stmt -> (StmtT, SPLC)
+annotateS' l c@(cv, cf) s = case s of
+    Stmts s -> let (s', c') = annotateMulti l c s in (StmtsT s', c)
     VarDecl t i e -> (VarDeclT t i e', (cadd cv' i t, cf'))
         where
         (e', (cv', cf')) = ae e
     FunDecl t i as b ->
-        (FunDeclT t i as (fst (annotateS (cv', cf') b)), (cv, cf'))
+        (FunDeclT t i as (fst (annotateS' (t : l) (cv', cf') b)), (cv, cf'))
         where
         cv' = cdown (foldr (\(t, i) cv -> cadd cv i t) (cdown cv) as)
         cf' = cdown (cadd cf i (combineTypes (map fst as), t))
@@ -163,17 +166,24 @@ annotateS c@(cv, cf) s = case s of
         (es, c') = sideMap annotateE c as
     Return m -> (ReturnT m', c')
         where
-        (m', c') = case m of
-            Nothing -> (Nothing, c)
-            Just e -> left Just (ae e)
+        (t, (m', c')) = case m of
+            Nothing -> (TVoid, (Nothing, c))
+            Just e -> case l of
+                [] -> error "return outside function"
+                a : l' -> case covers t a of
+                    Just _ -> (t, left Just r)
+                    Nothing -> error ("invalid return type " ++ show t ++ "; expected " ++ show a)
+                where
+                r = ae e
+                t = getType (fst r)
     Assign i fs e -> (AssignT i fs e', c')
         where
         (e', c') = ae e
     If e s m ->
-        (IfT e' (fst $ annotateS c' s) (fmap (fst . annotateS c') m), c')
+        (IfT e' (fst $ annotateS' l c' s) (fmap (fst . annotateS' l c') m), c')
         where
         (e', c') = ae e
-    While e s -> (WhileT e' (fst $ annotateS c' s), c')
+    While e s -> (WhileT e' (fst $ annotateS' l c' s), c')
         where
         (e', c') = ae e
     where
