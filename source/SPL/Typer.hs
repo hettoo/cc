@@ -10,6 +10,11 @@ type SPLC = (Cv, Cf)
 instance DistinctSequence Type where
     createN n = TPoly ("?" ++ show n)
 
+isFlexible :: String -> Bool
+isFlexible s = case s of
+    '?' : r -> True
+    _ -> False
+
 fieldType :: SPLC -> Field -> ((Type, Type), SPLC)
 fieldType c@(cv, cf) f = case f of
     Head -> ((TList a, a), (cv', cf))
@@ -27,27 +32,38 @@ combineTypes l = case l of
         [] -> a
         _ -> TTuple a (combineTypes r)
 
-covers :: Bool -> Type -> Type -> Maybe (Context Type)
-covers = covers' cnew
+unify :: Type -> Type -> Maybe (Context Type)
+unify = unify' cnew
     where
-    covers' c b t u = case (t, u) of
+    unify' c t u = case rewrite (t, u) of
         (TTuple t1 t2, TTuple t1' t2') ->
-            case covers' c b t1 t1' of
+            case unify' c t1 t1' of
                 Nothing -> Nothing
-                Just c' -> covers' c' b t2 t2'
-        (TList t', TList t'') -> covers' c b t' t''
+                Just c' -> unify' c' t2 t2'
+        (TList t', TList t'') -> unify' c t' t''
         (TPoly i, TPoly j) ->
-            if b then
-                if i == j then
-                    Just c
-                else
-                    Nothing
+            if i == j then
+                Just c
             else
-                case clookup c i of
-                    Nothing -> Just (caddr c i u)
-                    Just t' -> Just c -- TODO: unsure about this
+                if isFlexible i then
+                    Just (caddr c i u)
+                else
+                    if isFlexible j then
+                        Just (caddr c j t)
+                    else
+                        Nothing
         (TPoly i, _) -> Just (caddr c i u)
-        _ -> if t == u then Just c else Nothing
+        (_, TPoly j) -> Just (caddr c j t) -- TODO: remove?
+        (t', u') -> if t' == u' then Just c else Nothing
+        where
+        rewrite (t, u) = case (clookup c (name t), clookup c (name u)) of
+            (Nothing, Nothing) -> (t, u)
+            (Nothing, Just u') -> (t, u')
+            (Just t', Nothing) -> (t', u)
+            (Just t', Just u') -> (t', u')
+        name t = case t of
+            TPoly i -> i
+            _ -> ""
 
 treplace :: Context Type -> Type -> Type
 treplace c t = case t of
@@ -59,9 +75,8 @@ treplace c t = case t of
         TPoly a -> Just a
         _ -> Nothing
 
--- TODO: create fresh variables here
 checkApp :: (Type, Type) -> Type -> Type
-checkApp (t, t') a = case covers False t a of
+checkApp (t, t') a = case unify t a of
     Nothing -> error ("application mismatch: " ++ show t ++
         " does not cover " ++ show a)
     Just c -> treplace c t'
@@ -177,7 +192,7 @@ annotateS' l c@(cv, cf) s = case s of
             Nothing -> (TVoid, (Nothing, c))
             Just e -> case l of
                 [] -> error "return outside function"
-                a : l' -> case covers True t a of
+                a : l' -> case unify t a of
                     Just _ -> (t, left Just r)
                     Nothing -> error ("invalid return type " ++ show t ++
                         "; expected " ++ show a)
@@ -196,6 +211,11 @@ annotateS' l c@(cv, cf) s = case s of
         (e', c') = ae e
     where
     ae = annotateE c
+
+-- TODO
+freshen :: Context (Type, Type) -> (Type, Type) ->
+    ((Type, Type), Context (Type, Type))
+freshen c (t1, t2) = ((t1, t2), c)
 
 annotateE :: SPLC -> Exp -> (ExpT, SPLC)
 annotateE c@(cv, cf) e = case e of
@@ -216,9 +236,10 @@ annotateE c@(cv, cf) e = case e of
             f : r -> (getType . fst) (annotateE (cadd (crem cv i) i
                 (checkApp (fst $ fieldType c f) (clookupe cv i)), cf) (EId i r))
     EFunCall i as -> (EFunCallT i es
-        (checkApp (clookupe cf i) (combineTypes (map getType es))), c')
+        (checkApp t (combineTypes (map getType es))), c')
         where
-        (es, c') = sideMap annotateE c as
+        (t, cf') = freshen cf (clookupe cf i)
+        (es, c') = sideMap annotateE (cv, cf') as
     EOp1 o e -> (EOp1T o e' (checkApp (op1Type o) (getType e')), c')
         where
         (e', c') = annotateE c e
