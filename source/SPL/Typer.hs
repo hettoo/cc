@@ -27,18 +27,25 @@ combineTypes l = case l of
         [] -> a
         _ -> TTuple a (combineTypes r)
 
-covers :: Type -> Type -> Maybe (Context Type)
+covers :: Bool -> Type -> Type -> Maybe (Context Type)
 covers = covers' cnew
     where
-    covers' c t u = case (t, u) of
+    covers' c b t u = case (t, u) of
         (TTuple t1 t2, TTuple t1' t2') ->
-            case covers' c t1 t1' of
+            case covers' c b t1 t1' of
                 Nothing -> Nothing
-                Just c' -> covers' c' t2 t2'
-        (TList t', TList t'') -> covers' c t' t''
-        (TPoly i, TPoly j) -> case clookup c i of
-            Nothing -> Just (caddr c i u)
-            Just t' -> Just c -- TODO: unsure about this
+                Just c' -> covers' c' b t2 t2'
+        (TList t', TList t'') -> covers' c b t' t''
+        (TPoly i, TPoly j) ->
+            if b then
+                if i == j then
+                    Just c
+                else
+                    Nothing
+            else
+                case clookup c i of
+                    Nothing -> Just (caddr c i u)
+                    Just t' -> Just c -- TODO: unsure about this
         (TPoly i, _) -> Just (caddr c i u)
         _ -> if t == u then Just c else Nothing
 
@@ -54,7 +61,7 @@ treplace c t = case t of
 
 -- TODO: create fresh variables here
 checkApp :: (Type, Type) -> Type -> Type
-checkApp (t, t') a = case covers t a of
+checkApp (t, t') a = case covers False t a of
     Nothing -> error ("application mismatch: " ++ show t ++
         " does not cover " ++ show a)
     Just c -> treplace c t'
@@ -170,7 +177,7 @@ annotateS' l c@(cv, cf) s = case s of
             Nothing -> (TVoid, (Nothing, c))
             Just e -> case l of
                 [] -> error "return outside function"
-                a : l' -> case covers t a of
+                a : l' -> case covers True t a of
                     Just _ -> (t, left Just r)
                     Nothing -> error ("invalid return type " ++ show t ++
                         "; expected " ++ show a)

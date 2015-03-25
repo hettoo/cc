@@ -1,0 +1,9 @@
+a f () {
+    // nothing wrong here
+    return g(0);
+}
+
+b g (c x) {
+    // c is not b
+    return x;
+}

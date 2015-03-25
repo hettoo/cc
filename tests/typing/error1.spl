@@ -1,0 +1,8 @@
+a f () {
+    // g applied to an Int yields an Int, not necessarily an a
+    return g(0);
+}
+
+b g (b x) {
+    return x;
+}
