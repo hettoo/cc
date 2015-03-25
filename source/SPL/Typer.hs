@@ -53,6 +53,7 @@ treplace c t = case t of
         TPoly a -> Just a
         _ -> Nothing
 
+-- TODO: create fresh variables here
 checkApp :: (Type, Type) -> Type -> Type
 checkApp (t, t') a = case covers t a of
     Nothing -> error ("application mismatch: " ++ show t ++
@@ -142,7 +143,8 @@ initContext l = case l of
         p@(n, m) = initContext r
 
 annotateProgram :: [Stmt] -> [StmtT]
-annotateProgram l = fst $ annotateMulti [] (pair (cdown, cdown) (initContext l)) l
+annotateProgram l = fst $ annotateMulti []
+    (pair (cdown, cdown) (initContext l)) l
 
 annotateMulti :: [Type] -> SPLC -> [Stmt] -> ([StmtT], SPLC)
 annotateMulti l = sideMap (annotateS' l)
@@ -172,7 +174,8 @@ annotateS' l c@(cv, cf) s = case s of
                 [] -> error "return outside function"
                 a : l' -> case covers t a of
                     Just _ -> (t, left Just r)
-                    Nothing -> error ("invalid return type " ++ show t ++ "; expected " ++ show a)
+                    Nothing -> error ("invalid return type " ++ show t ++
+                        "; expected " ++ show a)
                 where
                 r = ae e
                 t = getType (fst r)
