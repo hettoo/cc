@@ -182,7 +182,7 @@ guaranteeReturns l = case l of
     [] -> []
     s : r -> case s of
         FunDecl t i as b ->
-            if guaranteeReturn b then
+            if t == TVoid || guaranteeReturn b then
                 rest
             else
                 error $ "function " ++ i ++ "may not return a value"
