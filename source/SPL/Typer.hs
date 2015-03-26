@@ -78,8 +78,8 @@ treplace c t = case t of
 
 checkApp :: (Type, Type) -> Type -> Type
 checkApp (t, t') a = case unify t a of
-    Nothing -> error ("application mismatch: `" ++ simplePrint t ++
-        "' does not cover `" ++ simplePrint a ++ "'")
+    Nothing -> error $ "application mismatch: `" ++ simplePrint t ++
+        "' does not cover `" ++ simplePrint a ++ "'"
     Just c -> treplace c t'
 
 op1Type :: Op1 -> (Type, Type)
@@ -163,10 +163,10 @@ initContext l = case l of
         addPrint c = unMaybe $ cadd c "print" (TPoly "t", TVoid)
     s : r -> case s of
         VarDecl t i _ -> case cadd n i t of
-            Nothing -> error ("redefined variable " ++ i)
+            Nothing -> error $ "redefined variable " ++ i
             Just n' -> (n', m)
         FunDecl t i as _ -> case cadd m i (combineTypes (map fst as), t) of
-            Nothing -> error ("redefined function " ++ i)
+            Nothing -> error $ "redefined function " ++ i
             Just m' -> (n, m')
         _ -> p
         where
@@ -203,10 +203,10 @@ annotateS' l c@(cv, cf) s = case s of
     VarDecl t i e ->
         if checkPoly l cv t then
             case unify et t of
-                Nothing -> error ("assignment mismatch: `" ++ simplePrint et ++
-                    "' does not cover `" ++ simplePrint t ++ "'")
+                Nothing -> error $ "assignment mismatch: `" ++ simplePrint et ++
+                    "' does not cover `" ++ simplePrint t ++ "'"
                 Just _ -> case cadd cv' i t of
-                    Nothing -> error ("redefined variable " ++ i)
+                    Nothing -> error $ "redefined variable " ++ i
                     Just cv'' -> (VarDeclT t i e', (cv'', cf'))
                 -- TODO: apply unification?
         else
@@ -216,10 +216,10 @@ annotateS' l c@(cv, cf) s = case s of
         et = getType e'
     FunDecl t i as b ->
         case cadd cf i (combineTypes (map fst as), t) of
-            Nothing -> error ("redefined function " ++ i)
+            Nothing -> error $ "redefined function " ++ i
             Just cf' -> case foldr addArg (Just (cdown cv)) as of
                 Nothing ->
-                    error ("duplicate formal arguments for function " ++ i)
+                    error $ "duplicate formal arguments for function " ++ i
                 Just cv' -> (FunDeclT t i as
                     (fst (annotateS' (t : l) (cv'', cf'') b)), (cv, cf''))
                     where
@@ -240,15 +240,15 @@ annotateS' l c@(cv, cf) s = case s of
                 [] -> error "return outside function"
                 a : l' -> case unify t a of
                     Just _ -> (t, left Just r)
-                    Nothing -> error ("invalid return type `" ++
+                    Nothing -> error $ "invalid return type `" ++
                         simplePrint t ++ "'; expected `" ++
-                        simplePrint a ++ "'")
+                        simplePrint a ++ "'"
                 where
                 r = ae e
                 t = getType (fst r)
     Assign i fs e -> case unify t vt of
-        Nothing -> error ("assignment mismatch: `" ++ simplePrint t ++
-            "' does not cover `" ++ simplePrint vt ++ "'")
+        Nothing -> error $ "assignment mismatch: `" ++ simplePrint t ++
+            "' does not cover `" ++ simplePrint vt ++ "'"
         Just _ -> (AssignT i fs e', c')
         -- TODO: apply unification?
         where

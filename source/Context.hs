@@ -52,7 +52,7 @@ clookup (i, n, l) s = case l of
 
 clookupe :: Context t -> String -> t
 clookupe c s = case clookup c s of
-    Nothing -> error ("undeclared entity " ++ s)
+    Nothing -> error $ "undeclared entity " ++ s
     Just t -> t
 
 cfindf :: Context t -> (t -> Bool) -> Bool
