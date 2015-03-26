@@ -196,7 +196,8 @@ guaranteeReturns l = case l of
             else
                 error $ "function " ++ i ++ " may not return a value"
         _ -> rest
-        where rest = s : guaranteeReturns r
+        where
+        rest = s : guaranteeReturns r
 
 annotateProgram :: [Stmt] -> [StmtT]
 annotateProgram l = fst $ annotateMulti []
