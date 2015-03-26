@@ -33,7 +33,6 @@ combineTypes l = case l of
         [] -> a
         _ -> TTuple a (combineTypes r)
 
--- Note that the left type may be more general
 unify :: Type -> Type -> Maybe (Context Type)
 unify = unify' cnew
     where
@@ -54,7 +53,7 @@ unify = unify' cnew
                         Just (caddr c j t)
                     else
                         Nothing
-        (TPoly i, _) -> Just (caddr c i u)
+        (TPoly i, _) -> if isFlexible i then Just (caddr c i u) else Nothing
         (_, TPoly j) -> if isFlexible j then Just (caddr c j t) else Nothing
         (t', u') -> if t' == u' then Just c else Nothing
         where
