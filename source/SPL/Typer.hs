@@ -172,9 +172,28 @@ initContext l = case l of
         where
         p@(n, m) = initContext r
 
+-- TODO: implement
+guaranteeReturn :: Stmt -> Bool
+guaranteeReturn s = case s of
+    _ -> True
+
+guaranteeReturns :: [Stmt] -> [Stmt]
+guaranteeReturns l = case l of
+    [] -> []
+    s : r -> case s of
+        FunDecl t i as b ->
+            if guaranteeReturn b then
+                rest
+            else
+                error $ "function " ++ i ++ "may not return a value"
+        _ -> rest
+        where rest = s : guaranteeReturns r
+
 annotateProgram :: [Stmt] -> [StmtT]
 annotateProgram l = fst $ annotateMulti []
-    (pair (cdown, cdown) (initContext l)) l
+    (pair (cdown, cdown) (initContext l')) l'
+    where
+    l' = guaranteeReturns l
 
 annotateMulti :: [Type] -> SPLC -> [Stmt] -> ([StmtT], SPLC)
 annotateMulti l = sideMap (annotateS' l)
@@ -241,8 +260,7 @@ annotateS' l c@(cv, cf) s = case s of
                 a : l' -> case unify t a of
                     Just _ -> (t, left Just r)
                     Nothing -> error $ "invalid return type `" ++
-                        simplePrint t ++ "'; expected `" ++
-                        simplePrint a ++ "'"
+                        simplePrint t ++ "'; expected `" ++ simplePrint a ++ "'"
                 where
                 r = ae e
                 t = getType (fst r)
