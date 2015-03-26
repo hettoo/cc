@@ -53,12 +53,15 @@ clookupe c s = case clookup c s of
     Nothing -> error ("undeclared entity " ++ s)
     Just t -> t
 
+cfindf :: Context t -> (t -> Bool) -> Bool
+cfindf (i, n, l) f = case l of
+    [] -> False
+    (_, t', _) : _ | f t' -> True
+    _ : r -> cfindf (i, n, r) f
+
 cfind :: Eq t =>
     Context t -> t -> Bool
-cfind (i, n, l) t = case l of
-    [] -> False
-    (_, t', _) : _ | t == t' -> True
-    _ : r -> cfind (i, n, r) t
+cfind c t = cfindf c ((==) t)
 
 creplace :: Context t -> (t -> Maybe String) -> t -> t
 creplace c f t = case f t of

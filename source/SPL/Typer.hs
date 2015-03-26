@@ -174,14 +174,33 @@ annotateMulti l = sideMap (annotateS' l)
 annotateS :: SPLC -> Stmt -> (StmtT, SPLC)
 annotateS = annotateS' []
 
+checkPoly :: [Type] -> Context Type -> Type -> Bool
+checkPoly l c t = checkPoly' (listPoly t) (concat (map listPoly l)) c
+    where
+    checkPoly' r l c = case r of
+        [] -> True
+        a : r' -> if a `elem` l || cfindf c (\t -> a `elem` listPoly t) then
+                checkPoly' r' l c
+            else
+                False
+    listPoly t = case t of
+        TPoly _ -> [t]
+        TTuple t1 t2 -> listPoly t1 ++ listPoly t2
+        TList t' -> listPoly t'
+        _ -> []
+
 annotateS' :: [Type] -> SPLC -> Stmt -> (StmtT, SPLC)
 annotateS' l c@(cv, cf) s = case s of
     Stmts s -> let (s', c') = annotateMulti l c s in (StmtsT s', c)
-    VarDecl t i e -> case unify et t of
-        Nothing -> error ("assignment mismatch: `" ++ simplePrint et ++
-            "' does not cover `" ++ simplePrint t ++ "'")
-        Just _ -> (VarDeclT t i e', (cadd cv' i t, cf'))
-        -- TODO: apply unification?
+    VarDecl t i e ->
+        if checkPoly l cv t then
+            case unify et t of
+                Nothing -> error ("assignment mismatch: `" ++ simplePrint et ++
+                    "' does not cover `" ++ simplePrint t ++ "'")
+                Just _ -> (VarDeclT t i e', (cadd cv' i t, cf'))
+                -- TODO: apply unification?
+        else
+            error ("unbounded polymorphic variable " ++ i)
         where
         (e', (cv', cf')) = ae e
         et = getType e'
