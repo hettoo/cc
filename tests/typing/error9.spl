@@ -1,0 +1,4 @@
+Void f () {
+    Int x = 0;
+    Int x = 1;
+}

@@ -1,0 +1,14 @@
+// Technically, this always terminates and returns an Int,
+// but in general we cannot know that.
+Int f () {
+    while (True) {
+        return 1;
+    }
+}
+
+// In any case, this is bad.
+Int g () {
+    while (False) {
+        return 1;
+    }
+}

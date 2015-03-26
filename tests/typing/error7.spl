@@ -1,0 +1,16 @@
+// This is fine.
+Int f () {
+    if (0 == 0) {
+        return 0;
+    } else {
+        return 1;
+    }
+}
+
+// This is not.
+Int g () {
+    if (0 == 0) {
+        return 0;
+    } else {
+    }
+}
