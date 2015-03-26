@@ -47,14 +47,14 @@ unify = unify' cnew
                 Just c
             else
                 if isFlexible i then
-                    Just (caddr c i u)
+                    caddr c i u
                 else
                     if isFlexible j then
-                        Just (caddr c j t)
+                        caddr c j t
                     else
                         Nothing
-        (TPoly i, _) -> if isFlexible i then Just (caddr c i u) else Nothing
-        (_, TPoly j) -> if isFlexible j then Just (caddr c j t) else Nothing
+        (TPoly i, _) -> if isFlexible i then caddr c i u else Nothing
+        (_, TPoly j) -> if isFlexible j then caddr c j t else Nothing
         (t', u') -> if t' == u' then Just c else Nothing
         where
         rewrite (t, u) = case (clookup c (name t), clookup c (name u)) of
@@ -149,16 +149,22 @@ getType e = case e of
     EOp1T _ _ t -> t
     EOp2T _ _ _ t -> t
 
+unMaybe :: Maybe a -> a
+unMaybe m = case m of
+    Nothing -> error "unexpected emptiness"
+    Just a -> a
+
 initContext :: [Stmt] -> SPLC
 initContext l = case l of
     [] -> (cnew, (addRead . addPrint . addIsEmpty) cnew)
         where
-        addIsEmpty c = cadd c "isEmpty" (TList (TPoly "t"), TBool)
-        addRead c = cadd c "read" (TVoid, TPoly "t")
-        addPrint c = cadd c "print" (TPoly "t", TVoid)
+        addIsEmpty c = unMaybe $ cadd c "isEmpty" (TList (TPoly "t"), TBool)
+        addRead c = unMaybe $ cadd c "read" (TVoid, TPoly "t")
+        addPrint c = unMaybe $ cadd c "print" (TPoly "t", TVoid)
     s : r -> case s of
-        VarDecl t i _ -> (cadd n i t, m)
-        FunDecl t i as _ -> (n, cadd m i (combineTypes (map fst as), t))
+        VarDecl t i _ -> (unMaybe (cadd n i t), m)
+        FunDecl t i as _ ->
+            (n, unMaybe (cadd m i (combineTypes (map fst as), t)))
         _ -> p
         where
         p@(n, m) = initContext r
@@ -196,7 +202,9 @@ annotateS' l c@(cv, cf) s = case s of
             case unify et t of
                 Nothing -> error ("assignment mismatch: `" ++ simplePrint et ++
                     "' does not cover `" ++ simplePrint t ++ "'")
-                Just _ -> (VarDeclT t i e', (cadd cv' i t, cf'))
+                Just _ -> case cadd cv' i t of
+                    Nothing -> error ("redefined variable " ++ i)
+                    Just cv'' -> (VarDeclT t i e', (cv'', cf'))
                 -- TODO: apply unification?
         else
             error ("unbounded polymorphic variable " ++ i)
@@ -204,10 +212,20 @@ annotateS' l c@(cv, cf) s = case s of
         (e', (cv', cf')) = ae e
         et = getType e'
     FunDecl t i as b ->
-        (FunDeclT t i as (fst (annotateS' (t : l) (cv', cf') b)), (cv, cf'))
-        where
-        cv' = cdown (foldr (\(t, i) cv -> cadd cv i t) (cdown cv) as)
-        cf' = cdown (cadd cf i (combineTypes (map fst as), t))
+        case cadd cf i (combineTypes (map fst as), t) of
+            Nothing -> error ("redefined function" ++ i)
+            Just cf' -> case foldr addArg (Just (cdown cv)) as of
+                Nothing ->
+                    error ("duplicate formal arguments for function " ++ i)
+                Just cv' -> (FunDeclT t i as
+                    (fst (annotateS' (t : l) (cv'', cf'') b)), (cv, cf''))
+                    where
+                    cv'' = cdown cv'
+                    cf'' = cdown cf'
+            where
+            addArg (t, i) m = case m of
+                Nothing -> Nothing
+                Just cv -> cadd cv i t
     FunCall i as -> (FunCallT i es, c')
         where
         (es, c') = sideMap annotateE c as
@@ -257,7 +275,7 @@ freshen = freshen' cnew
         TList t' -> let (r', (t'', c')) = freshenT r c t' in
             (r', (TList t'', c'))
         TPoly i -> case clookup r i of
-            Nothing -> (cadd r i t', f)
+            Nothing -> (unMaybe (cadd r i t'), f)
                 where
                 f@(t', _) = fresh c
             Just t' -> (r, (t', c))
@@ -266,8 +284,8 @@ freshen = freshen' cnew
 idType :: SPLC -> String -> [Field] -> Type
 idType c@(cv, cf) i fs = case fs of
     [] -> clookupe cv i
-    f : r -> idType (cadd (crem cv i) i
-        (checkApp (fst $ fieldType c f) (clookupe cv i)), cf) i r
+    f : r -> idType (unMaybe (cadd (crem cv i) i
+        (checkApp (fst $ fieldType c f) (clookupe cv i))), cf) i r
 
 annotateE :: SPLC -> Exp -> (ExpT, SPLC)
 annotateE c@(cv, cf) e = case e of
