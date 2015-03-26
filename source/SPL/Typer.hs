@@ -162,9 +162,12 @@ initContext l = case l of
         addRead c = unMaybe $ cadd c "read" (TVoid, TPoly "t")
         addPrint c = unMaybe $ cadd c "print" (TPoly "t", TVoid)
     s : r -> case s of
-        VarDecl t i _ -> (unMaybe (cadd n i t), m)
-        FunDecl t i as _ ->
-            (n, unMaybe (cadd m i (combineTypes (map fst as), t)))
+        VarDecl t i _ -> case cadd n i t of
+            Nothing -> error ("redefined variable " ++ i)
+            Just n' -> (n', m)
+        FunDecl t i as _ -> case cadd m i (combineTypes (map fst as), t) of
+            Nothing -> error ("redefined function " ++ i)
+            Just m' -> (n, m')
         _ -> p
         where
         p@(n, m) = initContext r
@@ -213,7 +216,7 @@ annotateS' l c@(cv, cf) s = case s of
         et = getType e'
     FunDecl t i as b ->
         case cadd cf i (combineTypes (map fst as), t) of
-            Nothing -> error ("redefined function" ++ i)
+            Nothing -> error ("redefined function " ++ i)
             Just cf' -> case foldr addArg (Just (cdown cv)) as of
                 Nothing ->
                     error ("duplicate formal arguments for function " ++ i)
