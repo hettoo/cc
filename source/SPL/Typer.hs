@@ -172,10 +172,19 @@ initContext l = case l of
         where
         p@(n, m) = initContext r
 
--- TODO: implement
 guaranteeReturn :: Stmt -> Bool
 guaranteeReturn s = case s of
-    _ -> True
+    Stmts l -> guaranteeReturn' l
+    If e s' m -> case m of
+        Nothing -> False
+        Just s'' -> guaranteeReturn s' && guaranteeReturn s''
+    Return m -> True
+    _ -> False
+    where
+    guaranteeReturn' l = case l of
+        [] -> False
+        s' : l' -> guaranteeReturn s' || guaranteeReturn' l'
+
 
 guaranteeReturns :: [Stmt] -> [Stmt]
 guaranteeReturns l = case l of
@@ -185,7 +194,7 @@ guaranteeReturns l = case l of
             if t == TVoid || guaranteeReturn b then
                 rest
             else
-                error $ "function " ++ i ++ "may not return a value"
+                error $ "function " ++ i ++ " may not return a value"
         _ -> rest
         where rest = s : guaranteeReturns r
 
