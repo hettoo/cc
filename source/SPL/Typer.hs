@@ -32,6 +32,7 @@ combineTypes l = case l of
         [] -> a
         _ -> TTuple a (combineTypes r)
 
+-- Note that the left type may be more general
 unify :: Type -> Type -> Maybe (Context Type)
 unify = unify' cnew
     where
@@ -53,7 +54,7 @@ unify = unify' cnew
                     else
                         Nothing
         (TPoly i, _) -> Just (caddr c i u)
-        (_, TPoly j) -> Just (caddr c j t) -- TODO: remove?
+        (_, TPoly j) -> if isFlexible j then Just (caddr c j t) else Nothing
         (t', u') -> if t' == u' then Just c else Nothing
         where
         rewrite (t, u) = case (clookup c (name t), clookup c (name u)) of
@@ -212,10 +213,24 @@ annotateS' l c@(cv, cf) s = case s of
     where
     ae = annotateE c
 
--- TODO
-freshen :: Context (Type, Type) -> (Type, Type) ->
-    ((Type, Type), Context (Type, Type))
-freshen c (t1, t2) = ((t1, t2), c)
+freshen :: Context Type -> (Type, Type) -> ((Type, Type), Context Type)
+freshen = freshen' cnew
+    where
+    freshen' r c (t1, t2) = let (r', (t1', c')) = freshenT r c t1 in
+        left (\t2' -> (t1', t2')) (snd (freshenT r' c' t2))
+    freshenT r c t = case t of
+        TTuple t1 t2 -> let
+            (r', (t1', c')) = freshenT r c t1
+            (r'', (t2', c'')) = freshenT r' c' t2
+            in (r'', (TTuple t1' t2', c''))
+        TList t' -> let (r', (t'', c')) = freshenT r c t' in
+            (r', (TList t'', c'))
+        TPoly i -> case clookup r i of
+            Nothing -> (cadd r i t', f)
+                where
+                f@(t', _) = fresh c
+            Just t' -> (r, (t', c))
+        _ -> (r, (t, c))
 
 annotateE :: SPLC -> Exp -> (ExpT, SPLC)
 annotateE c@(cv, cf) e = case e of
@@ -238,8 +253,8 @@ annotateE c@(cv, cf) e = case e of
     EFunCall i as -> (EFunCallT i es
         (checkApp t (combineTypes (map getType es))), c')
         where
-        (t, cf') = freshen cf (clookupe cf i)
-        (es, c') = sideMap annotateE (cv, cf') as
+        (t, cv') = freshen cv (clookupe cf i)
+        (es, c') = sideMap annotateE (cv', cf) as
     EOp1 o e -> (EOp1T o e' (checkApp (op1Type o) (getType e')), c')
         where
         (e', c') = annotateE c e
