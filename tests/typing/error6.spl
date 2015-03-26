@@ -1,0 +1,3 @@
+Void f () {
+    a x = read();
+}

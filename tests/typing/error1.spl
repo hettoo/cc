@@ -3,6 +3,6 @@ a f () {
     return g(0);
 }
 
-b g (b x) {
+a g (a x) {
     return x;
 }

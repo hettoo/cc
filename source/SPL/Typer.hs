@@ -2,6 +2,7 @@ module SPL.Typer where
 import SPL.Algebra
 import Context
 import Utils
+import SPL.Printer
 
 type Cv = Context Type
 type Cf = Context (Type, Type)
@@ -78,8 +79,8 @@ treplace c t = case t of
 
 checkApp :: (Type, Type) -> Type -> Type
 checkApp (t, t') a = case unify t a of
-    Nothing -> error ("application mismatch: " ++ show t ++
-        " does not cover " ++ show a)
+    Nothing -> error ("application mismatch: `" ++ simplePrint t ++
+        "' does not cover `" ++ simplePrint a ++ "'")
     Just c -> treplace c t'
 
 op1Type :: Op1 -> (Type, Type)
@@ -176,9 +177,14 @@ annotateS = annotateS' []
 annotateS' :: [Type] -> SPLC -> Stmt -> (StmtT, SPLC)
 annotateS' l c@(cv, cf) s = case s of
     Stmts s -> let (s', c') = annotateMulti l c s in (StmtsT s', c)
-    VarDecl t i e -> (VarDeclT t i e', (cadd cv' i t, cf'))
+    VarDecl t i e -> case unify et t of
+        Nothing -> error ("assignment mismatch: `" ++ simplePrint et ++
+            "' does not cover `" ++ simplePrint t ++ "'")
+        Just _ -> (VarDeclT t i e', (cadd cv' i t, cf'))
+        -- TODO: apply unification?
         where
         (e', (cv', cf')) = ae e
+        et = getType e'
     FunDecl t i as b ->
         (FunDeclT t i as (fst (annotateS' (t : l) (cv', cf') b)), (cv, cf'))
         where
@@ -195,14 +201,21 @@ annotateS' l c@(cv, cf) s = case s of
                 [] -> error "return outside function"
                 a : l' -> case unify t a of
                     Just _ -> (t, left Just r)
-                    Nothing -> error ("invalid return type " ++ show t ++
-                        "; expected " ++ show a)
+                    Nothing -> error ("invalid return type `" ++
+                        simplePrint t ++ "'; expected `" ++
+                        simplePrint a ++ "'")
                 where
                 r = ae e
                 t = getType (fst r)
-    Assign i fs e -> (AssignT i fs e', c')
+    Assign i fs e -> case unify t vt of
+        Nothing -> error ("assignment mismatch: `" ++ simplePrint t ++
+            "' does not cover `" ++ simplePrint vt ++ "'")
+        Just _ -> (AssignT i fs e', c')
+        -- TODO: apply unification?
         where
+        vt = idType c i fs
         (e', c') = ae e
+        t = getType e'
     If e s m ->
         (IfT e' (fst $ annotateS' l c' s) (fmap (fst . annotateS' l c') m), c')
         where
@@ -232,6 +245,12 @@ freshen = freshen' cnew
             Just t' -> (r, (t', c))
         _ -> (r, (t, c))
 
+idType :: SPLC -> String -> [Field] -> Type
+idType c@(cv, cf) i fs = case fs of
+    [] -> clookupe cv i
+    f : r -> idType (cadd (crem cv i) i
+        (checkApp (fst $ fieldType c f) (clookupe cv i)), cf) i r
+
 annotateE :: SPLC -> Exp -> (ExpT, SPLC)
 annotateE c@(cv, cf) e = case e of
     EInt i -> (EIntT i TInt, c)
@@ -244,12 +263,7 @@ annotateE c@(cv, cf) e = case e of
         where
         (r1, c1) = annotateE c e1
         (r2, c2) = annotateE c1 e2
-    EId i fs -> (EIdT i fs t, c)
-        where
-        t = case fs of
-            [] -> clookupe cv i
-            f : r -> (getType . fst) (annotateE (cadd (crem cv i) i
-                (checkApp (fst $ fieldType c f) (clookupe cv i)), cf) (EId i r))
+    EId i fs -> (EIdT i fs (idType c i fs), c)
     EFunCall i as -> (EFunCallT i es
         (checkApp t (combineTypes (map getType es))), c')
         where
