@@ -239,7 +239,7 @@ annotateS' l c@(cv, cf) s = case s of
                     Just cv'' -> (VarDeclT t i e', (cv'', cf'))
                 -- TODO: apply unification?
         else
-            error ("unbounded polymorphic variable " ++ i)
+            error ("free polymorphic variable " ++ i)
         where
         (e', (cv', cf')) = ae e
         et = getType e'
