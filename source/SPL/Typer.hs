@@ -1,12 +1,19 @@
 module SPL.Typer where
 import SPL.Algebra
 import Context
+import State
 import Utils
 import SPL.Printer
 
 type Cv = Context Type
 type Cf = Context (Type, Type)
 type SPLC = (Cv, Cf)
+
+splcv :: State Cv a -> State SPLC a
+splcv = stl
+
+splcf :: State Cf a -> State SPLC a
+splcf = str
 
 instance DistinctSequence Type where
     createN n = TPoly ("?" ++ show n)
@@ -16,15 +23,12 @@ isFlexible s = case s of
     '?' : r -> True
     _ -> False
 
-fieldType :: SPLC -> Field -> ((Type, Type), SPLC)
-fieldType c@(cv, cf) f = case f of
-    Head -> ((TList a, a), (cv', cf))
-    Tail -> ((TList a, TList a), (cv', cf))
-    First -> ((TTuple a b, a), (cv'', cf))
-    Second -> ((TTuple a b, b), (cv'', cf))
-    where
-    (a, cv') = fresh cv
-    (b, cv'') = fresh cv'
+fieldType :: Field -> State (Context Type) (Type, Type)
+fieldType f = case f of
+    Head -> fresh >>- \a -> (TList a, a)
+    Tail -> fresh >>- \a -> (TList a, TList a)
+    First -> fresh >>= \a -> fresh >>- \b -> (TTuple a b, a)
+    Second -> fresh >>= \a -> fresh >>- \b -> (TTuple a b, b)
 
 combineTypes :: [Type] -> Type
 combineTypes l = case l of
@@ -87,32 +91,22 @@ op1Type o = case o of
     ONot -> (TBool, TBool)
     ONeg -> (TInt, TInt)
 
-op2Type :: SPLC -> Op2 -> ((Type, Type), SPLC)
-op2Type c@(cv, cf) o = case o of
-    OCons -> ((TTuple a (TList a), TList a), (cv', cf))
-    OAnd -> ((TTuple TBool TBool, TBool), c)
-    OOr -> ((TTuple TBool TBool, TBool), c)
-    OEq -> ((TTuple a a, TBool), (cv', cf))
-    ONeq -> ((TTuple a a, TBool), (cv', cf))
-    OLt -> ((TTuple a a, TBool), (cv', cf))
-    OGt -> ((TTuple a a, TBool), (cv', cf))
-    OLe -> ((TTuple a a, TBool), (cv', cf))
-    OGe -> ((TTuple a a, TBool), (cv', cf))
-    OPlus -> ((TTuple a a, a), (cv', cf))
-    OMinus -> ((TTuple a a, a), (cv', cf))
-    OTimes -> ((TTuple a a, a), (cv', cf))
-    ODiv -> ((TTuple a a, a), (cv', cf))
-    OMod -> ((TTuple a a, a), (cv', cf))
-    where
-    (a, cv') = fresh cv
-
-sideMap :: (c -> a -> (b, c)) -> c -> [a] -> ([b], c)
-sideMap f c l = case l of
-    [] -> ([], c)
-    a : r -> let
-        (b, c') = f c a
-        (bs, c'') = sideMap f c' r
-        in (b : bs, c'')
+op2Type :: Op2 -> State SPLC (Type, Type)
+op2Type o = splcv $ case o of
+    OCons -> fresh >>- \a -> (TTuple a (TList a), TList a)
+    OAnd -> return (TTuple TBool TBool, TBool)
+    OOr -> return (TTuple TBool TBool, TBool)
+    OEq -> fresh >>- \a -> (TTuple a a, TBool)
+    ONeq -> fresh >>- \a -> (TTuple a a, TBool)
+    OLt -> fresh >>- \a -> (TTuple a a, TBool)
+    OGt -> fresh >>- \a -> (TTuple a a, TBool)
+    OLe -> fresh >>- \a -> (TTuple a a, TBool)
+    OGe -> fresh >>- \a -> (TTuple a a, TBool)
+    OPlus -> fresh >>- \a -> (TTuple a a, a)
+    OMinus -> fresh >>- \a -> (TTuple a a, a)
+    OTimes -> fresh >>- \a -> (TTuple a a, a)
+    ODiv -> fresh >>- \a -> (TTuple a a, a)
+    OMod -> fresh >>- \a -> (TTuple a a, a)
 
 data StmtT =
     StmtsT [StmtT]
@@ -200,57 +194,56 @@ guaranteeReturns l = case l of
         rest = s : guaranteeReturns r
 
 annotateProgram :: [Stmt] -> [StmtT]
-annotateProgram l = fst $ annotateMulti []
-    (pair (cdown, cdown) (initContext l')) l'
-    where
+annotateProgram l = let
     l' = guaranteeReturns l
+    ST f = annotateMulti [] l'
+    in fst . f $ pair (cdown, cdown) (initContext l')
 
-annotateMulti :: [Type] -> SPLC -> [Stmt] -> ([StmtT], SPLC)
-annotateMulti l = sideMap (annotateS' l)
+annotateMulti :: [Type] -> [Stmt] -> State SPLC [StmtT]
+annotateMulti l = mapM (annotateS' l)
 
-annotateS :: SPLC -> Stmt -> (StmtT, SPLC)
+annotateS :: Stmt -> State SPLC StmtT
 annotateS = annotateS' []
 
-checkPoly :: [Type] -> Context Type -> Type -> Bool
-checkPoly l c t = checkPoly' (listPoly t) (concat (map listPoly l)) c
+checkPoly :: [Type] -> Type -> State SPLC Bool
+checkPoly l t = checkPoly' (listPoly t) (concat (map listPoly l))
     where
-    checkPoly' r l c = case r of
-        [] -> True
-        a : r' -> if a `elem` l || cfindf c (\t -> a `elem` listPoly t) then
-                checkPoly' r' l c
+    checkPoly' r l = case r of
+        [] -> return True
+        a : r' -> ST $ \c@(cv, _) ->
+            if a `elem` l || cfindf cv (\t -> a `elem` listPoly t) then
+                let ST f = checkPoly' r' l in f c
             else
-                False
+                (False, c)
     listPoly t = case t of
         TPoly _ -> [t]
         TTuple t1 t2 -> listPoly t1 ++ listPoly t2
         TList t' -> listPoly t'
         _ -> []
 
-annotateS' :: [Type] -> SPLC -> Stmt -> (StmtT, SPLC)
-annotateS' l c@(cv, cf) s = case s of
-    Stmts s -> let (s', c') = annotateMulti l c s in (StmtsT s', c)
-    VarDecl t i e ->
-        if checkPoly l cv t then
-            case unify et t of
-                Nothing -> error $ "assignment mismatch: `" ++ simplePrint et ++
-                    "' does not cover `" ++ simplePrint t ++ "'"
-                Just _ -> case cadd cv' i t of
-                    Nothing -> error $ "redefined variable " ++ i
-                    Just cv'' -> (VarDeclT t i e', (cv'', cf'))
-                -- TODO: apply unification?
+annotateS' :: [Type] -> Stmt -> State SPLC StmtT
+annotateS' l s = case s of
+    Stmts s -> annotateMulti l s >>- StmtsT
+    VarDecl t i e -> checkPoly l t >>= \b ->
+        if b then
+            annotateE e >>= \e' -> let et = getType e' in
+                case unify et t of
+                    Nothing -> error $ "assignment mismatch: `" ++
+                        simplePrint et ++ "' does not cover `" ++
+                        simplePrint t ++ "'"
+                    Just _ -> ST $ \c@(cv, cf) -> case cadd cv i t of
+                        Nothing -> error $ "redefined variable " ++ i
+                        Just cv' -> (VarDeclT t i e', (cv', cf))
         else
             error ("free polymorphic variable " ++ i)
-        where
-        (e', (cv', cf')) = ae e
-        et = getType e'
-    FunDecl t i as b ->
+    FunDecl t i as b -> ST $ \c@(cv, cf) ->
         case cadd cf i (combineTypes (map fst as), t) of
             Nothing -> error $ "redefined function " ++ i
             Just cf' -> case foldr addArg (Just (cdown cv)) as of
                 Nothing ->
                     error $ "duplicate formal arguments for function " ++ i
-                Just cv' -> (FunDeclT t i as
-                    (fst (annotateS' (t : l) (cv'', cf'') b)), (cv, cf''))
+                Just cv' -> let ST f = annotateS' (t : l) b in
+                    (FunDeclT t i as (fst (f (cv'', cf''))), (cv, cf''))
                     where
                     cv'' = cdown cv'
                     cf'' = cdown cf'
@@ -258,90 +251,73 @@ annotateS' l c@(cv, cf) s = case s of
             addArg (t, i) m = case m of
                 Nothing -> Nothing
                 Just cv -> cadd cv i t
-    FunCall i as -> (FunCallT i es, c')
-        where
-        (es, c') = sideMap annotateE c as
-    Return m -> (ReturnT m', c')
-        where
-        (t, (m', c')) = case m of
-            Nothing -> (TVoid, (Nothing, c))
-            Just e -> case l of
-                [] -> error "return outside function"
-                a : l' -> case unify t a of
-                    Just _ -> (t, left Just r)
+    FunCall i as -> mapM annotateE as >>- \es -> FunCallT i es
+    Return m -> case l of
+        [] -> error "return outside function"
+        a : l' -> case m of
+            Nothing -> return $ ReturnT Nothing
+            Just e -> annotateE e >>- \e' -> let t = getType e' in
+                case unify t a of
+                    Just _ -> ReturnT (Just e')
                     Nothing -> error $ "invalid return type `" ++
                         simplePrint t ++ "'; expected `" ++ simplePrint a ++ "'"
-                where
-                r = ae e
-                t = getType (fst r)
-    Assign i fs e -> case unify t vt of
-        Nothing -> error $ "assignment mismatch: `" ++ simplePrint t ++
-            "' does not cover `" ++ simplePrint vt ++ "'"
-        Just _ -> (AssignT i fs e', c')
-        -- TODO: apply unification?
-        where
-        vt = idType c i fs
-        (e', c') = ae e
-        t = getType e'
-    If e s m ->
-        (IfT e' (fst $ annotateS' l c' s) (fmap (fst . annotateS' l c') m), c')
-        where
-        (e', c') = ae e
-    While e s -> (WhileT e' (fst $ annotateS' l c' s), c')
-        where
-        (e', c') = ae e
+    Assign i fs e -> idType i fs >>= \vt -> annotateE e >>- \e' ->
+        let t = getType e' in case unify t vt of
+            Nothing -> error $ "assignment mismatch: `" ++ simplePrint t ++
+                "' does not cover `" ++ simplePrint vt ++ "'"
+            Just _ -> AssignT i fs e'
+    If e s m -> annotateE e >>= \e' -> indiff (annotateS' l s) >>= \s' ->
+        case m of
+            Nothing -> return $ IfT e' s' Nothing
+            Just m' -> indiff (annotateS' l m') >>- \m'' -> IfT e' s' (Just m'')
+    While e s -> annotateE e >>= \e' ->
+        indiff (annotateS' l s) >>- \s' -> WhileT e' s'
+
+freshen :: (Type, Type) -> State Cv (Type, Type)
+freshen t = let ST f = freshen' t in ST $ \cv -> right fst (f (cv, cnew))
     where
-    ae = annotateE c
+    freshen' (t1, t2) = freshenT t1 >>= \t1' ->
+        freshenT t2 >>- \t2' -> (t1', t2')
+    freshenT t = case t of
+        TTuple t1 t2 -> freshenT t1 >>= \t1' ->
+            freshenT t2 >>- \t2' -> (TTuple t1' t2')
+        TList t' -> freshenT t' >>- \t'' -> TList t''
+        TPoly i -> ST $ \(cv, r) -> case clookup r i of
+            Nothing -> let
+                ST f = fresh
+                p@(t', cv') = f cv
+                in (t', (cv', unMaybe (cadd r i t')))
+            Just t' -> (t', (cv, r))
+        _ -> return t
 
-freshen :: Context Type -> (Type, Type) -> ((Type, Type), Context Type)
-freshen = freshen' cnew
+idType :: String -> [Field] -> State SPLC Type
+idType i fs = splcv . indiff $ idType' i fs
     where
-    freshen' r c (t1, t2) = let (r', (t1', c')) = freshenT r c t1 in
-        left (\t2' -> (t1', t2')) (snd (freshenT r' c' t2))
-    freshenT r c t = case t of
-        TTuple t1 t2 -> let
-            (r', (t1', c')) = freshenT r c t1
-            (r'', (t2', c'')) = freshenT r' c' t2
-            in (r'', (TTuple t1' t2', c''))
-        TList t' -> let (r', (t'', c')) = freshenT r c t' in
-            (r', (TList t'', c'))
-        TPoly i -> case clookup r i of
-            Nothing -> (unMaybe (cadd r i t'), f)
-                where
-                f@(t', _) = fresh c
-            Just t' -> (r, (t', c))
-        _ -> (r, (t, c))
+    idType' i fs = ST $ \cv -> case fs of
+        [] -> (clookupe cv i, cv)
+        f : r -> let
+            ST g = fieldType f
+            ST h = idType' i r
+            in h (unMaybe (cadd (crem cv i) i
+                (checkApp (fst (g cv)) (clookupe cv i))))
 
-idType :: SPLC -> String -> [Field] -> Type
-idType c@(cv, cf) i fs = case fs of
-    [] -> clookupe cv i
-    f : r -> idType (unMaybe (cadd (crem cv i) i
-        (checkApp (fst $ fieldType c f) (clookupe cv i))), cf) i r
-
-annotateE :: SPLC -> Exp -> (ExpT, SPLC)
-annotateE c@(cv, cf) e = case e of
-    EInt i -> (EIntT i TInt, c)
-    EBool b -> (EBoolT b TBool, c)
-    EChar a -> (ECharT a TChar, c)
-    ENil -> (ENilT (TList t), (cv', cf))
-        where
-        (t, cv') = fresh cv
-    ETuple e1 e2 -> (ETupleT r1 r2 (TTuple (getType r1) (getType r2)), c2)
-        where
-        (r1, c1) = annotateE c e1
-        (r2, c2) = annotateE c1 e2
-    EId i fs -> (EIdT i fs (idType c i fs), c)
-    EFunCall i as -> (EFunCallT i es
-        (checkApp t (combineTypes (map getType es))), c')
-        where
-        (t, cv') = freshen cv (clookupe cf i)
-        (es, c') = sideMap annotateE (cv', cf) as
-    EOp1 o e -> (EOp1T o e' (checkApp (op1Type o) (getType e')), c')
-        where
-        (e', c') = annotateE c e
-    EOp2 o e1 e2 -> (EOp2T o r1 r2 (checkApp ft t), c3)
-        where
-        (r1, c1) = annotateE c e1
-        (r2, c2) = annotateE c1 e2
-        (ft, c3) = op2Type c2 o
-        t = TTuple (getType r1) (getType r2)
+annotateE :: Exp -> State SPLC ExpT
+annotateE e = case e of
+    EInt i -> return $ EIntT i TInt
+    EBool b -> return $ EBoolT b TBool
+    EChar a -> return $ ECharT a TChar
+    ENil -> splcv $ fresh >>- \t -> ENilT (TList t)
+    ETuple e1 e2 -> annotateE e1 >>= \e1' -> annotateE e2 >>- \e2' ->
+        ETupleT e1' e2' (TTuple (getType e1') (getType e2'))
+    EId i fs -> idType i fs >>- \t -> EIdT i fs t
+    EFunCall i as -> ST $ \(cv, cf) -> let
+        ST f = freshen (clookupe cf i)
+        (t, cv') = f cv
+        ST g = mapM annotateE as
+        (es, c') = g (cv', cf)
+        in (EFunCallT i es (checkApp t (combineTypes (map getType es))), c')
+    EOp1 o e -> annotateE e >>- \e' ->
+        EOp1T o e' (checkApp (op1Type o) (getType e'))
+    EOp2 o e1 e2 -> annotateE e1 >>= \e1' -> annotateE e2 >>= \e2' ->
+        op2Type o >>- \ft ->
+            EOp2T o e1' e2' (checkApp ft (TTuple (getType e1') (getType e2')))

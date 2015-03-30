@@ -1,5 +1,10 @@
 module Utils where
 
+(>>-) :: Monad m =>
+    m a -> (a -> b) -> m b
+(>>-) m f = m >>= \a -> return (f a)
+infixl 1 >>-
+
 isEmpty l = case l of
     [] -> True
     _ -> False

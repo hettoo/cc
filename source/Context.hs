@@ -1,4 +1,5 @@
 module Context where
+import State
 
 type Context t = (Int, Int, [(String, t, Int)])
 
@@ -76,5 +77,5 @@ class DistinctSequence t where
     createN :: Int -> t
 
 fresh :: DistinctSequence t =>
-    Context t -> (t, Context t)
-fresh (i, n, l) = (createN n, (i, n + 1, l))
+    State (Context t) t
+fresh = ST $ \(i, n, l) -> (createN n, (i, n + 1, l))

@@ -5,6 +5,7 @@ import SPL.Parser
 import SPL.Printer
 import SPL.Typer
 import SPL.PrinterT
+import State
 
 testPrinter :: String -> Bool
 testPrinter s = p == (parseSPL . prettyPrint) p
