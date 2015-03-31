@@ -1,9 +1,9 @@
 [a] sort([a] l) {
-	return insertSort(l.hd, sort(l.tl));
+	return insertSort(sort(l.tl), l.hd);
 }
 
 [a] insertSort([a] l, a e) {
-	if (e < list.hd) 
-		return el : list; 
+	if (e < l.hd)
+		return e : l;
 	else return insertSort(l.tl, e);
 }

@@ -14,6 +14,16 @@ testError = if $(EXE) < tests/$(1).spl 1>/dev/null 2>/dev/null; then echo "error
 
 tests: all
 	@$(call testCorrect,main)
+	@$(call testCorrect,general/ambiguity)
+	@$(call testCorrect,general/dfa)
+	@$(call testCorrect,general/exp)
+	@$(call testCorrect,general/gcd)
+	@$(call testCorrect,general/hanoi)
+	@$(call testCorrect,general/lists)
+	@$(call testCorrect,general/matrix)
+	@$(call testCorrect,general/rand)
+	@$(call testCorrect,general/re)
+	@$(call testCorrect,general/sort)
 	@$(call testCorrect,typing/scope1)
 	@$(call testCorrect,typing/scope2)
 	@$(call testCorrect,typing/overloading1)

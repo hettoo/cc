@@ -3,7 +3,7 @@
  * Deterministic Finite Automaton, stops on accepted states
  */
 Bool dfa([(a, Int)] delta, Int q, Int F, [a] input) {
-	if (state == F) return True;
+	if (q == F) return True;
 	if (transition(input.hd, delta) < 0) return False;
 	return dfa(delta, transition(input.hd, delta), F, input.tl);
 }

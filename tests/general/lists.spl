@@ -31,7 +31,12 @@ a last([a] l) {
 	return concat(matrix.hd, all(matrix.tl));
 }
 
+[a] all([[a]] matrix) {
+	if (isEmpty(matrix)) return [];
+	return concat(matrix.hd, all(matrix.tl));
+}
+
 [a] concat([a] x, [a] b) {
-	if (isEmpty(a)) return b;
-	return a : concat(a.tl, b);
+	if (isEmpty(x)) return b;
+	return x.hd : concat(x.tl, b);
 }

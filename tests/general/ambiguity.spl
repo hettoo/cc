@@ -1,15 +1,19 @@
 Int f () {
+    Int n = 0;
     if (n < 1)
         if (n < 1)
             return 0;
         else
             return 1;
+    return 0;
 }
 
 Int g () {
+    Int n = 0;
     if (n < 1) {
         if (n < 1)
             return 0;
+        return 0;
     }
     else
         return 1;

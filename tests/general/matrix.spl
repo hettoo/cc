@@ -4,7 +4,7 @@
 	if (pos.snd == 0) { // right row
 		row = matrix.hd;
 		if (pos.fst == 0) { // right column
-			return (e : row.tl) : matrix.tl;
+			return (val : row.tl) : matrix.tl;
 		} else {
 			res = update(row.tl : matrix.tl, (pos.fst - 1, pos.snd), val);
 			return (row.hd : res.hd) : res.tl;	
@@ -32,6 +32,6 @@ a get([[a]] matrix, (Int, Int) pos) {
 }
 
 [a] concat([a] x, [a] b) {
-	if (isEmpty(a)) return b;
-	return a : concat(a.tl, b);
+	if (isEmpty(x)) return b;
+	return x.hd : concat(x.tl, b);
 }
