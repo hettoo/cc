@@ -135,11 +135,11 @@ treplace t = case t of
         TPoly a -> Just a
         _ -> Nothing
 
-checkApp :: (Type, Type) -> Type -> Type
+checkApp :: (Type, Type) -> Type -> State a Type
 checkApp (t, t') a = case unify t a of
-    Nothing -> error $ "application mismatch: `" ++ simplePrint t ++
+    Nothing -> fail $ "application mismatch: `" ++ simplePrint t ++
         "' does not cover `" ++ simplePrint a ++ "'"
-    Just c -> treplace t' >!> c
+    Just c -> return $ treplace t' >!> c
 
 op1Type :: Op1 -> (Type, Type)
 op1Type o = case o of
@@ -286,6 +286,14 @@ checkPoly l t = checkPoly' (listPoly t) (concat (map listPoly l))
         TList t' -> listPoly t'
         _ -> []
 
+applyFun :: String -> [Exp] -> State SPLC ([ExpT], Type)
+applyFun i as = do
+    t <- splcf (clookupe i)
+    t <- splcv (freshen t)
+    es <- mapM annotateE as
+    a <- checkApp t (combineTypes (map getType es))
+    return (es, a)
+
 annotateS :: [Type] -> Stmt -> State SPLC StmtT
 annotateS l s = case s of
     Stmts s -> do
@@ -318,7 +326,7 @@ annotateS l s = case s of
             addArg (t, i) =
                 cadd i t ("duplicate formal arguments for function " ++ i)
     FunCall i as -> do
-        es <- mapM annotateE as
+        (es, _) <- applyFun i as
         return $ FunCallT i es
     Return m -> case l of
         [] -> fail "return outside function"
@@ -385,14 +393,14 @@ freshen t = ST $ \cv -> let
 idType :: String -> [Field] -> State SPLC Type
 idType i fs = splcv . indiff $ idType' i fs
     where
-    idType' :: String -> [Field] -> State Cv Type
     idType' i fs = case fs of
         [] -> clookupe i
         f : r -> do
             t <- clookupe i
             crem i
             t' <- fieldType f
-            cadd i (checkApp t' t) "?"
+            a <- checkApp t' t
+            cadd i a "?"
             idType' i r
 
 annotateE :: Exp -> State SPLC ExpT
@@ -411,15 +419,15 @@ annotateE e = case e of
         t <- idType i fs
         return $ EIdT i fs t
     EFunCall i as -> do
-        t <- splcf (clookupe i)
-        t <- splcv (freshen t)
-        es <- mapM annotateE as
-        return $ EFunCallT i es (checkApp t (combineTypes (map getType es)))
+        (es, a) <- applyFun i as
+        return $ EFunCallT i es a
     EOp1 o e -> do
         e <- annotateE e
-        return $ EOp1T o e (checkApp (op1Type o) (getType e))
+        a <- checkApp (op1Type o) (getType e)
+        return $ EOp1T o e a
     EOp2 o e1 e2 -> do
         e1 <- annotateE e1
         e2 <- annotateE e2
         ft <- splcv (op2Type o)
-        return $ EOp2T o e1 e2 (checkApp ft (TTuple (getType e1) (getType e2)))
+        a <- checkApp ft (TTuple (getType e1) (getType e2))
+        return $ EOp2T o e1 e2 a
