@@ -9,30 +9,28 @@ cnew = (0, 0, [])
 cdown :: Context t -> Context t
 cdown (i, n, l) = (i + 1, n, l)
 
-caddc :: Eq t =>
-    Bool -> Context t -> String -> t -> Maybe (Context t)
-caddc b (i, n, l) s t = fmap (\x -> (i, n, x)) (cadd' l)
+caddc :: (t -> t -> Bool) -> Context t -> String -> t -> Maybe (Context t)
+caddc f (i, n, l) s t = fmap (\x -> (i, n, x)) (cadd' l)
     where
     cadd' l = case l of
         [] -> Just [(s, t, i)]
-        f@(s', t', i') : r ->
+        c@(s', t', i') : r ->
             if s == s' then
-                if i' >= i && (b || t /= t') then
+                if i' >= i && f t t' then
                     Nothing
                 else
                     rec
             else
-                fmap ((:) f) rec
+                fmap ((:) c) rec
             where
             rec = cadd' r
 
-cadd :: Eq t =>
-    Context t -> String -> t -> Maybe (Context t)
-cadd = caddc True
+cadd :: Context t -> String -> t -> Maybe (Context t)
+cadd = caddc (\_ _ -> True)
 
 caddr :: Eq t =>
     Context t -> String -> t -> Maybe (Context t)
-caddr = caddc False
+caddr = caddc (/=)
 
 crem :: Context t -> String -> Context t
 crem (i, n, l) s = (i, n, crem' l)
