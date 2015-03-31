@@ -19,6 +19,8 @@
 
 \maketitle
 
+\section{Syntax}
+
 Recall our final version of the SPL grammar.
 \setlength{\grammarindent}{7.1em}
 \begin{grammar}
@@ -84,6 +86,8 @@ For instance, the grammar describing our expressions is shown below.
     \alt (\,<Exp>, <Exp>\,) | Var <id> <Field>* | Fun <id> <Exp>*
 \end{grammar}
 Here $\ominus$ stands for a unary operator, and $\otimes$ can be any binary operator.
+
+\section{Typing rules}
 
 For convenience, we use the notation that a context $\Gamma$ is made up of a variable context $\Gamma_v$ and a function context $\Gamma_f$. Formally, $\Gamma = (\Gamma_v, \Gamma_f)$.
 
@@ -206,6 +210,8 @@ The types of these are given by the axioms below.
     \DisplayProof
 \end{center}
 
+\section{Semantic Analysis}
+
 Binding time analysis consists in determining where variables that are used in the program were bound.
 We use the usual precedence rules to do this: variables defined later override earlier ones, unless they were defined in the same scope (block of code or function argument lists), which is an error.
 Note that both function arguments and function bodies introduce a new scope.
@@ -217,7 +223,15 @@ Of course there are no such variables, but this is in turn modeled by the return
 Functions may be overloaded, but it is not allowed that multiple versions of a function apply for any possible way the function can be called.
 Note that the current implementation does not allow overloading the return type of a function at all.
 
-\subsection{Instructions}
-Building the project requires a modern Haskell compiler and a Make-like system. Internally, GHC 7.6.3 and GNU Make 3.81 were used. Running \verb|make| in the project root will build the compiler in the \verb|build| folder. Tests can either be run manually by feeding SPL source files into the compiler with \verb|build/compiler < tests/typing/test1.spl| or automatically by calling \verb|make tests| in the project root to run a set of predefined tests.
+\subsection{Examples}
+
+% TODO
+
+\section{Instructions}
+
+Building the project requires a modern Haskell compiler and a Make-like system.
+Internally, GHC 7.6.3 and GNU Make 3.81 were used.
+Running \verb|make| in the project root will build the compiler in the \verb|build| folder.
+Tests can either be run manually by feeding SPL source files into the compiler with \verb|build/compiler < tests/program.spl| or automatically by calling \verb|make tests| in the project root to run a set of predefined tests.
 
 \end{document}
