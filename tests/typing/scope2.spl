@@ -1,0 +1,6 @@
+Bool a = True;
+
+Int f (Char a) {
+    Int a = 0;
+    return a;
+}

@@ -1,0 +1,5 @@
+Int a = 0;
+
+Char f (Char a) {
+    return a;
+}
