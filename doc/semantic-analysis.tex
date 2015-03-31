@@ -217,7 +217,118 @@ Of course there are no such variables, but this is in turn modeled by the return
 Functions may be overloaded, but it is not allowed that multiple versions of a function apply for any possible way the function can be called.
 Note that the current implementation does not allow overloading the return type of a function at all.
 
-\subsection{Instructions}
-Building the project requires a modern Haskell compiler and a Make-like system. Internally, GHC 7.6.3 and GNU Make 3.81 were used. Running \verb|make| in the project root will build the compiler in the \verb|build| folder. Tests can either be run manually by feeding SPL source files into the compiler with \verb|build/compiler < tests/typing/test1.spl| or automatically by calling \verb|make tests| in the project root to run a set of predefined tests.
+\section*{Test cases}
+The following test cases primarily test for program instances that should be rejected by the compiler due to typing problems. For positive tests we have mostly relied on using the example programs for the first assignment, except for specific type constructs which were not covered by these examples. General tests beyond the scope of semantic analysis are contained within the \verb|tests/general| directory of the project and have already been described in the previous assignment.
+
+\paragraph{tests/typing/error1.spl} In this example we show that polymorphic returns are checked. Calling \verb|g| with an integer yield an integer, which is too specific for the return type of \verb|f|.
+    \begin{verbatim}
+compiler: invalid return type `Int'; expected `a'
+    \end{verbatim}
+
+\paragraph{tests/typing/error2.spl} This test builds on the previous one, modifying the return type for \verb|g|. The compiler correctly rejects this test, because the return of \verb|g| is now ill-typed.
+    \begin{verbatim}
+compiler: invalid return type `c'; expected `b'
+    \end{verbatim}
+
+\paragraph{tests/typing/error3.spl} Function application is performed with incorrect arity.
+    \begin{verbatim}
+compiler: no candidate for application of f found
+    \end{verbatim}
+
+\paragraph{tests/typing/error4.spl} Function application is performed with incorrect arity.
+    \begin{verbatim}
+compiler: no candidate for application of f found
+    \end{verbatim}
+
+\paragraph{tests/typing/error5.spl} Return type is too general
+    \begin{verbatim}
+compiler: assignment mismatch: `a' does not cover `Int'
+    \end{verbatim}
+
+\paragraph{tests/typing/error6.spl} This program describes an instance where a variable cannot be typed because of the unknown return type of \verb|read()|.
+    \begin{verbatim}
+compiler: free polymorphic variable x
+    \end{verbatim}
+
+\paragraph{tests/typing/error7.spl} The type checker ensures a valid return for all possible code paths when control structures are used within a function body.
+    \begin{verbatim}
+compiler: function g may not return a value
+    \end{verbatim}
+
+\paragraph{tests/typing/error8.spl} A return in a while control block is not sufficient to ensure all possible code paths have a valid return, because the loop condition is not evaluated at compile-time.
+    \begin{verbatim}
+compiler: function f may not return a value
+    \end{verbatim}
+
+\paragraph{tests/typing/error9.spl} Variables may only be defined once in their scope.
+    \begin{verbatim}
+compiler: redefined variable x
+    \end{verbatim}
+
+\paragraph{tests/typing/error10.spl} Functions may only be defined once.
+    \begin{verbatim}
+compiler: redefined function f
+    \end{verbatim}
+
+\paragraph{tests/typing/error11.spl} Function arguments may only be defined once.
+    \begin{verbatim}
+compiler: duplicate formal arguments for function n
+    \end{verbatim}
+
+\paragraph{tests/typing/error12.spl} Variables may not be used outside of their scope.
+    \begin{verbatim}
+compiler: undeclared entity a
+    \end{verbatim}
+
+\paragraph{tests/typing/error13.spl} Functions must be called with the right arity.
+    \begin{verbatim}
+compiler: no candidate for application of f found
+    \end{verbatim}
+
+\paragraph{tests/typing/error14.spl} Function overloading instances must have mutually exclusive types.
+    \begin{verbatim}
+compiler: redefined function id
+    \end{verbatim}
+
+\paragraph{tests/typing/overloading1.spl} Overloaded function applications are allowed.
+    \begin{verbatim}
+Void f () {
+    f((0 @ Int));
+}
+
+Void f (Int a) {
+}
+    \end{verbatim}
+
+\paragraph{tests/typing/overloading2.spl} Overloaded function applications are allowed.
+    \begin{verbatim}
+Void f (Char a) {
+    f((0 @ Int));
+}
+
+Void f (Int a) {
+}
+    \end{verbatim}
+
+\paragraph{tests/typing/scope1.spl} Local variables may hide local variables.
+    \begin{verbatim}
+Int a = (0 @ Int);
+
+Char f (Char a) {
+    return (a @ Char);
+}
+    \end{verbatim}
+
+\paragraph{tests/typing/scope2.spl} Local variables may hide function arguments.
+    \begin{verbatim}
+Int f (Char a) {
+    Int a = (0 @ Int);
+
+    return (a @ Int);
+}
+    \end{verbatim}
+
+\section*{Instructions}
+Building the project requires a modern Haskell compiler and a Make-like system. Internally, GHC 7.6.3 and GNU Make 3.81 were used. Running \verb|make| in the project root will build the compiler in the \verb|build| directory. Tests can either be run manually by feeding SPL source files into the compiler with \verb|build/compiler < tests/typing/test1.spl| or automatically by calling \verb|make tests| in the project root to run a set of predefined tests.
 
 \end{document}
