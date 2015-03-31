@@ -25,5 +25,8 @@ stl (ST f) = ST $ \(a, b) -> right (\a' -> (a', b)) (f a)
 str :: State b c -> State (a, b) c
 str (ST f) = ST $ \(a, b) -> right (\b' -> (a, b')) (f b)
 
-st :: (a -> b) -> State a b
-st f = ST $ \a -> (f a, a)
+res :: (a -> b) -> State a b
+res f = ST $ \a -> (f a, a)
+
+st :: (a -> a) -> State a ()
+st f = ST $ \a -> ((), f a)
