@@ -368,26 +368,25 @@ freshen t = ST $ \cv -> let
     (r, (cv', _)) = apply (freshen' t) (cv, cnew)
     in Left (r, cv')
     where
-    freshen' :: (Type, Type) -> State (Cv, Cv) (Type, Type)
     freshen' (t1, t2) = do
-        t1' <- freshenT t1
-        t2' <- freshenT t2
-        return (t1', t2')
+        t1 <- freshenT t1
+        t2 <- freshenT t2
+        return (t1, t2)
     freshenT t = case t of
         TTuple t1 t2 -> do
-            (t1', t2') <- freshen' (t1, t2)
-            return (TTuple t1' t2')
-        TList t' -> do
-            t'' <- freshenT t'
-            return (TList t'')
+            (t1, t2) <- freshen' (t1, t2)
+            return (TTuple t1 t2)
+        TList t -> do
+            t <- freshenT t
+            return (TList t)
         TPoly i -> do
             m <- str (clookup i)
             case m of
                 Nothing -> do
-                    t' <- stl (fresh)
-                    str (cadd i t' "?")
-                    return t'
-                Just t' -> return t'
+                    t <- stl (fresh)
+                    str (cadd i t "?")
+                    return t
+                Just t -> return t
         _ -> return t
 
 idType :: String -> [Field] -> State SPLC Type
