@@ -148,27 +148,28 @@ op1Type o = case o of
 
 op2Type :: Op2 -> State Cv (Type, Type)
 op2Type o = case o of
-    OAnd -> return (TTuple TBool TBool, TBool)
-    OOr -> return (TTuple TBool TBool, TBool)
     OCons -> do
         a <- fresh
         return (TTuple a (TList a), TList a)
-    OPlus -> do
+    OAnd -> tBBB
+    OOr -> tBBB
+    OEq -> taaB
+    ONeq -> taaB
+    OLt -> taaB
+    OGt -> taaB
+    OLe -> taaB
+    OGe -> taaB
+    OPlus -> taaa
+    OMinus -> taaa
+    OTimes -> taaa
+    ODiv -> taaa
+    OMod -> taaa
+    where
+    tBBB = return (TTuple TBool TBool, TBool)
+    taaa = do
         a <- fresh
         return (TTuple a a, a)
-    OMinus -> do
-        a <- fresh
-        return (TTuple a a, a)
-    OTimes -> do
-        a <- fresh
-        return (TTuple a a, a)
-    ODiv -> do
-        a <- fresh
-        return (TTuple a a, a)
-    OMod -> do
-        a <- fresh
-        return (TTuple a a, a)
-    _ -> do
+    taaB = do
         a <- fresh
         return (TTuple a a, TBool)
 
@@ -298,11 +299,12 @@ annotateS l s = case s of
                 if unifiable et t then do
                     caddvar i t
                     return (VarDeclT t i e)
-                else error $ "assignment mismatch: `" ++
-                    simplePrint et ++ "' does not cover `" ++
-                    simplePrint t ++ "'"
+                else
+                    fail $ "assignment mismatch: `" ++
+                        simplePrint et ++ "' does not cover `" ++
+                        simplePrint t ++ "'"
         else
-            error ("free polymorphic variable " ++ i)
+            fail ("free polymorphic variable " ++ i)
     FunDecl t i as b -> do
         caddfun i as t
         forgetv $ do
@@ -319,7 +321,7 @@ annotateS l s = case s of
         es <- mapM annotateE as
         return $ FunCallT i es
     Return m -> case l of
-        [] -> error "return outside function"
+        [] -> fail "return outside function"
         a : l' -> case m of
             Nothing -> return $ ReturnT Nothing
             Just e -> do
@@ -328,7 +330,7 @@ annotateS l s = case s of
                     if unifiable t a then
                         return $ ReturnT (Just e)
                     else
-                        error $ "invalid return type `" ++
+                        fail $ "invalid return type `" ++
                             simplePrint t ++ "'; expected `" ++
                             simplePrint a ++ "'"
     Assign i fs e -> do
@@ -338,7 +340,7 @@ annotateS l s = case s of
             if unifiable t vt then
                 return $ AssignT i fs e
             else
-                error $ "assignment mismatch: `" ++ simplePrint t ++
+                fail $ "assignment mismatch: `" ++ simplePrint t ++
                     "' does not cover `" ++ simplePrint vt ++ "'"
     If e s m -> do
         e <- annotateE e
