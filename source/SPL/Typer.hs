@@ -17,12 +17,12 @@ splcf = str
 
 forgetv :: State SPLC a -> State SPLC a
 forgetv (ST f) = ST $ \c@(cv, _) -> case f c of
-    Left (a, (_, cf')) -> Left (a, (cv, cf'))
+    Left (a, (_, cf)) -> Left (a, (cv, cf))
     Right e -> Right e
 
 forgetf :: State SPLC a -> State SPLC a
 forgetf (ST f) = ST $ \c@(_, cf) -> case f c of
-    Left (a, (cv', _)) -> Left (a, (cv', cf))
+    Left (a, (cv, _)) -> Left (a, (cv, cf))
     Right e -> Right e
 
 caddvar :: String -> Type -> State SPLC ()
