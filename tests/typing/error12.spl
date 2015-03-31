@@ -1,0 +1,7 @@
+Void f () {
+    Int a = 0;
+}
+
+Void g () {
+    a = a + 1;
+}

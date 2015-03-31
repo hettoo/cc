@@ -115,6 +115,11 @@ unify t u = let (b, c) = apply (unify' t u) cnew in
                 TPoly i -> i
                 _ -> ""
 
+unifiable :: Type -> Type -> Bool
+unifiable t u = case unify t u of
+    Nothing -> False
+    Just _ -> True
+
 treplace :: Type -> State (Context Type) Type
 treplace t = case t of
     TTuple t1 t2 -> do
@@ -290,13 +295,12 @@ annotateS l s = case s of
         if b then do
             e <- annotateE e
             let et = getType e in
-                case unify et t of
-                    Nothing -> error $ "assignment mismatch: `" ++
-                        simplePrint et ++ "' does not cover `" ++
-                        simplePrint t ++ "'"
-                    Just _ -> do
-                        caddvar i t
-                        return (VarDeclT t i e)
+                if unifiable et t then do
+                    caddvar i t
+                    return (VarDeclT t i e)
+                else error $ "assignment mismatch: `" ++
+                    simplePrint et ++ "' does not cover `" ++
+                    simplePrint t ++ "'"
         else
             error ("free polymorphic variable " ++ i)
     FunDecl t i as b -> do
@@ -321,19 +325,21 @@ annotateS l s = case s of
             Just e -> do
                 e <- annotateE e
                 let t = getType e in
-                    case unify t a of
-                        Nothing -> error $ "invalid return type `" ++
+                    if unifiable t a then
+                        return $ ReturnT (Just e)
+                    else
+                        error $ "invalid return type `" ++
                             simplePrint t ++ "'; expected `" ++
                             simplePrint a ++ "'"
-                        _ -> return $ ReturnT (Just e)
     Assign i fs e -> do
         vt <- idType i fs
         e <- annotateE e
         let t = getType e in
-            case unify t vt of
-                Nothing -> error $ "assignment mismatch: `" ++ simplePrint t ++
+            if unifiable t vt then
+                return $ AssignT i fs e
+            else
+                error $ "assignment mismatch: `" ++ simplePrint t ++
                     "' does not cover `" ++ simplePrint vt ++ "'"
-                Just _ -> return $ AssignT i fs e
     If e s m -> do
         e <- annotateE e
         s <- indiff (annotateS l s)

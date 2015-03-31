@@ -10,7 +10,7 @@ cnew = (0, 0, [])
 cdown :: State (Context t) ()
 cdown = st $ \(i, n, l) -> (i + 1, n, l)
 
-caddc :: (t -> t -> Bool) -> String -> t -> String -> State (Context t) ()
+caddc :: (t -> Bool) -> String -> t -> String -> State (Context t) ()
 caddc f s t e = ST $ \(i, n, l) -> case cadd' l i of
     Just l' -> Left ((), (i, n, l'))
     Nothing -> Right e
@@ -19,7 +19,7 @@ caddc f s t e = ST $ \(i, n, l) -> case cadd' l i of
         [] -> Just [(s, t, i)]
         c@(s', t', i') : r ->
             if s == s' then
-                if i' >= i && f t t' then
+                if i' >= i && f t' then
                     Nothing
                 else
                     rec
@@ -29,11 +29,11 @@ caddc f s t e = ST $ \(i, n, l) -> case cadd' l i of
             rec = cadd' r i
 
 cadd :: String -> t -> String -> State (Context t) ()
-cadd = caddc (\_ _ -> True)
+cadd = caddc (const True)
 
 caddr :: Eq t =>
     String -> t -> String -> State (Context t) ()
-caddr = caddc (/=)
+caddr i t = caddc ((/=) t) i t
 
 crem :: String -> State (Context t) ()
 crem s = ST $ \(i, n, l) -> Left ((), (i, n, crem' l))
@@ -56,7 +56,7 @@ clookupe :: String -> State (Context t) t
 clookupe s = do
     m <- clookup s
     case m of
-        Nothing -> error $ "undeclared entity " ++ s
+        Nothing -> fail $ "undeclared entity " ++ s
         Just t -> return t
 
 cfindf :: (t -> Bool) -> State (Context t) Bool
