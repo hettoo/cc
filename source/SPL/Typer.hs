@@ -15,6 +15,23 @@ splcv = stl
 splcf :: State Cf a -> State SPLC a
 splcf = str
 
+forgetv :: State SPLC a -> State SPLC a
+forgetv (ST f) = ST $ \c@(cv, _) -> case f c of
+    Left (a, (_, cf')) -> Left (a, (cv, cf'))
+    Right e -> Right e
+
+forgetf :: State SPLC a -> State SPLC a
+forgetf (ST f) = ST $ \c@(_, cf) -> case f c of
+    Left (a, (cv', _)) -> Left (a, (cv', cf))
+    Right e -> Right e
+
+caddvar :: String -> Type -> State SPLC ()
+caddvar i t = splcv $ cadd i t ("redefined variable " ++ i)
+
+caddfun :: String -> [(Type, String)] -> Type -> State SPLC ()
+caddfun i as t = splcf $
+    cadd i (combineTypes (map fst as), t) ("redefined function " ++ i)
+
 instance DistinctSequence Type where
     createN n = TPoly ("?" ++ show n)
 
@@ -25,10 +42,20 @@ isFlexible s = case s of
 
 fieldType :: Field -> State (Context Type) (Type, Type)
 fieldType f = case f of
-    Head -> fresh >>- \a -> (TList a, a)
-    Tail -> fresh >>- \a -> (TList a, TList a)
-    First -> fresh >>= \a -> fresh >>- \b -> (TTuple a b, a)
-    Second -> fresh >>= \a -> fresh >>- \b -> (TTuple a b, b)
+    Head -> do
+        a <- fresh
+        return (TList a, a)
+    Tail -> do
+        a <- fresh
+        return (TList a, TList a)
+    First -> do
+        a <- fresh
+        b <- fresh
+        return (TTuple a b, a)
+    Second -> do
+        a <- fresh
+        b <- fresh
+        return (TTuple a b, b)
 
 combineTypes :: [Type] -> Type
 combineTypes l = case l of
@@ -38,43 +65,66 @@ combineTypes l = case l of
         _ -> TTuple a (combineTypes r)
 
 unify :: Type -> Type -> Maybe (Context Type)
-unify = unify' cnew
+unify t u = let (b, c) = apply (unify' t u) cnew in
+    if b then Just c else Nothing
     where
-    unify' c t u = case rewrite (t, u) of
-        (TTuple t1 t2, TTuple t1' t2') ->
-            case unify' c t1 t1' of
-                Nothing -> Nothing
-                Just c' -> unify' c' t2 t2'
-        (TList t', TList t'') -> unify' c t' t''
-        (TPoly i, TPoly j) ->
-            if i == j then
-                Just c
-            else
-                if isFlexible i then
-                    caddr c i u
+    unify' :: Type -> Type -> State (Context Type) Bool
+    unify' t u = do
+        rt <- rewrite t
+        ru <- rewrite u
+        case (rt, ru) of
+            (TTuple t1 t2, TTuple t1' t2') -> do
+                b <- unify' t1 t1'
+                case b of
+                    False -> return False
+                    True -> unify' t2 t2'
+            (TList t', TList t'') -> unify' t' t''
+            (TPoly i, TPoly j) ->
+                if i == j then
+                    return True
                 else
-                    if isFlexible j then
-                        caddr c j t
+                    if isFlexible i then do
+                        caddr i u "?"
+                        return True
                     else
-                        Nothing
-        (TPoly i, _) -> if isFlexible i then caddr c i u else Nothing
-        (_, TPoly j) -> if isFlexible j then caddr c j t else Nothing
-        (t', u') -> if t' == u' then Just c else Nothing
-        where
-        rewrite (t, u) = case (clookup c (name t), clookup c (name u)) of
-            (Nothing, Nothing) -> (t, u)
-            (Nothing, Just u') -> (t, u')
-            (Just t', Nothing) -> (t', u)
-            (Just t', Just u') -> (t', u')
-        name t = case t of
-            TPoly i -> i
-            _ -> ""
+                        if isFlexible j then do
+                            caddr j t "?"
+                            return True
+                        else
+                            return False
+            (TPoly i, _) ->
+                if isFlexible i then do
+                    caddr i u "?"
+                    return True
+                else
+                    return False
+            (_, TPoly j) ->
+                if isFlexible j then do
+                    caddr j t "?"
+                    return True
+                else
+                    return False
+            (t', u') -> return (t' == u')
+            where
+            rewrite t = do
+                m <- clookup (name t)
+                return $ case m of
+                    Nothing -> t
+                    Just t' -> t'
+            name t = case t of
+                TPoly i -> i
+                _ -> ""
 
-treplace :: Context Type -> Type -> Type
-treplace c t = case t of
-    TTuple t1 t2 -> TTuple (treplace c t1) (treplace c t2)
-    TList t' -> TList (treplace c t')
-    _ -> creplace c findPoly t
+treplace :: Type -> State (Context Type) Type
+treplace t = case t of
+    TTuple t1 t2 -> do
+        t1 <- treplace t1
+        t2 <- treplace t2
+        return $ TTuple t1 t2
+    TList t -> do
+        t <- treplace t
+        return $ TList t
+    _ -> creplace findPoly t
     where
     findPoly t = case t of
         TPoly a -> Just a
@@ -84,29 +134,38 @@ checkApp :: (Type, Type) -> Type -> Type
 checkApp (t, t') a = case unify t a of
     Nothing -> error $ "application mismatch: `" ++ simplePrint t ++
         "' does not cover `" ++ simplePrint a ++ "'"
-    Just c -> treplace c t'
+    Just c -> treplace t' >!> c
 
 op1Type :: Op1 -> (Type, Type)
 op1Type o = case o of
     ONot -> (TBool, TBool)
     ONeg -> (TInt, TInt)
 
-op2Type :: Op2 -> State SPLC (Type, Type)
-op2Type o = splcv $ case o of
-    OCons -> fresh >>- \a -> (TTuple a (TList a), TList a)
+op2Type :: Op2 -> State Cv (Type, Type)
+op2Type o = case o of
     OAnd -> return (TTuple TBool TBool, TBool)
     OOr -> return (TTuple TBool TBool, TBool)
-    OEq -> fresh >>- \a -> (TTuple a a, TBool)
-    ONeq -> fresh >>- \a -> (TTuple a a, TBool)
-    OLt -> fresh >>- \a -> (TTuple a a, TBool)
-    OGt -> fresh >>- \a -> (TTuple a a, TBool)
-    OLe -> fresh >>- \a -> (TTuple a a, TBool)
-    OGe -> fresh >>- \a -> (TTuple a a, TBool)
-    OPlus -> fresh >>- \a -> (TTuple a a, a)
-    OMinus -> fresh >>- \a -> (TTuple a a, a)
-    OTimes -> fresh >>- \a -> (TTuple a a, a)
-    ODiv -> fresh >>- \a -> (TTuple a a, a)
-    OMod -> fresh >>- \a -> (TTuple a a, a)
+    OCons -> do
+        a <- fresh
+        return (TTuple a (TList a), TList a)
+    OPlus -> do
+        a <- fresh
+        return (TTuple a a, a)
+    OMinus -> do
+        a <- fresh
+        return (TTuple a a, a)
+    OTimes -> do
+        a <- fresh
+        return (TTuple a a, a)
+    ODiv -> do
+        a <- fresh
+        return (TTuple a a, a)
+    OMod -> do
+        a <- fresh
+        return (TTuple a a, a)
+    _ -> do
+        a <- fresh
+        return (TTuple a a, TBool)
 
 data StmtT =
     StmtsT [StmtT]
@@ -143,28 +202,24 @@ getType e = case e of
     EOp1T _ _ t -> t
     EOp2T _ _ _ t -> t
 
-unMaybe :: Maybe a -> a
-unMaybe m = case m of
-    Nothing -> error "unexpected emptiness"
-    Just a -> a
-
-initContext :: [Stmt] -> SPLC
+initContext :: [Stmt] -> State SPLC ()
 initContext l = case l of
-    [] -> (cnew, (addRead . addPrint . addIsEmpty) cnew)
-        where
-        addIsEmpty c = unMaybe $ cadd c "isEmpty" (TList (TPoly "t"), TBool)
-        addRead c = unMaybe $ cadd c "read" (TVoid, TPoly "t")
-        addPrint c = unMaybe $ cadd c "print" (TPoly "t", TVoid)
+    [] -> do
+        splcv (return ())
+        splcf $ do
+            cadd "isEmpty" (TList (TPoly "t"), TBool) "?"
+            cadd "read" (TVoid, TPoly "t") "?"
+            cadd "print" (TPoly "t", TVoid) "?"
     s : r -> case s of
-        VarDecl t i _ -> case cadd n i t of
-            Nothing -> error $ "redefined variable " ++ i
-            Just n' -> (n', m)
-        FunDecl t i as _ -> case cadd m i (combineTypes (map fst as), t) of
-            Nothing -> error $ "redefined function " ++ i
-            Just m' -> (n, m')
-        _ -> p
+        VarDecl t i _ -> do
+            caddvar i t
+            initContext r
+        FunDecl t i as _ -> do
+            caddfun i as t
+            rec
+        _ -> rec
         where
-        p@(n, m) = initContext r
+        rec = initContext r
 
 guaranteeReturn :: Stmt -> Bool
 guaranteeReturn s = case s of
@@ -196,128 +251,167 @@ guaranteeReturns l = case l of
 annotateProgram :: [Stmt] -> [StmtT]
 annotateProgram l = let
     l' = guaranteeReturns l
-    ST f = annotateMulti [] l'
-    in fst . f $ pair (cdown, cdown) (initContext l')
+    in (do
+        initContext l'
+        splcv cdown
+        splcf cdown
+        annotateMulti [] l'
+    ) >!> (cnew, cnew)
 
 annotateMulti :: [Type] -> [Stmt] -> State SPLC [StmtT]
-annotateMulti l = mapM (annotateS' l)
-
-annotateS :: Stmt -> State SPLC StmtT
-annotateS = annotateS' []
+annotateMulti l = mapM (annotateS l)
 
 checkPoly :: [Type] -> Type -> State SPLC Bool
 checkPoly l t = checkPoly' (listPoly t) (concat (map listPoly l))
     where
+    checkPoly' :: [Type] -> [Type] -> State SPLC Bool
     checkPoly' r l = case r of
         [] -> return True
-        a : r' -> ST $ \c@(cv, _) ->
-            if a `elem` l || cfindf cv (\t -> a `elem` listPoly t) then
-                let ST f = checkPoly' r' l in f c
-            else
-                (False, c)
+        a : r' -> let rec = checkPoly' r' l in
+            if a `elem` l then
+                rec
+            else do
+                b <- splcv (cfindf (\t -> a `elem` listPoly t))
+                if b then rec else return False
+    listPoly :: Type -> [Type]
     listPoly t = case t of
         TPoly _ -> [t]
         TTuple t1 t2 -> listPoly t1 ++ listPoly t2
         TList t' -> listPoly t'
         _ -> []
 
-annotateS' :: [Type] -> Stmt -> State SPLC StmtT
-annotateS' l s = case s of
-    Stmts s -> annotateMulti l s >>- StmtsT
-    VarDecl t i e -> checkPoly l t >>= \b ->
-        if b then
-            annotateE e >>= \e' -> let et = getType e' in
+annotateS :: [Type] -> Stmt -> State SPLC StmtT
+annotateS l s = case s of
+    Stmts s -> do
+        s <- annotateMulti l s
+        return $ StmtsT s
+    VarDecl t i e -> do
+        b <- checkPoly l t
+        if b then do
+            e <- annotateE e
+            let et = getType e in
                 case unify et t of
                     Nothing -> error $ "assignment mismatch: `" ++
                         simplePrint et ++ "' does not cover `" ++
                         simplePrint t ++ "'"
-                    Just _ -> ST $ \c@(cv, cf) -> case cadd cv i t of
-                        Nothing -> error $ "redefined variable " ++ i
-                        Just cv' -> (VarDeclT t i e', (cv', cf))
+                    Just _ -> do
+                        caddvar i t
+                        return (VarDeclT t i e)
         else
             error ("free polymorphic variable " ++ i)
-    FunDecl t i as b -> ST $ \c@(cv, cf) ->
-        case cadd cf i (combineTypes (map fst as), t) of
-            Nothing -> error $ "redefined function " ++ i
-            Just cf' -> case foldr addArg (Just (cdown cv)) as of
-                Nothing ->
-                    error $ "duplicate formal arguments for function " ++ i
-                Just cv' -> let ST f = annotateS' (t : l) b in
-                    (FunDeclT t i as (fst (f (cv'', cf''))), (cv, cf''))
-                    where
-                    cv'' = cdown cv'
-                    cf'' = cdown cf'
+    FunDecl t i as b -> do
+        caddfun i as t
+        forgetv $ do
+            splcv cdown
+            splcv (mapM_ addArg as)
+            splcf cdown
+            splcv cdown
+            b <- annotateS (t : l) b
+            return $ FunDeclT t i as b
             where
-            addArg (t, i) m = case m of
-                Nothing -> Nothing
-                Just cv -> cadd cv i t
-    FunCall i as -> mapM annotateE as >>- \es -> FunCallT i es
+            addArg (t, i) =
+                cadd i t ("duplicate formal arguments for function " ++ i)
+    FunCall i as -> do
+        es <- mapM annotateE as
+        return $ FunCallT i es
     Return m -> case l of
         [] -> error "return outside function"
         a : l' -> case m of
             Nothing -> return $ ReturnT Nothing
-            Just e -> annotateE e >>- \e' -> let t = getType e' in
-                case unify t a of
-                    Just _ -> ReturnT (Just e')
-                    Nothing -> error $ "invalid return type `" ++
-                        simplePrint t ++ "'; expected `" ++ simplePrint a ++ "'"
-    Assign i fs e -> idType i fs >>= \vt -> annotateE e >>- \e' ->
-        let t = getType e' in case unify t vt of
-            Nothing -> error $ "assignment mismatch: `" ++ simplePrint t ++
-                "' does not cover `" ++ simplePrint vt ++ "'"
-            Just _ -> AssignT i fs e'
-    If e s m -> annotateE e >>= \e' -> indiff (annotateS' l s) >>= \s' ->
+            Just e -> do
+                e <- annotateE e
+                let t = getType e in
+                    case unify t a of
+                        Nothing -> error $ "invalid return type `" ++
+                            simplePrint t ++ "'; expected `" ++
+                            simplePrint a ++ "'"
+                        _ -> return $ ReturnT (Just e)
+    Assign i fs e -> do
+        vt <- idType i fs
+        e <- annotateE e
+        let t = getType e in
+            case unify t vt of
+                Nothing -> error $ "assignment mismatch: `" ++ simplePrint t ++
+                    "' does not cover `" ++ simplePrint vt ++ "'"
+                Just _ -> return $ AssignT i fs e
+    If e s m -> do
+        e <- annotateE e
+        s <- indiff (annotateS l s)
         case m of
-            Nothing -> return $ IfT e' s' Nothing
-            Just m' -> indiff (annotateS' l m') >>- \m'' -> IfT e' s' (Just m'')
-    While e s -> annotateE e >>= \e' ->
-        indiff (annotateS' l s) >>- \s' -> WhileT e' s'
+            Nothing -> return $ IfT e s Nothing
+            Just m -> do
+                m <- indiff (annotateS l m)
+                return $ IfT e s (Just m)
+    While e s -> do
+        e <- annotateE e
+        s <- indiff (annotateS l s)
+        return $ WhileT e s
 
 freshen :: (Type, Type) -> State Cv (Type, Type)
-freshen t = let ST f = freshen' t in ST $ \cv -> right fst (f (cv, cnew))
+freshen t = ST $ \cv -> let
+    (r, (cv', _)) = apply (freshen' t) (cv, cnew)
+    in Left (r, cv')
     where
-    freshen' (t1, t2) = freshenT t1 >>= \t1' ->
-        freshenT t2 >>- \t2' -> (t1', t2')
+    freshen' :: (Type, Type) -> State (Cv, Cv) (Type, Type)
+    freshen' (t1, t2) = do
+        t1' <- freshenT t1
+        t2' <- freshenT t2
+        return (t1', t2')
     freshenT t = case t of
-        TTuple t1 t2 -> freshenT t1 >>= \t1' ->
-            freshenT t2 >>- \t2' -> (TTuple t1' t2')
-        TList t' -> freshenT t' >>- \t'' -> TList t''
-        TPoly i -> ST $ \(cv, r) -> case clookup r i of
-            Nothing -> let
-                ST f = fresh
-                p@(t', cv') = f cv
-                in (t', (cv', unMaybe (cadd r i t')))
-            Just t' -> (t', (cv, r))
+        TTuple t1 t2 -> do
+            (t1', t2') <- freshen' (t1, t2)
+            return (TTuple t1' t2')
+        TList t' -> do
+            t'' <- freshenT t'
+            return (TList t'')
+        TPoly i -> do
+            m <- str (clookup i)
+            case m of
+                Nothing -> do
+                    t' <- stl (fresh)
+                    str (cadd i t' "?")
+                    return t'
+                Just t' -> return t'
         _ -> return t
 
 idType :: String -> [Field] -> State SPLC Type
 idType i fs = splcv . indiff $ idType' i fs
     where
-    idType' i fs = ST $ \cv -> case fs of
-        [] -> (clookupe cv i, cv)
-        f : r -> let
-            ST g = fieldType f
-            ST h = idType' i r
-            in h (unMaybe (cadd (crem cv i) i
-                (checkApp (fst (g cv)) (clookupe cv i))))
+    idType' :: String -> [Field] -> State Cv Type
+    idType' i fs = case fs of
+        [] -> clookupe i
+        f : r -> do
+            t <- clookupe i
+            crem i
+            t' <- fieldType f
+            cadd i (checkApp t' t) "?"
+            idType' i r
 
 annotateE :: Exp -> State SPLC ExpT
 annotateE e = case e of
     EInt i -> return $ EIntT i TInt
     EBool b -> return $ EBoolT b TBool
     EChar a -> return $ ECharT a TChar
-    ENil -> splcv $ fresh >>- \t -> ENilT (TList t)
-    ETuple e1 e2 -> annotateE e1 >>= \e1' -> annotateE e2 >>- \e2' ->
-        ETupleT e1' e2' (TTuple (getType e1') (getType e2'))
-    EId i fs -> idType i fs >>- \t -> EIdT i fs t
-    EFunCall i as -> ST $ \(cv, cf) -> let
-        ST f = freshen (clookupe cf i)
-        (t, cv') = f cv
-        ST g = mapM annotateE as
-        (es, c') = g (cv', cf)
-        in (EFunCallT i es (checkApp t (combineTypes (map getType es))), c')
-    EOp1 o e -> annotateE e >>- \e' ->
-        EOp1T o e' (checkApp (op1Type o) (getType e'))
-    EOp2 o e1 e2 -> annotateE e1 >>= \e1' -> annotateE e2 >>= \e2' ->
-        op2Type o >>- \ft ->
-            EOp2T o e1' e2' (checkApp ft (TTuple (getType e1') (getType e2')))
+    ENil -> splcv $ do
+        a <- fresh
+        return $ ENilT (TList a)
+    ETuple e1 e2 -> do
+        e1 <- annotateE e1
+        e2 <- annotateE e2
+        return $ ETupleT e1 e2 (TTuple (getType e1) (getType e2))
+    EId i fs -> do
+        t <- idType i fs
+        return $ EIdT i fs t
+    EFunCall i as -> do
+        t <- splcf (clookupe i)
+        t <- splcv (freshen t)
+        es <- mapM annotateE as
+        return $ EFunCallT i es (checkApp t (combineTypes (map getType es)))
+    EOp1 o e -> do
+        e <- annotateE e
+        return $ EOp1T o e (checkApp (op1Type o) (getType e))
+    EOp2 o e1 e2 -> do
+        e1 <- annotateE e1
+        e2 <- annotateE e2
+        ft <- splcv (op2Type o)
+        return $ EOp2T o e1 e2 (checkApp ft (TTuple (getType e1) (getType e2)))

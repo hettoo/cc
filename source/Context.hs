@@ -1,18 +1,21 @@
 module Context where
 import State
+import Utils
 
 type Context t = (Int, Int, [(String, t, Int)])
 
 cnew :: Context t
 cnew = (0, 0, [])
 
-cdown :: Context t -> Context t
-cdown (i, n, l) = (i + 1, n, l)
+cdown :: State (Context t) ()
+cdown = st $ \(i, n, l) -> (i + 1, n, l)
 
-caddc :: (t -> t -> Bool) -> Context t -> String -> t -> Maybe (Context t)
-caddc f (i, n, l) s t = fmap (\x -> (i, n, x)) (cadd' l)
+caddc :: (t -> t -> Bool) -> String -> t -> String -> State (Context t) ()
+caddc f s t e = ST $ \(i, n, l) -> case cadd' l i of
+    Just l' -> Left ((), (i, n, l'))
+    Nothing -> Right e
     where
-    cadd' l = case l of
+    cadd' l i = case l of
         [] -> Just [(s, t, i)]
         c@(s', t', i') : r ->
             if s == s' then
@@ -23,57 +26,61 @@ caddc f (i, n, l) s t = fmap (\x -> (i, n, x)) (cadd' l)
             else
                 fmap ((:) c) rec
             where
-            rec = cadd' r
+            rec = cadd' r i
 
-cadd :: Context t -> String -> t -> Maybe (Context t)
+cadd :: String -> t -> String -> State (Context t) ()
 cadd = caddc (\_ _ -> True)
 
 caddr :: Eq t =>
-    Context t -> String -> t -> Maybe (Context t)
+    String -> t -> String -> State (Context t) ()
 caddr = caddc (/=)
 
-crem :: Context t -> String -> Context t
-crem (i, n, l) s = (i, n, crem' l)
+crem :: String -> State (Context t) ()
+crem s = ST $ \(i, n, l) -> Left ((), (i, n, crem' l))
     where
     crem' l = case l of
         [] -> []
-        f@(s', t, i) : r ->
+        f@(s', _, _) : r ->
             if s == s' then
                 crem' r
             else
                 f : crem' r
 
-clookup :: Context t -> String -> Maybe t
-clookup (i, n, l) s = case l of
+clookup :: String -> State (Context t) (Maybe t)
+clookup s = res $ \(i, n, l) -> case l of
     [] -> Nothing
     (s', t, _) : _ | s == s' -> Just t
-    _ : r -> clookup (i, n, r) s
+    _ : r -> clookup s >!> (i, n, r)
 
-clookupe :: Context t -> String -> t
-clookupe c s = case clookup c s of
-    Nothing -> error $ "undeclared entity " ++ s
-    Just t -> t
+clookupe :: String -> State (Context t) t
+clookupe s = do
+    m <- clookup s
+    case m of
+        Nothing -> error $ "undeclared entity " ++ s
+        Just t -> return t
 
-cfindf :: Context t -> (t -> Bool) -> Bool
-cfindf (i, n, l) f = case l of
+cfindf :: (t -> Bool) -> State (Context t) Bool
+cfindf f = res $ \(i, n, l) -> case l of
     [] -> False
     (_, t', _) : _ | f t' -> True
-    _ : r -> cfindf (i, n, r) f
+    _ : r -> cfindf f >!> (i, n, r)
 
 cfind :: Eq t =>
-    Context t -> t -> Bool
-cfind c t = cfindf c ((==) t)
+    t -> State (Context t) Bool
+cfind t = cfindf ((==) t)
 
-creplace :: Context t -> (t -> Maybe String) -> t -> t
-creplace c f t = case f t of
-    Nothing -> t
-    Just s -> case clookup c s of
-        Nothing -> t
-        Just t' -> t'
+creplace :: (t -> Maybe String) -> t -> State (Context t) t
+creplace f t = case f t of
+    Nothing -> return t
+    Just s -> do
+        m <- clookup s
+        return $ case m of
+            Nothing -> t
+            Just t' -> t'
 
 class DistinctSequence t where
     createN :: Int -> t
 
 fresh :: DistinctSequence t =>
     State (Context t) t
-fresh = ST $ \(i, n, l) -> (createN n, (i, n + 1, l))
+fresh = ST $ \(i, n, l) -> Left (createN n, (i, n + 1, l))
