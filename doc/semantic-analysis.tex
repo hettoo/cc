@@ -206,11 +206,11 @@ The types of these are given by the axioms below.
     \DisplayProof
 \end{center}
 
-Binding time analysis consists in determining where variables that are used in the program were bound.
+Binding time analysis consists of determining whether variables that are used in the program were bound.
 We use the usual precedence rules to do this: variables defined later override earlier ones, unless they were defined in the same scope (block of code or function argument lists), which is an error.
 Note that both function arguments and function bodies introduce a new scope.
 
-Typechecking a function consists in ensuring that the returned values for all possible executions of the function (assuming just that it terminates) are compatible with the type given to it.
+Typechecking a function consists of ensuring that the returned values for all possible executions of the function (assuming just that it terminates) are compatible with the type given to it.
 An execution not hitting a return statement is equivalent to it returning a variable of type Void in the end.
 Of course there are no such variables, but this is in turn modeled by the return statement without parameter.
 
