@@ -217,4 +217,7 @@ Of course there are no such variables, but this is in turn modeled by the return
 Functions may be overloaded, but it is not allowed that multiple versions of a function apply for any possible way the function can be called.
 Note that the current implementation does not allow overloading the return type of a function at all.
 
+\subsection{Instructions}
+Building the project requires a modern Haskell compiler and a Make-like system. Internally, GHC 7.6.3 and GNU Make 3.81 were used. Running \verb|make| in the project root will build the compiler in the \verb|build| folder. Tests can either be run manually by feeding SPL source files into the compiler with \verb|build/compiler < tests/typing/test1.spl| or automatically by calling \verb|make tests| in the project root to run a set of predefined tests.
+
 \end{document}
