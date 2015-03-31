@@ -1,0 +1,5 @@
+Void f (Char a) {
+    f(0);
+}
+
+Void f (Int a) {}

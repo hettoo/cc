@@ -16,6 +16,8 @@ tests: all
 	@$(call testCorrect,main)
 	@$(call testCorrect,typing/scope1)
 	@$(call testCorrect,typing/scope2)
+	@$(call testCorrect,typing/overloading1)
+	@$(call testCorrect,typing/overloading2)
 	@$(call testError,typing/error1)
 	@$(call testError,typing/error2)
 	@$(call testError,typing/error3)
@@ -29,5 +31,6 @@ tests: all
 	@$(call testError,typing/error11)
 	@$(call testError,typing/error12)
 	@$(call testError,typing/error13)
+	@$(call testError,typing/error14)
 
 .PHONY: all run tests

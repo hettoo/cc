@@ -4,6 +4,7 @@ import Context
 import State
 import Utils
 import SPL.Printer
+import Control.Monad
 
 type Cv = Context Type
 type Cf = Context (Type, Type)
@@ -29,8 +30,19 @@ caddvar :: String -> Type -> State SPLC ()
 caddvar i t = splcv $ cadd i t ("redefined variable " ++ i)
 
 caddfun :: String -> [(Type, String)] -> Type -> State SPLC ()
-caddfun i as t = splcf $
-    cadd i (combineTypes (map fst as), t) ("redefined function " ++ i)
+caddfun i as t = do
+    splcf $ caddc checkOverloaded i p ("redefined function " ++ i)
+    where
+    p = (combineTypes (map fst as), t)
+    checkOverloaded p' = (do
+            (t, _) <- freshen p
+            (t', _) <- freshen p'
+            return $
+                if unifiable t t' then
+                    Reject
+                else
+                    Both
+        ) >!> cnew
 
 instance DistinctSequence Type where
     createN n = TPoly ("?" ++ show n)
@@ -288,11 +300,18 @@ checkPoly l t = checkPoly' (listPoly t) (concat (map listPoly l))
 
 applyFun :: String -> [Exp] -> State SPLC ([ExpT], Type)
 applyFun i as = do
-    t <- splcf (clookupe i)
-    t <- splcv (freshen t)
-    es <- mapM annotateE as
-    a <- checkApp t (combineTypes (map getType es))
-    return (es, a)
+    ts <- splcf (clookupa i)
+    ts <- mapM (\t -> splcv (freshen t)) ts
+    as <- mapM annotateE as
+    let a = combineTypes (map getType as) in do
+        us <- mapM (\(t, t') ->
+            return $ fmap (\c -> treplace t' >!> c) (unify t a)) ts
+        us <- filterM (\m -> return $ case m of Just _ -> True; _ -> False) us
+        us <- mapM (\m -> case m of Just t -> return t) us
+        t <- case us of
+            t : _ -> return t
+            _ -> fail $ "no candidate for application of " ++ i ++ " found"
+        return (as, t)
 
 annotateS :: [Type] -> Stmt -> State SPLC StmtT
 annotateS l s = case s of

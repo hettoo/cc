@@ -10,7 +10,13 @@ cnew = (0, 0, [])
 cdown :: State (Context t) ()
 cdown = st $ \(i, n, l) -> (i + 1, n, l)
 
-caddc :: (t -> Bool) -> String -> t -> String -> State (Context t) ()
+data CAddPolicy =
+    Both
+    | Override
+    | Reject
+    deriving Eq
+
+caddc :: (t -> CAddPolicy) -> String -> t -> String -> State (Context t) ()
 caddc f s t e = ST $ \(i, n, l) -> case cadd' l i of
     Just l' -> Left ((), (i, n, l'))
     Nothing -> Right e
@@ -19,21 +25,21 @@ caddc f s t e = ST $ \(i, n, l) -> case cadd' l i of
         [] -> Just [(s, t, i)]
         c@(s', t', i') : r ->
             if s == s' then
-                if i' >= i && f t' then
+                if i' >= i && f t' == Reject then
                     Nothing
                 else
-                    rec
+                    if f t' == Both then fmap ((:) c) rec else rec
             else
                 fmap ((:) c) rec
             where
             rec = cadd' r i
 
 cadd :: String -> t -> String -> State (Context t) ()
-cadd = caddc (const True)
+cadd = caddc (const Reject)
 
 caddr :: Eq t =>
     String -> t -> String -> State (Context t) ()
-caddr i t = caddc ((/=) t) i t
+caddr i t = caddc (\t' -> if t == t' then Reject else Override) i t
 
 crem :: String -> State (Context t) ()
 crem s = ST $ \(i, n, l) -> Left ((), (i, n, crem' l))
@@ -45,6 +51,15 @@ crem s = ST $ \(i, n, l) -> Left ((), (i, n, crem' l))
                 crem' r
             else
                 f : crem' r
+
+clookupa :: String -> State (Context t) [t]
+clookupa s = res clookupa'
+    where
+    clookupa' (i, n, l) = case l of
+        [] -> []
+        (s', t, _) : r -> if s == s' then t : rec else rec
+            where
+            rec = clookupa' (i, n, r)
 
 clookup :: String -> State (Context t) (Maybe t)
 clookup s = res $ \(i, n, l) -> case l of

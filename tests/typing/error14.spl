@@ -1,0 +1,7 @@
+Int id (Int x) {
+    return x;
+}
+
+a id (a x) {
+    return x;
+}
