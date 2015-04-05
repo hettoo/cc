@@ -29,7 +29,7 @@ main = do
     args <- getArgs
     s <- getContents
     let p = annotateProgram . parseSPL $ s
-    writeFile (lookupPath args) $ genSeq p
+    writeFile (lookupPath args) $ seq p
     putStr . prettyPrint $ p
     --putStr . prettyPrint . parseSPL $ s
     --putStrLn $ "Parser |= Printer: " ++ show (testPrinter s)
