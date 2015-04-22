@@ -1,12 +1,10 @@
 module SPL.Sequencer where
 import SPL.Algebra
 import SPL.Typer
-import Control.Monad.ST
+import State
+import Control.Monad
 import Data.Map (Map)
 import qualified Data.Map as M
-
-seq :: [StmtT] -> String
-seq ss = unlines $ concatMap seqStmt ss
 
 type Instruction = String
 
@@ -19,9 +17,15 @@ type VarTab = Map VarId HeapAddr
 
 type Sequencer = State (FunTab, VarTab) [Instruction]
 
-seqStmt :: Stmt -> Sequencer
+seqf :: (a -> Sequencer) -> [a] -> Sequencer
+seqf f = foldl (\s a -> s >> f a) (return [])
+
+seqOutput :: [StmtT] -> String
+seqOutput ss = unlines $ seqf seqStmt ss >!> (M.empty, M.empty)
+
+seqStmt :: StmtT -> Sequencer
 seqStmt s = case s of
-    StmtsT ss -> sequence $ map seqStmt ss
+    StmtsT ss -> seqf seqStmt ss
     VarDeclT t id e -> halt "not yet implemented" 
     FunDeclT _ _ _ _ -> halt "not yet implemented" 
     FunCallT "print" [e] -> do
@@ -49,7 +53,7 @@ seqExp e = case e of
         return $ s1 ++ s2
     EIdT _ _ _ -> halt "not yet implemented" 
     EFunCallT id as _ -> do
-        s <- sequence $ map seqExp as
+        s <- seqf seqExp as
         c <- seqFunCall id
         return $ s ++ c
     EOp1T op e _ -> do
@@ -57,7 +61,7 @@ seqExp e = case e of
         return $ s ++ case op of
             ONot -> ["not"]
             ONeg -> ["sub"]
-    EOp2T OCons _ _ -> halt "not yet implemented"
+    EOp2T OCons _ _ _ -> halt "not yet implemented"
     EOp2T op e1 e2 _ -> do
         s1 <- seqExp e1
         s2 <- seqExp e2
@@ -78,15 +82,15 @@ seqExp e = case e of
 
 seqVar :: VarId -> Sequencer
 seqVar id = do
-    (_, varTab) <- get
-    return ["ldc " ++ M.lookup id varTab]
+    (_, varTab) <- getState
+    return ["ldc " ++ case M.lookup id varTab of Just x -> show x]
 
 seqFunCall :: FunId -> Sequencer
 seqFunCall id = do
-    (funTab, _) <- get
-    return ["bsr " ++ M.lookup id funTab]
+    (funTab, _) <- getState
+    return ["bsr " ++ case M.lookup id funTab of Just s -> s]
 
-comment :: [Instruction] String -> [Instruction]
+comment :: [Instruction] -> String -> [Instruction]
 comment (i:is) c = (i ++ " ; " ++ c) : is
 
 halt :: String -> Sequencer
