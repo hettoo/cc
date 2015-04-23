@@ -30,11 +30,13 @@ seqTodo ss = do
     (t, _, _) <- getState
     case getTodo t of
         (Nothing, _) -> return []
-        (Just c, t') -> do
+        (Just c@(i, as), t') -> do
             setTodo (const t')
             l <- seqStmt (findFunction c ss)
             l' <- seqTodo ss
-            return $ (callLabel c ++ ":") : l ++ l'
+            return $ (callLabel c ++ ":") : l ++ l' ++ case i of
+                "main" -> comment ["halt"] "program end"
+                _ -> ["ret"]
 
 callLabel :: Call -> String
 callLabel (s, t) = s -- TODO: encode types
@@ -73,7 +75,7 @@ seqStmt s = case s of
         return $ s ++ case getType e of
             TInt -> ["trap 0"]
             TChar -> ["trap 1"]
-    FunCallT _ _ -> halt "not yet implemented"
+    FunCallT id as -> seqFunCall id as False
     ReturnT _ -> halt "not yet implemented"
     AssignT _ _ _ -> halt "not yet implemented"
     IfT _ _ _ -> halt "not yet implemented"
@@ -86,7 +88,7 @@ seqExp e = case e of
         True -> return ["ldc -1"]
         False -> return ["ldc 0"]
     ECharT x TChar -> return ["ldc " ++ show x]
-    ENilT _ -> return ["nop"]
+    ENilT _ -> halt "not yet implemented"
     ETupleT e1 e2 _ -> do
         s1 <- seqExp e1
         s2 <- seqExp e2
@@ -94,7 +96,7 @@ seqExp e = case e of
     EIdT _ _ _ -> halt "not yet implemented"
     EFunCallT id as _ -> do
         s <- seqf seqExp as
-        c <- seqFunCall id
+        c <- seqFunCall id as True
         return $ s ++ c
     EOp1T op e _ -> do
         s <- seqExp e
@@ -121,17 +123,23 @@ seqExp e = case e of
             OMod -> ["mod"]
 
 seqVar :: String -> Sequencer
-seqVar id = do
+seqVar i = do
     (_, _, varTab) <- getState
-    return ["ldc " ++ show (clookupe id >!> varTab)]
+    return ["ldc " ++ show (clookupe i >!> varTab)]
 
-seqFunCall :: String -> Sequencer
-seqFunCall id = do
+seqFunCall :: String -> [ExpT] -> Bool -> Sequencer
+seqFunCall i as keep = let c = (i, map getType as) in do
+    st (\(t, f, v) -> (todo c t, f, v))
+    l <- seqf seqExp as
     (_, funTab, _) <- getState
-    return ["bsr " ++ (clookupe id >!> funTab)]
+    return $ l ++ ["bsr " ++ (clookupe i >!> funTab)] ++
+        if keep then
+            []
+        else
+            ["stl 2"] -- TODO: proper way to pop and discard
 
 comment :: [Instruction] -> String -> [Instruction]
-comment (i:is) c = (i ++ " ; " ++ c) : is
+comment (i : is) c = (i ++ " ; " ++ c) : is
 
 halt :: String -> Sequencer
 halt reason = return $ comment ["halt"] reason
