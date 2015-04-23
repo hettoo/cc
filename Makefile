@@ -42,5 +42,7 @@ tests: all
 	@$(call testError,typing/error12)
 	@$(call testError,typing/error13)
 	@$(call testError,typing/error14)
+	@$(call testError,typing/error15)
+	@$(call testError,typing/error16)
 
 .PHONY: all run tests

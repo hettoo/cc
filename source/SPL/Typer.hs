@@ -298,6 +298,13 @@ checkPoly l t = checkPoly' (listPoly t) (concat (map listPoly l))
         TList t' -> listPoly t'
         _ -> []
 
+checkMain :: String -> Type -> [(Type, String)] -> State SPLC Bool
+checkMain i t as = case i of
+    "main" -> case as of
+        [] -> checkPoly [] t
+        _ -> return False
+    _ -> return True
+
 applyFun :: String -> [Exp] -> State SPLC ([ExpT], Type)
 applyFun i as = do
     ts <- splcf (clookupa i)
@@ -333,17 +340,21 @@ annotateS l s = case s of
         else
             fail ("free polymorphic variable " ++ i)
     FunDecl t i as b -> do
-        caddfun i as t
-        forgetv $ do
-            splcv cdown
-            splcv (mapM_ addArg as)
-            splcf cdown
-            splcv cdown
-            b <- annotateS (t : l) b
-            return $ FunDeclT t i as b
-            where
-            addArg (t, i) =
-                cadd i t ("duplicate formal arguments for function " ++ i)
+        m <- checkMain i t as
+        if m then do
+            caddfun i as t
+            forgetv $ do
+                splcv cdown
+                splcv (mapM_ addArg as)
+                splcf cdown
+                splcv cdown
+                b <- annotateS (t : l) b
+                return $ FunDeclT t i as b
+        else
+            fail "invalid main function"
+                where
+                addArg (t, i) =
+                    cadd i t ("duplicate formal arguments for function " ++ i)
     FunCall i as -> do
         (es, _) <- applyFun i as
         return $ FunCallT i es
