@@ -3,30 +3,71 @@ import SPL.Algebra
 import SPL.Typer
 import State
 import Context
+import Todo
 import Control.Monad
 
 type Instruction = String
 
-type VarId = String
-type FunId = String
-type Label = String
 type HeapAddr = Int
-type FunTab = Context Label
 type VarTab = Context HeapAddr
 
-type Sequencer = State (FunTab, VarTab) [Instruction]
+type Label = String
+type FunTab = Context Label
+
+type Call = (String, [Type]) -- TODO: allow polymorphic outputs
+
+type Sequencer = State (Todo Call, FunTab, VarTab) [Instruction]
 
 seqf :: (a -> Sequencer) -> [a] -> Sequencer
 seqf f = foldl (\s a -> s >> f a) (return [])
 
 seqOutput :: [StmtT] -> String
-seqOutput ss = unlines $ seqf seqStmt ss >!> (cnew, cnew)
+seqOutput ss = unlines $ seqTodo ss >!> (todo ("main", []) tnew, cnew, cnew)
+-- TODO: evaluate global variables first
+
+seqTodo :: [StmtT] -> Sequencer
+seqTodo ss = do
+    (t, _, _) <- getState
+    case getTodo t of
+        (Nothing, _) -> return []
+        (Just c, t') -> do
+            setTodo (const t')
+            l <- seqStmt (findFunction c ss)
+            l' <- seqTodo ss
+            return $ callLabel c : l ++ l'
+
+callLabel :: Call -> String
+callLabel (s, t) = s -- TODO: encode types
+
+findFunction :: Call -> [StmtT] -> StmtT
+findFunction c@(i, as) l = case l of
+    s : r -> case s of
+        FunDeclT _ i' as' b ->
+            if i == i' && as == map fst as' then -- TODO: unify
+                b
+            else
+                rec
+        _ -> rec
+        where
+        rec = findFunction c r
+
+mainType :: [StmtT] -> Type
+mainType l = case l of
+    s : r -> case s of
+        FunDeclT t "main" _ _ -> t
+        _ -> mainType r
+
+setTodo :: (Todo Call -> Todo Call) -> Sequencer
+setTodo f = ST $ \(t, ft, vt) -> Left ([], (f t, ft, vt))
+
+addCall :: Call -> Sequencer
+addCall c = setTodo (todo c)
 
 seqStmt :: StmtT -> Sequencer
 seqStmt s = case s of
     StmtsT ss -> seqf seqStmt ss
     VarDeclT t id e -> halt "not yet implemented"
-    FunDeclT _ _ _ _ -> halt "not yet implemented"
+    FunDeclT _ _ _ _ -> halt "nested functions are impossible"
     FunCallT "print" [e] -> do
         s <- seqExp e
         return $ s ++ case getType e of
@@ -79,14 +120,14 @@ seqExp e = case e of
             ODiv -> ["div"]
             OMod -> ["mod"]
 
-seqVar :: VarId -> Sequencer
+seqVar :: String -> Sequencer
 seqVar id = do
-    (_, varTab) <- getState
+    (_, _, varTab) <- getState
     return ["ldc " ++ show (clookupe id >!> varTab)]
 
-seqFunCall :: FunId -> Sequencer
+seqFunCall :: String -> Sequencer
 seqFunCall id = do
-    (funTab, _) <- getState
+    (_, funTab, _) <- getState
     return ["bsr " ++ (clookupe id >!> funTab)]
 
 comment :: [Instruction] -> String -> [Instruction]
