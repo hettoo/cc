@@ -34,7 +34,7 @@ seqTodo ss = do
             setTodo (const t')
             l <- seqStmt (findFunction c ss)
             l' <- seqTodo ss
-            return $ callLabel c : l ++ l'
+            return $ (callLabel c ++ ":") : l ++ l'
 
 callLabel :: Call -> String
 callLabel (s, t) = s -- TODO: encode types
