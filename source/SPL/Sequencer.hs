@@ -36,7 +36,7 @@ seqTodo ss = do
             l' <- seqTodo ss
             return $ (callLabel c ++ ":") : l ++ l' ++ case i of
                 "main" -> comment ["halt"] "program end"
-                _ -> ["ret"]
+                _ -> []
 
 callLabel :: Call -> String
 callLabel (s, t) = s -- TODO: encode types
@@ -44,9 +44,12 @@ callLabel (s, t) = s -- TODO: encode types
 findFunction :: Call -> [StmtT] -> StmtT
 findFunction c@(i, as) l = case l of
     s : r -> case s of
-        FunDeclT _ i' as' b ->
+        FunDeclT t i' as' b ->
             if i == i' && as == map fst as' then -- TODO: unify
-                b
+                case (i, t) of
+                    ("main", _) -> b
+                    (_, TVoid) -> StmtsT [b, ReturnT Nothing] -- just to be sure
+                    _ -> b
             else
                 rec
         _ -> rec
@@ -76,7 +79,11 @@ seqStmt s = case s of
             TInt -> ["trap 0"]
             TChar -> ["trap 1"]
     FunCallT id as -> seqFunCall id as False
-    ReturnT _ -> halt "not yet implemented"
+    ReturnT m -> case m of
+        Just e -> do
+            l <- seqExp e
+            return $ l ++ ["ret"]
+        Nothing -> return ["ret"]
     AssignT _ _ _ -> halt "not yet implemented"
     IfT _ _ _ -> halt "not yet implemented"
     WhileT _ _ -> halt "not yet implemented"
