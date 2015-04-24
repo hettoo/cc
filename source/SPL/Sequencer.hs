@@ -85,8 +85,22 @@ seqStmt s = case s of
             return $ l ++ ["ret"]
         Nothing -> return ["ret"]
     AssignT _ _ _ -> halt "not yet implemented"
-    IfT _ _ _ -> halt "not yet implemented"
-    WhileT _ _ -> halt "not yet implemented"
+    IfT c b m -> do
+        l <- seqExp c
+        l' <- seqStmt b
+        case m of
+            -- TODO: fresh labels
+            Nothing -> return $ l ++ ["brf _endif"] ++ l' ++ ["_endif:"]
+            Just e -> do
+                l'' <- seqStmt e
+                return $ l ++ ["brf _else"] ++ l' ++
+                    ["bra _endif", "_else:"] ++ l'' ++ ["_endif:"]
+    WhileT c b -> do
+        l <- seqExp c
+        l' <- seqStmt b
+        -- TODO: fresh labels
+        return $ ["_while:"] ++ l ++
+            ["brf _endwhile"] ++ l' ++ ["bra _while", "_endwhile:"]
 
 seqExp :: ExpT -> Sequencer
 seqExp e = case e of
