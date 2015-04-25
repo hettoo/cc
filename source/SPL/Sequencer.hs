@@ -44,19 +44,16 @@ type SO = (Todo Call, SP, VarContext, [Command])
 type Sequencer = Endo SO
 
 gtodo :: (Todo Call -> Todo Call) -> Sequencer
-gtodo = globalize (\(t, _, _, _) -> t)
-    (\t (_, sp, vc, l) -> (t, sp, vc, l)) . st
+gtodo = globalize (\(t, _, _, _) -> t) (\t (_, sp, vc, l) -> (t, sp, vc, l))
 
 gsp :: (SP -> SP) -> Sequencer
-gsp = globalize (\(_, sp, _, _) -> sp)
-    (\sp (t, _, vc, l) -> (t, sp, vc, l)) . st
+gsp = globalize (\(_, sp, _, _) -> sp) (\sp (t, _, vc, l) -> (t, sp, vc, l))
 
 gvc :: (VarContext -> VarContext) -> Sequencer
-gvc = globalize (\(_, _, vc, _) -> vc)
-    (\vc (t, sp, _, l) -> (t, sp, vc, l)) . st
+gvc = globalize (\(_, _, vc, _) -> vc) (\vc (t, sp, _, l) -> (t, sp, vc, l))
 
 gcmd :: ([Command] -> [Command]) -> Sequencer
-gcmd = globalize (\(_, _, _, l) -> l) (\l (t, sp, vc, _) -> (t, sp, vc, l)) . st
+gcmd = globalize (\(_, _, _, l) -> l) (\l (t, sp, vc, _) -> (t, sp, vc, l))
 
 addCmd :: Command -> Sequencer
 addCmd c = do

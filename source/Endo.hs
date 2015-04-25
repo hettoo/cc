@@ -7,9 +7,8 @@ type Endo a = State a ()
 eId :: Endo a
 eId = st id
 
-globalize :: (b -> a) -> (a -> b -> b) -> Endo a -> Endo b
-globalize f g (ST h) = ST $ \t -> case h (f t) of
-    Left (x, t') -> Left (x, g t' t)
+globalize :: (b -> a) -> (a -> b -> b) -> (a -> a) -> Endo b
+globalize f g h = st $ \b -> g (h (f b)) b
 
 endoSeq :: (a -> Endo b) -> [a] -> Endo b
 endoSeq f = foldM (const f) ()
