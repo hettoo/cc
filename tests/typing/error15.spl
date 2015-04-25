@@ -1,3 +1,5 @@
 a main() {
     return read();
 }
+
+Void main () {}

@@ -7,3 +7,5 @@ b g (c x) {
     // c is not b
     return x;
 }
+
+Void main () {}

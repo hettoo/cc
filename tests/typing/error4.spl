@@ -1,3 +1,5 @@
 Int f () {
     return f(0);
 }
+
+Void main () {}

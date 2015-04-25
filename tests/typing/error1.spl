@@ -6,3 +6,5 @@ a f () {
 a g (a x) {
     return x;
 }
+
+Void main () {}

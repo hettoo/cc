@@ -12,3 +12,5 @@ Int g () {
         return 1;
     }
 }
+
+Void main () {}

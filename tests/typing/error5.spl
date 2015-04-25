@@ -2,3 +2,5 @@ a f (a x) {
     Int y = x;
     return x;
 }
+
+Void main () {}

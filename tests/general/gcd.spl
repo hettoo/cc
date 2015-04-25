@@ -8,3 +8,5 @@ Int gcd (Int a, Int b) {
         return a;
     return gcd(b, a % b);
 }
+
+Void main () {}

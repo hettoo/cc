@@ -35,3 +35,5 @@ a get([[a]] matrix, (Int, Int) pos) {
 	if (isEmpty(x)) return b;
 	return x.hd : concat(x.tl, b);
 }
+
+Void main () {}

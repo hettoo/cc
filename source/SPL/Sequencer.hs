@@ -71,7 +71,7 @@ discard :: Sequencer
 discard = addCmd $ STL 0 -- TODO: proper way to pop and discard
 
 seqOutput :: [StmtT] -> String
-seqOutput l = stateOutput $ (seqTodo l) >@>
+seqOutput l = stateOutput $ defaults >> (seqTodo l) >@>
     (todo ("main", []) tnew, 0, cnew, [])
 
 stateOutput :: SO -> String
@@ -92,6 +92,9 @@ cmdOutput c = case c of
     RET -> "ret"
     HALT s -> "halt" ++ if s == "" then "" else " ; " ++ s
 
+defaults :: Sequencer
+defaults = eId -- TODO
+
 seqTodo :: [StmtT] -> Sequencer
 seqTodo l = do
     (t, _, _, _) <- getState
@@ -100,7 +103,7 @@ seqTodo l = do
         (Just c@(i, as), t') -> do
             gtodo (const t')
             addCmd $ LABEL (callLabel c)
-            seqStmt (findFunction c l)
+            seqFunction c l
             seqTodo l
             if i == "main" then
                 addCmd $ HALT "program end"
@@ -110,11 +113,19 @@ seqTodo l = do
 callLabel :: Call -> String
 callLabel (s, t) = s -- TODO: encode types
 
+seqFunction :: Call -> [StmtT] -> Sequencer
+seqFunction c@(i, as) l = case i of -- TODO: unification
+    "isEmpty" -> eId -- TODO
+    "read" -> eId -- TODO
+    "print" -> eId -- TODO
+    _ -> seqStmt (findFunction c l)
+
 findFunction :: Call -> [StmtT] -> StmtT
 findFunction c@(i, as) l = case l of
+    [] -> error $ "function " ++ show c ++ " not found"
     s : r -> case s of
         FunDeclT t i' as' b ->
-            if i == i' && as == map fst as' then -- TODO: unify
+            if i == i' {-&& as == map fst as'-} then -- TODO: unify
                 case (i, t) of
                     ("main", _) -> b
                     (_, TVoid) -> StmtsT [b, ReturnT Nothing] -- just to be sure
@@ -128,20 +139,21 @@ findFunction c@(i, as) l = case l of
 seqStmt :: StmtT -> Sequencer
 seqStmt s = case s of
     StmtsT l -> endoSeq seqStmt l
-    --VarDeclT t id e -> -- TODO
+    VarDeclT t id e -> addCmd $ HALT "variables not yet implemented"
     FunDeclT _ _ _ _ -> addCmd $ HALT "nested functions are impossible"
     FunCallT "print" [e] -> do
         seqExp e
-        addCmd $ case getType e of
-            TInt -> PRINTI
-            TChar -> PRINTC
+        case getType e of
+            TInt -> addCmd PRINTI
+            TChar -> addCmd PRINTC
+            _ -> addCmd $ HALT ("print not yet implemented for " ++ show e)
     FunCallT id as -> seqFunCall id as
     ReturnT m -> do
         case m of
             Just e -> seqExp e
             Nothing -> eId
         addCmd RET
-    --AssignT _ _ _ -> -- TODO
+    AssignT _ _ _ -> addCmd $ HALT "assignment not yet implemented"
     IfT c b m -> case m of -- TODO: fresh labels
         Nothing -> do
             seqExp c
@@ -171,11 +183,11 @@ seqExp e = case e of
         True -> "-1"
         False -> "0"
     ECharT x TChar -> addCmd $ LDC (show x)
-    --ENilT _ -> -- TODO
+    ENilT _ -> addCmd $ HALT "nil not yet implemented"
     ETupleT e1 e2 _ -> do -- TODO: probably not like this
         seqExp e1
         seqExp e2
-    --EIdT _ _ _ -> -- TODO
+    EIdT _ _ _ -> addCmd $ HALT "variables not yet implemented"
     EFunCallT id as _ -> do
         endoSeq seqExp as
         seqFunCall id as
@@ -185,7 +197,7 @@ seqExp e = case e of
         addCmd $ OP1 $ case op of
             ONot -> "not"
             ONeg -> "sub"
-    --EOp2T OCons _ _ _ -> -- TODO
+    EOp2T OCons _ _ _ -> addCmd $ HALT "cons not yet implemented"
     EOp2T op e1 e2 _ -> do
         seqExp e1
         seqExp e2

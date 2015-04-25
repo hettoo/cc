@@ -1,3 +1,5 @@
 Void f () {
     a x = read();
 }
+
+Void main () {}

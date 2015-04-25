@@ -13,3 +13,5 @@ Int transition(a symbol, [(a, Int)] delta) {
 	if (symbol == delta.hd.fst) return delta.hd.snd;
 	return transition(symbol, delta.tl);
 }
+
+Void main () {}

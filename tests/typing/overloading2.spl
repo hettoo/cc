@@ -3,3 +3,5 @@ Void f (Char a) {
 }
 
 Void f (Int a) {}
+
+Void main () {}

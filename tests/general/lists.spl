@@ -40,3 +40,5 @@ a last([a] l) {
 	if (isEmpty(x)) return b;
 	return x.hd : concat(x.tl, b);
 }
+
+Void main () {}

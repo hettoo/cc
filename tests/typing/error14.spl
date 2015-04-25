@@ -5,3 +5,5 @@ Int id (Int x) {
 a id (a x) {
     return x;
 }
+
+Void main () {}

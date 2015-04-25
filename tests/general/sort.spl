@@ -7,3 +7,5 @@
 		return e : l;
 	else return insertSort(l.tl, e);
 }
+
+Void main () {}

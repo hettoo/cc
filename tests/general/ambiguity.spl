@@ -18,3 +18,5 @@ Int g () {
     else
         return 1;
 }
+
+Void main () {}

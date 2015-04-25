@@ -5,3 +5,5 @@ Void f () {
 Void g () {
     a = a + 1;
 }
+
+Void main () {}

@@ -22,3 +22,5 @@ Bool even(Int x) {
 Bool odd(Int x) {
 	return x % 2 != 0;
 }
+
+Void main () {}

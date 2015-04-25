@@ -22,3 +22,5 @@ Bool all ([a] l, a e) {
         return False;
     return all(l.tl, e);
 }
+
+Void main () {}
