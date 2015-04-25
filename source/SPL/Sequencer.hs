@@ -1,42 +1,114 @@
 module SPL.Sequencer where
 import SPL.Algebra
 import SPL.Typer
-import State
 import Context
 import Todo
+import Endo
+import State
 import Control.Monad
 
-type Instruction = String
+data Command =
+    LABEL String |
+    LDC String |
+    STL Integer |
+    OP1 String |
+    OP2 String |
+    PRINTI |
+    PRINTC |
+    BRA String |
+    BRF String |
+    JSR |
+    RET |
+    HALT String
+    deriving Show
 
-type HeapAddr = Int
-type VarTab = Context HeapAddr
-
-type Label = String
-type FunTab = Context Label
+stackChange :: Command -> (Int, Int)
+stackChange c = case c of
+    LABEL _ -> (0, 0)
+    LDC _ -> (0, 1)
+    STL _ -> (1, 0)
+    OP1 _ -> (1, 0)
+    OP2 _ -> (2, 0)
+    PRINTI -> (1, 0)
+    PRINTC -> (1, 0)
+    BRA _ -> (0, 0)
+    BRF _ -> (1, 0)
+    JSR -> (1, 1)
+    RET -> (1, 0)
+    HALT _ -> (0, 0)
 
 type Call = (String, [Type]) -- TODO: allow polymorphic outputs
+type SP = Int
+type VarContext = Context SP
+type SO = (Todo Call, SP, VarContext, [Command])
+type Sequencer = Endo SO
 
-type Sequencer = State (Todo Call, FunTab, VarTab) [Instruction]
+gtodo :: (Todo Call -> Todo Call) -> Sequencer
+gtodo = globalize (\(t, _, _, _) -> t)
+    (\t (_, sp, vc, l) -> (t, sp, vc, l)) . st
 
-seqf :: (a -> Sequencer) -> [a] -> Sequencer
-seqf f = foldl (\s a -> s >> f a) (return [])
+gsp :: (SP -> SP) -> Sequencer
+gsp = globalize (\(_, sp, _, _) -> sp)
+    (\sp (t, _, vc, l) -> (t, sp, vc, l)) . st
+
+gvc :: (VarContext -> VarContext) -> Sequencer
+gvc = globalize (\(_, _, vc, _) -> vc)
+    (\vc (t, sp, _, l) -> (t, sp, vc, l)) . st
+
+gcmd :: ([Command] -> [Command]) -> Sequencer
+gcmd = globalize (\(_, _, _, l) -> l) (\l (t, sp, vc, _) -> (t, sp, vc, l)) . st
+
+addCmd :: Command -> Sequencer
+addCmd c = do
+    gcmd $ \l -> l ++ [c]
+    let (s, a) = stackChange c in
+        gsp $ \sp -> sp + a - s
+
+makeCall :: Call -> Sequencer
+makeCall c@(i, as) = do
+    addCmd $ LDC (callLabel c)
+    addCmd JSR
+    gsp $ \sp -> sp - length as + 1
+
+discard :: Sequencer
+discard = addCmd $ STL 0 -- TODO: proper way to pop and discard
 
 seqOutput :: [StmtT] -> String
-seqOutput ss = unlines $ seqTodo ss >!> (todo ("main", []) tnew, cnew, cnew)
--- TODO: evaluate global variables first
+seqOutput l = stateOutput $ (seqTodo l) >@>
+    (todo ("main", []) tnew, 0, cnew, [])
+
+stateOutput :: SO -> String
+stateOutput (_, _, _, l) = unlines (map cmdOutput l)
+
+cmdOutput :: Command -> String
+cmdOutput c = case c of
+    LABEL s -> s ++ ":"
+    LDC s -> "ldc " ++ s
+    STL i -> "stl " ++ (show i)
+    OP1 s -> s
+    OP2 s -> s
+    PRINTI -> "trap 0"
+    PRINTC -> "trap 1"
+    BRA s -> "bra " ++ s
+    BRF s -> "brf " ++ s
+    JSR -> "jsr"
+    RET -> "ret"
+    HALT s -> "halt" ++ if s == "" then "" else " ; " ++ s
 
 seqTodo :: [StmtT] -> Sequencer
-seqTodo ss = do
-    (t, _, _) <- getState
+seqTodo l = do
+    (t, _, _, _) <- getState
     case getTodo t of
-        (Nothing, _) -> return []
+        (Nothing, _) -> eId
         (Just c@(i, as), t') -> do
-            setTodo (const t')
-            l <- seqStmt (findFunction c ss)
-            l' <- seqTodo ss
-            return $ (callLabel c ++ ":") : l ++ l' ++ case i of
-                "main" -> comment ["halt"] "program end"
-                _ -> []
+            gtodo (const t')
+            addCmd $ LABEL (callLabel c)
+            seqStmt (findFunction c l)
+            seqTodo l
+            if i == "main" then
+                addCmd $ HALT "program end"
+            else
+                eId
 
 callLabel :: Call -> String
 callLabel (s, t) = s -- TODO: encode types
@@ -56,111 +128,88 @@ findFunction c@(i, as) l = case l of
         where
         rec = findFunction c r
 
-mainType :: [StmtT] -> Type
-mainType l = case l of
-    s : r -> case s of
-        FunDeclT t "main" _ _ -> t
-        _ -> mainType r
-
-setTodo :: (Todo Call -> Todo Call) -> Sequencer
-setTodo f = ST $ \(t, ft, vt) -> Left ([], (f t, ft, vt))
-
-addCall :: Call -> Sequencer
-addCall c = setTodo (todo c)
-
 seqStmt :: StmtT -> Sequencer
 seqStmt s = case s of
-    StmtsT ss -> seqf seqStmt ss
-    VarDeclT t id e -> halt "not yet implemented"
-    FunDeclT _ _ _ _ -> halt "nested functions are impossible"
+    StmtsT l -> endoSeq seqStmt l
+    --VarDeclT t id e -> -- TODO
+    FunDeclT _ _ _ _ -> addCmd $ HALT "nested functions are impossible"
     FunCallT "print" [e] -> do
-        s <- seqExp e
-        return $ s ++ case getType e of
-            TInt -> ["trap 0"]
-            TChar -> ["trap 1"]
-    FunCallT id as -> seqFunCall id as False
-    ReturnT m -> case m of
-        Just e -> do
-            l <- seqExp e
-            return $ l ++ ["ret"]
-        Nothing -> return ["ret"]
-    AssignT _ _ _ -> halt "not yet implemented"
-    IfT c b m -> do
-        l <- seqExp c
-        l' <- seqStmt b
+        seqExp e
+        addCmd $ case getType e of
+            TInt -> PRINTI
+            TChar -> PRINTC
+    FunCallT id as -> seqFunCall id as
+    ReturnT m -> do
         case m of
-            -- TODO: fresh labels
-            Nothing -> return $ l ++ ["brf _endif"] ++ l' ++ ["_endif:"]
-            Just e -> do
-                l'' <- seqStmt e
-                return $ l ++ ["brf _else"] ++ l' ++
-                    ["bra _endif", "_else:"] ++ l'' ++ ["_endif:"]
-    WhileT c b -> do
-        l <- seqExp c
-        l' <- seqStmt b
-        -- TODO: fresh labels
-        return $ ["_while:"] ++ l ++
-            ["brf _endwhile"] ++ l' ++ ["bra _while", "_endwhile:"]
+            Just e -> seqExp e
+            Nothing -> eId
+        addCmd RET
+    --AssignT _ _ _ -> -- TODO
+    IfT c b m -> case m of -- TODO: fresh labels
+        Nothing -> do
+            seqExp c
+            addCmd $ BRF "_endif"
+            seqStmt b
+            addCmd $ LABEL "_endif"
+        Just e -> do
+            seqExp c
+            addCmd $ BRF "_else"
+            seqStmt b
+            addCmd $ BRA "_endif"
+            addCmd $ LABEL "_else"
+            seqStmt e
+            addCmd $ LABEL "_endif"
+    WhileT c b -> do -- TODO: fresh labels
+        addCmd $ LABEL "_while"
+        seqExp c
+        addCmd $ BRF "_endwhile"
+        seqStmt b
+        addCmd $ BRA "_while"
+        addCmd $ LABEL "_endwhile"
 
 seqExp :: ExpT -> Sequencer
 seqExp e = case e of
-    EIntT x TInt -> return ["ldc " ++ show x]
-    EBoolT x TBool -> case x of
-        True -> return ["ldc -1"]
-        False -> return ["ldc 0"]
-    ECharT x TChar -> return ["ldc " ++ show x]
-    ENilT _ -> halt "not yet implemented"
-    ETupleT e1 e2 _ -> do
-        s1 <- seqExp e1
-        s2 <- seqExp e2
-        return $ s1 ++ s2
-    EIdT _ _ _ -> halt "not yet implemented"
+    EIntT x TInt -> addCmd $ LDC (show x)
+    EBoolT x TBool -> addCmd $ LDC $ case x of
+        True -> "-1"
+        False -> "0"
+    ECharT x TChar -> addCmd $ LDC (show x)
+    --ENilT _ -> -- TODO
+    ETupleT e1 e2 _ -> do -- TODO: probably not like this
+        seqExp e1
+        seqExp e2
+    --EIdT _ _ _ -> -- TODO
     EFunCallT id as _ -> do
-        s <- seqf seqExp as
-        c <- seqFunCall id as True
-        return $ s ++ c
+        endoSeq seqExp as
+        seqFunCall id as
+        discard
     EOp1T op e _ -> do
-        s <- seqExp e
-        return $ s ++ case op of
-            ONot -> ["not"]
-            ONeg -> ["sub"]
-    EOp2T OCons _ _ _ -> halt "not yet implemented"
+        seqExp e
+        addCmd $ OP1 $ case op of
+            ONot -> "not"
+            ONeg -> "sub"
+    --EOp2T OCons _ _ _ -> -- TODO
     EOp2T op e1 e2 _ -> do
-        s1 <- seqExp e1
-        s2 <- seqExp e2
-        return $ s1 ++ s2 ++ case op of
-            OAnd -> ["and"]
-            OOr -> ["or"]
-            OEq -> ["eq"]
-            ONeq -> ["ne"]
-            OLt -> ["lt"]
-            OGt -> ["gt"]
-            OLe -> ["le"]
-            OGe -> ["ge"]
-            OPlus -> ["add"]
-            OMinus -> ["sub"]
-            OTimes -> ["mul"]
-            ODiv -> ["div"]
-            OMod -> ["mod"]
+        seqExp e1
+        seqExp e2
+        addCmd $ OP2 $ case op of
+            OAnd -> "and"
+            OOr -> "or"
+            OEq -> "eq"
+            ONeq -> "ne"
+            OLt -> "lt"
+            OGt -> "gt"
+            OLe -> "le"
+            OGe -> "ge"
+            OPlus -> "add"
+            OMinus -> "sub"
+            OTimes -> "mul"
+            ODiv -> "div"
+            OMod -> "mod"
 
-seqVar :: String -> Sequencer
-seqVar i = do
-    (_, _, varTab) <- getState
-    return ["ldc " ++ show (clookupe i >!> varTab)]
-
-seqFunCall :: String -> [ExpT] -> Bool -> Sequencer
-seqFunCall i as keep = let c = (i, map getType as) in do
-    st (\(t, f, v) -> (todo c t, f, v))
-    l <- seqf seqExp as
-    (_, funTab, _) <- getState
-    return $ l ++ ["bsr " ++ (clookupe i >!> funTab)] ++
-        if keep then
-            []
-        else
-            ["stl 2"] -- TODO: proper way to pop and discard
-
-comment :: [Instruction] -> String -> [Instruction]
-comment (i : is) c = (i ++ " ; " ++ c) : is
-
-halt :: String -> Sequencer
-halt reason = return $ comment ["halt"] reason
+seqFunCall :: String -> [ExpT] -> Sequencer
+seqFunCall i as = let c = (i, map getType as) in do
+    gtodo (todo c)
+    endoSeq seqExp as
+    addCmd $ LDC (callLabel c)
+    addCmd JSR

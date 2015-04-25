@@ -51,5 +51,9 @@ apply (ST f) a = case f a of
 (>!>) s a = fst (apply s a)
 infixl 1 >!>
 
+(>@>) :: State a b -> a -> a
+(>@>) s a = snd (apply s a)
+infixl 1 >@>
+
 getState :: State a a
 getState = res id
