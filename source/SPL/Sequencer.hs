@@ -22,20 +22,20 @@ data Command =
     HALT String
     deriving Show
 
-stackChange :: Command -> (Int, Int)
+stackChange :: Command -> Int
 stackChange c = case c of
-    LABEL _ -> (0, 0)
-    LDC _ -> (0, 1)
-    STL _ -> (1, 0)
-    OP1 _ -> (1, 0)
-    OP2 _ -> (2, 0)
-    PRINTI -> (1, 0)
-    PRINTC -> (1, 0)
-    BRA _ -> (0, 0)
-    BRF _ -> (1, 0)
-    JSR -> (1, 1)
-    RET -> (1, 0)
-    HALT _ -> (0, 0)
+    LABEL _ -> 0
+    LDC _ -> 1
+    STL _ -> -1
+    OP1 _ -> -1
+    OP2 _ -> -2
+    PRINTI -> -1
+    PRINTC -> -1
+    BRA _ -> 0
+    BRF _ -> -1
+    JSR -> 0
+    RET -> -1
+    HALT _ -> 0
 
 type Call = (String, [Type]) -- TODO: allow polymorphic outputs
 type SP = Int
@@ -58,8 +58,7 @@ gcmd = globalizef (\(_, _, _, l) -> l) (\l (t, sp, vc, _) -> (t, sp, vc, l))
 addCmd :: Command -> Sequencer
 addCmd c = do
     gcmd $ \l -> l ++ [c]
-    let (s, a) = stackChange c in
-        gsp $ \sp -> sp + a - s
+    gsp $ \sp -> sp + stackChange c
 
 makeCall :: Call -> Sequencer
 makeCall c@(i, as) = do
