@@ -44,16 +44,16 @@ type SO = (Todo Call, SP, VarContext, [Command])
 type Sequencer = Endo SO
 
 gtodo :: (Todo Call -> Todo Call) -> Sequencer
-gtodo = globalize (\(t, _, _, _) -> t) (\t (_, sp, vc, l) -> (t, sp, vc, l))
+gtodo = globalizef (\(t, _, _, _) -> t) (\t (_, sp, vc, l) -> (t, sp, vc, l))
 
 gsp :: (SP -> SP) -> Sequencer
-gsp = globalize (\(_, sp, _, _) -> sp) (\sp (t, _, vc, l) -> (t, sp, vc, l))
+gsp = globalizef (\(_, sp, _, _) -> sp) (\sp (t, _, vc, l) -> (t, sp, vc, l))
 
-gvc :: (VarContext -> VarContext) -> Sequencer
+gvc :: Endo VarContext -> Sequencer
 gvc = globalize (\(_, _, vc, _) -> vc) (\vc (t, sp, _, l) -> (t, sp, vc, l))
 
 gcmd :: ([Command] -> [Command]) -> Sequencer
-gcmd = globalize (\(_, _, _, l) -> l) (\l (t, sp, vc, _) -> (t, sp, vc, l))
+gcmd = globalizef (\(_, _, _, l) -> l) (\l (t, sp, vc, _) -> (t, sp, vc, l))
 
 addCmd :: Command -> Sequencer
 addCmd c = do
@@ -68,14 +68,14 @@ makeCall c@(i, as) = do
     gsp $ \sp -> sp - length as + 1
 
 discard :: Sequencer
-discard = addCmd $ STL 0 -- TODO: proper way to pop and discard
+discard = addCmd $ STL 0 -- TODO: proper way to pop and discard?
 
 seqOutput :: [StmtT] -> String
 seqOutput l = stateOutput $ globals l >> seqTodo l >@>
     (todo ("main", []) tnew, 0, cnew, [])
 
 stateOutput :: SO -> String
-stateOutput (_, _, _, l) = unlines (map cmdOutput l)
+stateOutput (_, _, cv, l) = unlines (map cmdOutput l)
 
 cmdOutput :: Command -> String
 cmdOutput c = case c of
@@ -93,25 +93,43 @@ cmdOutput c = case c of
     HALT s -> "halt" ++ if s == "" then "" else " ; " ++ s
 
 globals :: [StmtT] -> Sequencer
-globals l = eId -- TODO
+globals l = case l of
+    [] -> eId
+    s : r -> do
+        case s of
+            VarDeclT t i e ->
+                seqVariable t i e
+            _ -> eId
+        globals r
 
 seqTodo :: [StmtT] -> Sequencer
 seqTodo l = do
-    (t, _, _, _) <- getState
-    case getTodo t of
-        (Nothing, _) -> eId
-        (Just c@(i, as), t') -> do
-            gtodo (const t')
-            addCmd $ LABEL (callLabel c)
-            seqFunction c l
-            seqTodo l
-            if i == "main" then
-                addCmd $ HALT "program end"
-            else
-                eId
+    (_, _, vc, _) <- getState
+    seqTodo' vc l
+    where
+    seqTodo' vc l = do
+        (t, _, _, _) <- getState
+        case getTodo t of
+            (Nothing, _) -> eId
+            (Just c@(i, as), t') -> do
+                gtodo $ const t'
+                gvc . st $ const vc
+                addCmd $ LABEL (callLabel c)
+                seqFunction c l
+                seqTodo' vc l
+                if i == "main" then
+                    addCmd $ HALT "program end"
+                else
+                    eId
 
 callLabel :: Call -> String
 callLabel (s, t) = s -- TODO: encode types
+
+seqVariable :: Type -> String -> ExpT -> Sequencer
+seqVariable t i e = do
+    seqExp e
+    (_, sp, _, _) <- getState
+    gvc (cadd i sp ("redefined variable " ++ i))
 
 seqFunction :: Call -> [StmtT] -> Sequencer
 seqFunction c@(i, as) l = case i of -- TODO: unification
@@ -139,7 +157,7 @@ findFunction c@(i, as) l = case l of
 seqStmt :: StmtT -> Sequencer
 seqStmt s = case s of
     StmtsT l -> endoSeq seqStmt l
-    VarDeclT t id e -> addCmd $ HALT "variables not yet implemented"
+    VarDeclT t i e -> seqVariable t i e
     FunDeclT _ _ _ _ -> addCmd $ HALT "nested functions are impossible"
     FunCallT "print" [e] -> do
         seqExp e
