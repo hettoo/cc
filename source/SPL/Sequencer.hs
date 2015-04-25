@@ -71,7 +71,7 @@ discard :: Sequencer
 discard = addCmd $ STL 0 -- TODO: proper way to pop and discard
 
 seqOutput :: [StmtT] -> String
-seqOutput l = stateOutput $ defaults >> (seqTodo l) >@>
+seqOutput l = stateOutput $ globals l >> seqTodo l >@>
     (todo ("main", []) tnew, 0, cnew, [])
 
 stateOutput :: SO -> String
@@ -92,8 +92,8 @@ cmdOutput c = case c of
     RET -> "ret"
     HALT s -> "halt" ++ if s == "" then "" else " ; " ++ s
 
-defaults :: Sequencer
-defaults = eId -- TODO
+globals :: [StmtT] -> Sequencer
+globals l = eId -- TODO
 
 seqTodo :: [StmtT] -> Sequencer
 seqTodo l = do
