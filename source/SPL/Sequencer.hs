@@ -69,8 +69,12 @@ addCmd c = do
     gcmd $ \l -> l ++ [c]
     gsp $ \sp -> sp + stackChange c
 
-discard :: Sequencer
-discard = addCmd $ STL 0 -- TODO: proper way to pop and discard?
+discard :: Int -> Sequencer
+discard n = case n of
+    0 -> eId
+    n -> do
+        addCmd $ STL 0 -- TODO: proper way to pop and discard?
+        discard (n - 1) -- TODO: all in one command?
 
 seqOutput :: [StmtT] -> String
 seqOutput l = stateOutput $ globals l >> seqTodo l >@>
@@ -224,7 +228,7 @@ seqExp e = case e of
     EFunCallT id as _ -> do
         endoSeq seqExp as
         seqFunCall id as
-        discard
+        discard 1
     EOp1T op e _ -> do
         seqExp e
         addCmd $ OP1 $ case op of
