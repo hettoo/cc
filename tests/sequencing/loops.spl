@@ -1,0 +1,6 @@
+Void main() {
+    Int i = 0;
+    while (True) {
+        i = i + 1
+    }
+}
