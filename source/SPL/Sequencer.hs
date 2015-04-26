@@ -77,8 +77,8 @@ discard n = case n of
         discard (n - 1) -- TODO: all in one command?
 
 seqOutput :: [StmtT] -> String
-seqOutput l = stateOutput $ globals l >> seqTodo l >@>
-    (todo ("main", []) tnew, 0, cnew, 0, [])
+seqOutput l = stateOutput $ globals l >> seqMain l >> seqTodo l >@>
+    (tnew, 0, cnew, 0, [])
 
 stateOutput :: SO -> String
 stateOutput (_, _, _, _, l) = unlines (map cmdOutput l)
@@ -108,6 +108,12 @@ globals l = case l of
             _ -> eId
         globals r
 
+seqMain :: [StmtT] -> Sequencer
+seqMain l = do
+    (_, _, vc, _, _) <- getState
+    seqStmt True (findFunction ("main", []) l)
+    gvc . st $ const vc
+
 seqTodo :: [StmtT] -> Sequencer
 seqTodo l = do
     (_, _, vc, _, _) <- getState
@@ -123,10 +129,6 @@ seqTodo l = do
                 addCmd $ LABEL (callLabel c)
                 seqFunction c l
                 seqTodo' vc l
-                if i == "main" then
-                    addCmd $ HALT "program end"
-                else
-                    eId
 
 callLabel :: Call -> String
 callLabel (s, l) = s ++ "_" ++ show (length l) ++ typesLabel l
@@ -146,7 +148,7 @@ seqFunction c@(i, as) l = case i of -- TODO: unification
     "isEmpty" -> eId -- TODO
     "read" -> eId -- TODO
     "print" -> eId -- TODO
-    _ -> seqStmt (findFunction c l)
+    _ -> seqStmt False (findFunction c l)
 
 findFunction :: Call -> [StmtT] -> StmtT
 findFunction c@(i, as) l = case l of
@@ -154,9 +156,8 @@ findFunction c@(i, as) l = case l of
     s : r -> case s of
         FunDeclT t i' as' b ->
             if i == i' {-&& as == map fst as'-} then -- TODO: unify
-                case (i, t) of
-                    ("main", _) -> b
-                    (_, TVoid) -> StmtsT [b, ReturnT Nothing] -- just to be sure
+                case t of
+                    TVoid -> StmtsT [b, ReturnT Nothing] -- just to be sure
                     _ -> b
             else
                 rec
@@ -167,9 +168,9 @@ findFunction c@(i, as) l = case l of
 flowLabel :: Int -> String
 flowLabel i = "_f" ++ show i
 
-seqStmt :: StmtT -> Sequencer
-seqStmt s = case s of
-    StmtsT l -> endoSeq seqStmt l
+seqStmt :: Bool -> StmtT -> Sequencer
+seqStmt main s = case s of
+    StmtsT l -> endoSeq (seqStmt main) l
     VarDeclT t i e -> seqVariable t i e
     FunDeclT _ _ _ _ -> addCmd $ HALT "nested functions are impossible"
     FunCallT "print" [e] -> do
@@ -181,9 +182,17 @@ seqStmt s = case s of
     FunCallT id as -> seqFunCall id as
     ReturnT m -> do
         case m of
-            Just e -> seqExp e
+            Just e -> do
+                if main then
+                    eId -- TODO: print according to the return type
+                else
+                    eId
+                seqExp e
             Nothing -> eId
-        addCmd RET
+        if main then
+            addCmd $ HALT "program end"
+        else
+            addCmd RET
     AssignT _ _ _ -> addCmd $ HALT "assignment not yet implemented"
     IfT c b m -> case m of
         Nothing -> do
@@ -191,17 +200,17 @@ seqStmt s = case s of
             (_, _, _, f, _) <- getState
             gfresh (+1)
             addCmd $ BRF (flowLabel f)
-            seqStmt b
+            seqStmt main b
             addCmd $ LABEL (flowLabel f)
         Just e -> do
             seqExp c
             (_, _, _, f, _) <- getState
             gfresh (+2)
             addCmd $ BRF (flowLabel f)
-            seqStmt b
+            seqStmt main b
             addCmd $ BRA (flowLabel (f + 1))
             addCmd $ LABEL (flowLabel f)
-            seqStmt e
+            seqStmt main e
             addCmd $ LABEL (flowLabel (f + 1))
     WhileT c b -> do
         (_, _, _, f, _) <- getState
@@ -209,7 +218,7 @@ seqStmt s = case s of
         addCmd $ LABEL (flowLabel f)
         seqExp c
         addCmd $ BRF (flowLabel (f + 1))
-        seqStmt b
+        seqStmt main b
         addCmd $ BRA (flowLabel f)
         addCmd $ LABEL (flowLabel (f + 1))
 
