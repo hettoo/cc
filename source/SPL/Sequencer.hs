@@ -158,7 +158,7 @@ seqFunction c@(i, as) l = case i of -- TODO: unification
         _ -> let s = findFunction c l in do
             addCmd . LINK $ countVarDecl s
             seqStmt False s
-            addCmd $ UNLINK
+            addCmd $ UNLINK -- TODO: unreachable code, this should be added before 'ret', maybe remove 'ret' from seqStmt?
 
 countVarDecl :: StmtT -> Integer
 countVarDecl t = case t of
