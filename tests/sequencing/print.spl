@@ -1,0 +1,18 @@
+Void main() {
+    Int i = 1;
+    Bool b = True;
+    Char c = 'c';
+    [Char] s = 'h' : ('e' : ('l': ('l' : ('o' : []))));
+
+    // Print Int (literal + variable)
+    print(1);
+    print(i);
+    // Print Bool (literal + variable)
+    print(True);
+    print(b);
+    // Print Char (literal + variable)
+    print('c');
+    print(c);
+    // Print [Char] string
+    print(s);
+}
