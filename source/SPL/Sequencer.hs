@@ -68,12 +68,6 @@ addCmd c = do
     gcmd $ \l -> l ++ [c]
     gsp $ \sp -> sp + stackChange c
 
-makeCall :: Call -> Sequencer
-makeCall c@(i, as) = do
-    addCmd $ LDC (callLabel c)
-    addCmd JSR
-    gsp $ \sp -> sp - length as + 1
-
 discard :: Sequencer
 discard = addCmd $ STL 0 -- TODO: proper way to pop and discard?
 
@@ -256,3 +250,4 @@ seqFunCall i as = let c = (i, map getType as) in do
     endoSeq seqExp as
     addCmd $ LDC (callLabel c)
     addCmd JSR
+    gsp $ \sp -> sp - length as + 1 -- TODO: clean up variables from the stack
