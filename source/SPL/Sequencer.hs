@@ -20,7 +20,9 @@ data Command =
     BRF String |
     JSR |
     RET |
-    HALT String
+    HALT String |
+    LINK Integer |
+    UNLINK
     deriving Show
 
 stackChange :: Command -> Int
@@ -37,6 +39,8 @@ stackChange c = case c of
     JSR -> 0
     RET -> -1
     HALT _ -> 0
+    LINK _ -> 0 -- let's pretend they don't
+    UNLINK -> 0 -- let's pretend they don't
 
 type Call = (String, [Type]) -- TODO: allow polymorphic outputs
 type SP = Int
@@ -97,6 +101,8 @@ cmdOutput c = case c of
     JSR -> "jsr"
     RET -> "ret"
     HALT s -> "halt" ++ if s == "" then "" else " ; " ++ s
+    LINK i -> "link " ++ (show i)
+    UNLINK -> "unlink"
 
 globals :: [StmtT] -> Sequencer
 globals l = case l of
@@ -142,13 +148,23 @@ seqVariable t i e = do
     seqExp e
     (_, sp, _, _, _) <- getState
     gvc (cadd i sp ("redefined variable " ++ i))
+    -- TODO: stl (store local variable)
 
 seqFunction :: Call -> [StmtT] -> Sequencer
 seqFunction c@(i, as) l = case i of -- TODO: unification
-    "isEmpty" -> eId -- TODO
-    "read" -> eId -- TODO
-    "print" -> eId -- TODO
-    _ -> seqStmt False (findFunction c l)
+        "isEmpty" -> eId -- TODO
+        "read" -> eId -- TODO
+        "print" -> eId -- TODO
+        _ -> let s = findFunction c l in do
+            addCmd . LINK $ countVarDecl s
+            seqStmt False s
+            addCmd $ UNLINK
+
+countVarDecl :: StmtT -> Integer
+countVarDecl t = case t of
+    StmtsT l -> sum $ map countVarDecl l
+    VarDeclT _ _ _ -> 1
+    _ -> 0 
 
 findFunction :: Call -> [StmtT] -> StmtT
 findFunction c@(i, as) l = case l of
