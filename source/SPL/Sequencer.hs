@@ -40,20 +40,28 @@ stackChange c = case c of
 type Call = (String, [Type]) -- TODO: allow polymorphic outputs
 type SP = Int
 type VarContext = Context SP
-type SO = (Todo Call, SP, VarContext, [Command])
+type SO = (Todo Call, SP, VarContext, Int, [Command])
 type Sequencer = Endo SO
 
 gtodo :: (Todo Call -> Todo Call) -> Sequencer
-gtodo = globalizef (\(t, _, _, _) -> t) (\t (_, sp, vc, l) -> (t, sp, vc, l))
+gtodo = globalizef (\(t, _, _, _, _) -> t)
+    (\t (_, sp, vc, f, l) -> (t, sp, vc, f, l))
 
 gsp :: (SP -> SP) -> Sequencer
-gsp = globalizef (\(_, sp, _, _) -> sp) (\sp (t, _, vc, l) -> (t, sp, vc, l))
+gsp = globalizef (\(_, sp, _, _, _) -> sp)
+    (\sp (t, _, vc, f, l) -> (t, sp, vc, f, l))
 
 gvc :: Endo VarContext -> Sequencer
-gvc = globalize (\(_, _, vc, _) -> vc) (\vc (t, sp, _, l) -> (t, sp, vc, l))
+gvc = globalize (\(_, _, vc, _, _) -> vc)
+    (\vc (t, sp, _, f, l) -> (t, sp, vc, f, l))
+
+gfresh :: (Int -> Int) -> Sequencer
+gfresh = globalizef (\(_, _, _, f, _) -> f)
+    (\f (t, sp, vc, _, l) -> (t, sp, vc, f, l))
 
 gcmd :: ([Command] -> [Command]) -> Sequencer
-gcmd = globalizef (\(_, _, _, l) -> l) (\l (t, sp, vc, _) -> (t, sp, vc, l))
+gcmd = globalizef (\(_, _, _, _, l) -> l)
+    (\l (t, sp, vc, f, _) -> (t, sp, vc, f, l))
 
 addCmd :: Command -> Sequencer
 addCmd c = do
@@ -71,10 +79,10 @@ discard = addCmd $ STL 0 -- TODO: proper way to pop and discard?
 
 seqOutput :: [StmtT] -> String
 seqOutput l = stateOutput $ globals l >> seqTodo l >@>
-    (todo ("main", []) tnew, 0, cnew, [])
+    (todo ("main", []) tnew, 0, cnew, 0, [])
 
 stateOutput :: SO -> String
-stateOutput (_, _, cv, l) = unlines (map cmdOutput l)
+stateOutput (_, _, _, _, l) = unlines (map cmdOutput l)
 
 cmdOutput :: Command -> String
 cmdOutput c = case c of
@@ -103,11 +111,11 @@ globals l = case l of
 
 seqTodo :: [StmtT] -> Sequencer
 seqTodo l = do
-    (_, _, vc, _) <- getState
+    (_, _, vc, _, _) <- getState
     seqTodo' vc l
     where
     seqTodo' vc l = do
-        (t, _, _, _) <- getState
+        (t, _, _, _, _) <- getState
         case getTodo t of
             (Nothing, _) -> eId
             (Just c@(i, as), t') -> do
@@ -127,7 +135,7 @@ callLabel (s, t) = s -- TODO: encode types
 seqVariable :: Type -> String -> ExpT -> Sequencer
 seqVariable t i e = do
     seqExp e
-    (_, sp, _, _) <- getState
+    (_, sp, _, _, _) <- getState
     gvc (cadd i sp ("redefined variable " ++ i))
 
 seqFunction :: Call -> [StmtT] -> Sequencer
@@ -153,6 +161,9 @@ findFunction c@(i, as) l = case l of
         where
         rec = findFunction c r
 
+flowLabel :: Int -> String
+flowLabel i = "_f" ++ show i
+
 seqStmt :: StmtT -> Sequencer
 seqStmt s = case s of
     StmtsT l -> endoSeq seqStmt l
@@ -171,27 +182,33 @@ seqStmt s = case s of
             Nothing -> eId
         addCmd RET
     AssignT _ _ _ -> addCmd $ HALT "assignment not yet implemented"
-    IfT c b m -> case m of -- TODO: fresh labels
+    IfT c b m -> case m of
         Nothing -> do
             seqExp c
-            addCmd $ BRF "_endif"
+            (_, _, _, f, _) <- getState
+            gfresh (+1)
+            addCmd $ BRF (flowLabel f)
             seqStmt b
-            addCmd $ LABEL "_endif"
+            addCmd $ LABEL (flowLabel f)
         Just e -> do
             seqExp c
-            addCmd $ BRF "_else"
+            (_, _, _, f, _) <- getState
+            gfresh (+2)
+            addCmd $ BRF (flowLabel f)
             seqStmt b
-            addCmd $ BRA "_endif"
-            addCmd $ LABEL "_else"
+            addCmd $ BRA (flowLabel (f + 1))
+            addCmd $ LABEL (flowLabel f)
             seqStmt e
-            addCmd $ LABEL "_endif"
-    WhileT c b -> do -- TODO: fresh labels
-        addCmd $ LABEL "_while"
+            addCmd $ LABEL (flowLabel (f + 1))
+    WhileT c b -> do
+        (_, _, _, f, _) <- getState
+        gfresh (+2)
+        addCmd $ LABEL (flowLabel f)
         seqExp c
-        addCmd $ BRF "_endwhile"
+        addCmd $ BRF (flowLabel (f + 1))
         seqStmt b
-        addCmd $ BRA "_while"
-        addCmd $ LABEL "_endwhile"
+        addCmd $ BRA (flowLabel f)
+        addCmd $ LABEL (flowLabel (f + 1))
 
 seqExp :: ExpT -> Sequencer
 seqExp e = case e of
