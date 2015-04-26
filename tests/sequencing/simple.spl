@@ -1,4 +1,7 @@
 Void main() {
     Int x = 42;
     Int y = 1300 + 37;
+    if (1 < 2) {
+        return;
+    }
 }
