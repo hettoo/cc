@@ -1,2 +1,4 @@
 Void main() {
+    Int x = 42;
+    Int y = 1300 + 37;
 }
