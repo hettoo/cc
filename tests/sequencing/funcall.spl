@@ -1,0 +1,7 @@
+Void main() {
+    f();
+}
+Int f() {
+    Int x = 42;
+    return 666;
+}
