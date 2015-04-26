@@ -1,6 +1,7 @@
 module SPL.Sequencer where
 import SPL.Algebra
 import SPL.Typer
+import SPL.Printer
 import Context
 import Todo
 import Endo
@@ -124,7 +125,11 @@ seqTodo l = do
                     eId
 
 callLabel :: Call -> String
-callLabel (s, t) = s -- TODO: encode types
+callLabel (s, l) = s ++ "_" ++ show (length l) ++ typesLabel l
+    where
+    typesLabel l = case l of
+        [] -> ""
+        a : r -> "_" ++ simplePrint a ++ typesLabel r
 
 seqVariable :: Type -> String -> ExpT -> Sequencer
 seqVariable t i e = do
