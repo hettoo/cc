@@ -7,6 +7,7 @@ import Todo
 import Endo
 import State
 import Utils
+import Data.Char
 import Control.Monad
 
 data Command =
@@ -235,6 +236,26 @@ varPos i = do
     (_, sp, vc, _, _) <- getState
     return $ (clookupe i >!> vc) - sp
 
+seqPrint :: Type -> Sequencer
+seqPrint t = case t of
+    TInt -> addCmd PRINTI
+    TChar -> addCmd PRINTC
+    TTuple t1 t2 -> do
+        addCmd $ LDC (show $ ord '(')
+        addCmd PRINTC
+        addCmd $ LDH 0 2
+        addCmd $ LDS (-1)
+        seqPrint t1
+        addCmd $ LDC (show $ ord ',')
+        addCmd PRINTC
+        addCmd $ LDC (show $ ord ' ')
+        addCmd PRINTC
+        seqPrint t1
+        addCmd $ LDC (show $ ord ')')
+        addCmd PRINTC
+        addCmd $ AJS (-1)
+    _ -> eId -- TODO
+
 seqStmt :: [StmtT] -> Bool -> StmtT -> Sequencer
 seqStmt ss main s = case s of
     StmtsT l -> endoSeq (seqStmt ss main) l
@@ -242,17 +263,14 @@ seqStmt ss main s = case s of
     FunDeclT _ _ _ _ -> eId
     FunCallT "print" [e] -> do
         seqExp ss e
-        case getType e of
-            TInt -> addCmd PRINTI
-            TChar -> addCmd PRINTC
-            _ -> addCmd $ HALT ("print not yet implemented for " ++ show e)
+        seqPrint $ getType e
     FunCallT i as -> seqFunCall ss i as
     ReturnT m -> do
         case m of
             Just e -> do
                 seqExp ss e
                 if main then
-                    eId -- TODO: print according to the return type
+                    seqPrint $ getType e
                 else
                     addCmd $ STR "RR"
             Nothing -> eId
@@ -319,17 +337,34 @@ seqExp l e = case e of
         addCmd $ LDR "RR"
     EOp1T op e _ -> do
         seqExp l e
-        addCmd $ OP1 $ case op of
-            ONot -> "not"
-            ONeg -> "sub"
+        applyOp1 op (getType e)
     EOp2T OCons _ _ _ -> addCmd $ HALT "cons not yet implemented"
     EOp2T op e1 e2 t -> do
         seqExp l e1
         seqExp l e2
         applyOp2 op (getType e1, getType e2)
 
-applyTuple :: Op2 -> ((Type, Type), (Type, Type)) -> Sequencer
-applyTuple op ((t1, t2), (t1', t2')) = do
+op1Tuple :: Op1 -> (Type, Type) -> Sequencer
+op1Tuple op (t1, t2) = do
+    addCmd $ LDH 0 2
+    addCmd $ LDS (-1)
+    applyOp1 op t1
+    addCmd $ LDS (-1)
+    applyOp1 op t2
+    addCmd $ STH 2
+    addCmd $ STR "R5"
+    addCmd $ AJS (-2)
+    addCmd $ LDR "R5"
+
+applyOp1 :: Op1 -> Type -> Sequencer
+applyOp1 op t = case t of
+    TTuple t1 t2 -> op1Tuple op ((t1, t2))
+    _ -> addCmd $ OP1 $ case op of
+        ONot -> "not"
+        ONeg -> "neg"
+
+op2Tuple :: Op2 -> ((Type, Type), (Type, Type)) -> Sequencer
+op2Tuple op ((t1, t2), (t1', t2')) = do
     addCmd $ LDH 0 2
     addCmd $ LDS (-2)
     addCmd $ LDH 0 2
@@ -344,8 +379,8 @@ applyTuple op ((t1, t2), (t1', t2')) = do
     addCmd $ AJS (-5)
     addCmd $ LDR "R5"
 
-applyBoolTuple :: Bool -> Bool -> Op2 -> ((Type, Type), (Type, Type)) -> Sequencer
-applyBoolTuple firstQuick quickValue op ((t1, t2), (t1', t2')) = do
+op2BoolTuple :: Bool -> Bool -> Op2 -> ((Type, Type), (Type, Type)) -> Sequencer
+op2BoolTuple firstQuick quickValue op ((t1, t2), (t1', t2')) = do
     addCmd $ LDH 0 2
     addCmd $ LDS (-2)
     addCmd $ LDH 0 2
@@ -368,27 +403,27 @@ applyBoolTuple firstQuick quickValue op ((t1, t2), (t1', t2')) = do
 applyOp2 :: Op2 -> (Type, Type) -> Sequencer
 applyOp2 op t = case (op, t) of
     (OLt, (TTuple t1 t2, TTuple t1' t2')) ->
-        applyBoolTuple True True op ((t1, t2), (t1', t2'))
+        op2BoolTuple True True op ((t1, t2), (t1', t2'))
     (OGt, (TTuple t1 t2, TTuple t1' t2')) ->
-        applyBoolTuple True True op ((t1, t2), (t1', t2'))
+        op2BoolTuple True True op ((t1, t2), (t1', t2'))
     (OLe, (TTuple t1 t2, TTuple t1' t2')) ->
-        applyBoolTuple True True op ((t1, t2), (t1', t2'))
+        op2BoolTuple True True op ((t1, t2), (t1', t2'))
     (OGe, (TTuple t1 t2, TTuple t1' t2')) ->
-        applyBoolTuple True True op ((t1, t2), (t1', t2'))
+        op2BoolTuple True True op ((t1, t2), (t1', t2'))
     (OEq, (TTuple t1 t2, TTuple t1' t2')) ->
-        applyBoolTuple False False op ((t1, t2), (t1', t2'))
+        op2BoolTuple False False op ((t1, t2), (t1', t2'))
     (ONeq, (TTuple t1 t2, TTuple t1' t2')) ->
-        applyBoolTuple True False op ((t1, t2), (t1', t2'))
+        op2BoolTuple True False op ((t1, t2), (t1', t2'))
     (OPlus, (TTuple t1 t2, TTuple t1' t2')) ->
-        applyTuple op ((t1, t2), (t1', t2'))
+        op2Tuple op ((t1, t2), (t1', t2'))
     (OMinus, (TTuple t1 t2, TTuple t1' t2')) ->
-        applyTuple op ((t1, t2), (t1', t2'))
+        op2Tuple op ((t1, t2), (t1', t2'))
     (OTimes, (TTuple t1 t2, TTuple t1' t2')) ->
-        applyTuple op ((t1, t2), (t1', t2'))
+        op2Tuple op ((t1, t2), (t1', t2'))
     (ODiv, (TTuple t1 t2, TTuple t1' t2')) ->
-        applyTuple op ((t1, t2), (t1', t2'))
+        op2Tuple op ((t1, t2), (t1', t2'))
     (OMod, (TTuple t1 t2, TTuple t1' t2')) ->
-        applyTuple op ((t1, t2), (t1', t2'))
+        op2Tuple op ((t1, t2), (t1', t2'))
     _ -> do
         addCmd $ OP2 $ case op of
             OAnd -> "and"

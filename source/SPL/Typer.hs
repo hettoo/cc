@@ -153,10 +153,14 @@ checkApp (t, t') a = case unify t a of
         "' does not cover `" ++ simplePrint a ++ "'"
     Just c -> return $ treplace t' >!> c
 
-op1Type :: Op1 -> (Type, Type)
-op1Type o = case o of
-    ONot -> (TBool, TBool)
-    ONeg -> (TInt, TInt)
+op1Type :: Op1 -> State Cv (Type, Type)
+op1Type o = do
+    a <- fresh
+    return (a, a)
+-- TODO: reason to limit back to this?
+--op1Type o = return $ case o of
+--    ONot -> (TBool, TBool)
+--    ONeg -> (TInt, TInt)
 
 op2Type :: Op2 -> State Cv (Type, Type)
 op2Type o = case o of
@@ -452,7 +456,8 @@ annotateE e = case e of
         return $ EFunCallT i es a
     EOp1 o e -> do
         e <- annotateE e
-        a <- checkApp (op1Type o) (getType e)
+        ft <- splcv (op1Type o)
+        a <- checkApp ft (getType e)
         return $ EOp1T o e a
     EOp2 o e1 e2 -> do
         e1 <- annotateE e1
