@@ -17,3 +17,6 @@ globalizef f g h = st $ \b -> g (h (f b)) b
 
 endoSeq :: (a -> Endo b) -> [a] -> Endo b
 endoSeq f = foldM (const f) ()
+
+endoSeqi :: (Int -> a -> Endo b) -> [a] -> Endo b
+endoSeqi f l = endoSeq (uncurry f) $ zip [0..length l - 1] l

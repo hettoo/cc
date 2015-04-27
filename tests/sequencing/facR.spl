@@ -1,0 +1,10 @@
+Int main () {
+    return fac(4);
+}
+
+Int fac (Int n) {
+    if (n < 2)
+        return 1;
+    else
+        return n * fac(n - 1);
+}

@@ -1,7 +1,8 @@
 Void main() {
-    f();
+    f(True);
 }
-Int f() {
+
+Int f(Bool b) {
     Int x = 42;
     return 666;
 }

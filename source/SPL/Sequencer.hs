@@ -6,6 +6,7 @@ import Context
 import Todo
 import Endo
 import State
+import Utils
 import Control.Monad
 
 data Command =
@@ -22,8 +23,8 @@ data Command =
     BRA String |
     BRF String |
     JSR |
-    LINK |
-    UNLINK |
+    LINK Int |
+    UNLINK Int |
     RET |
     HALT String
     deriving Show
@@ -43,8 +44,8 @@ stackChange c = case c of
     BRA _ -> 0
     BRF _ -> -1
     JSR -> -1
-    LINK -> 1
-    UNLINK -> 0 -- we reset things manually after a function
+    LINK i -> i + 1
+    UNLINK i -> -i - 1
     RET -> -1
     HALT _ -> 0
 
@@ -103,22 +104,16 @@ cmdOutput c = case c of
     JSR -> "jsr"
     RET -> "ret"
     HALT s -> "halt" ++ if s == "" then "" else " ; " ++ s
-    LINK -> "link 0"
-    UNLINK -> "unlink"
+    LINK i -> "link " ++ (show i)
+    UNLINK _ -> "unlink"
 
 globals :: [StmtT] -> Sequencer
-globals l = case l of
-    [] -> eId
-    s : r -> do
-        case s of
-            VarDeclT t i e -> seqNewVariable t i e
-            _ -> eId
-        globals r
+globals l = endoSeq (seqStmt l False) l
 
 seqMain :: [StmtT] -> Sequencer
 seqMain l = do
     (_, _, vc, _, _) <- getState
-    seqStmt True (fst $ findFunction ("main", []) l)
+    seqStmt l True (fst $ findFunction ("main", []) l)
     gvc . st $ const vc
 
 seqTodo :: [StmtT] -> Sequencer
@@ -147,20 +142,36 @@ addVariable i o = do
     (_, sp, _, _, _) <- getState
     gvc (cadd i (sp + o) ("redefined variable " ++ i))
 
-seqNewVariable :: Type -> String -> ExpT -> Sequencer
-seqNewVariable t i e = do
-    seqExp e
-    addVariable i 0
+setVariable :: String -> Sequencer
+setVariable i = do
+    p <- varPos i
+    addCmd $ STS p
+
+seqNewVariable :: [StmtT] -> Bool -> Type -> String -> ExpT -> Sequencer
+seqNewVariable l main t i e = do
+    seqExp l e
+    if main then
+        addVariable i 0
+    else
+        setVariable i
+
+varDecls :: StmtT -> [(String, ExpT)]
+varDecls t = case t of
+    StmtsT l -> concat $ map varDecls l
+    VarDeclT _ i e -> [(i, e)]
+    _ -> []
 
 seqFunction :: Call -> [StmtT] -> Sequencer
 seqFunction c@(i, as) l = case i of -- TODO: unification
     "isEmpty" -> eId -- TODO
     "read" -> eId -- TODO
     "print" -> eId -- TODO
-    _ -> let (b, as') = findFunction c l in do
-        addVariables (-length as') as'
-        addCmd LINK
-        seqStmt False b
+    _ -> let
+            (b, names) = findFunction c l
+            names' = names ++ map fst (varDecls b)
+        in do
+        addVariables (-length names' - 1) names'
+        seqStmt l False b
         where
         addVariables n l = case l of
             [] -> eId
@@ -193,22 +204,22 @@ varPos i = do
     (_, sp, vc, _, _) <- getState
     return $ (clookupe i >!> vc) - sp
 
-seqStmt :: Bool -> StmtT -> Sequencer
-seqStmt main s = case s of
-    StmtsT l -> endoSeq (seqStmt main) l
-    VarDeclT t i e -> seqNewVariable t i e
-    FunDeclT _ _ _ _ -> addCmd $ HALT "nested functions are impossible"
+seqStmt :: [StmtT] -> Bool -> StmtT -> Sequencer
+seqStmt ss main s = case s of
+    StmtsT l -> endoSeq (seqStmt ss main) l
+    VarDeclT t i e -> seqNewVariable ss main t i e
+    FunDeclT _ _ _ _ -> eId
     FunCallT "print" [e] -> do
-        seqExp e
+        seqExp ss e
         case getType e of
             TInt -> addCmd PRINTI
             TChar -> addCmd PRINTC
             _ -> addCmd $ HALT ("print not yet implemented for " ++ show e)
-    FunCallT i as -> seqFunCall i as
+    FunCallT i as -> seqFunCall ss i as
     ReturnT m -> do
         case m of
             Just e -> do
-                seqExp e
+                seqExp ss e
                 if main then
                     eId -- TODO: print according to the return type
                 else
@@ -217,42 +228,44 @@ seqStmt main s = case s of
         if main then
             addCmd $ HALT "program end"
         else do
-            addCmd $ UNLINK
             addCmd RET
     AssignT i fs e -> do -- TODO: fields
-        seqExp e
-        p <- varPos i
-        addCmd $ STS p
-    IfT c b m -> case m of
-        Nothing -> do
-            seqExp c
-            (_, _, _, f, _) <- getState
-            gfresh (+1)
-            addCmd $ BRF (flowLabel f)
-            seqStmt main b
-            addCmd $ LABEL (flowLabel f)
-        Just e -> do
-            seqExp c
-            (_, _, _, f, _) <- getState
-            gfresh (+2)
-            addCmd $ BRF (flowLabel f)
-            seqStmt main b
-            addCmd $ BRA (flowLabel (f + 1))
-            addCmd $ LABEL (flowLabel f)
-            seqStmt main e
-            addCmd $ LABEL (flowLabel (f + 1))
+        seqExp ss e
+        setVariable i
+    IfT c b m -> do
+        seqExp ss c
+        (_, _, _, f, _) <- getState
+        case m of
+            Nothing -> do
+                gfresh (+1)
+                addCmd $ BRF (flowLabel f)
+                (_, sp, _, _, _) <- getState
+                seqStmt ss main b
+                addCmd $ LABEL (flowLabel f)
+                gsp $ const sp
+            Just e -> do
+                gfresh (+2)
+                addCmd $ BRF (flowLabel f)
+                (_, sp, _, _, _) <- getState
+                seqStmt ss main b
+                addCmd $ BRA (flowLabel (f + 1))
+                addCmd $ LABEL (flowLabel f)
+                gsp $ const sp
+                seqStmt ss main e
+                addCmd $ LABEL (flowLabel (f + 1))
+                gsp $ const sp
     WhileT c b -> do
         (_, _, _, f, _) <- getState
         gfresh (+2)
         addCmd $ LABEL (flowLabel f)
-        seqExp c
+        seqExp ss c
         addCmd $ BRF (flowLabel (f + 1))
-        seqStmt main b
+        seqStmt ss main b
         addCmd $ BRA (flowLabel f)
         addCmd $ LABEL (flowLabel (f + 1))
 
-seqExp :: ExpT -> Sequencer
-seqExp e = case e of
+seqExp :: [StmtT] -> ExpT -> Sequencer
+seqExp l e = case e of
     EIntT x TInt -> addCmd $ LDC (show x)
     EBoolT x TBool -> addCmd $ LDC $ case x of
         True -> "-1"
@@ -260,23 +273,23 @@ seqExp e = case e of
     ECharT x TChar -> addCmd $ LDC (show x)
     ENilT _ -> addCmd $ HALT "nil not yet implemented"
     ETupleT e1 e2 _ -> do -- TODO: probably not like this
-        seqExp e1
-        seqExp e2
+        seqExp l e1
+        seqExp l e2
     EIdT i fs t -> do
         p <- varPos i
         addCmd $ LDS p
-    EFunCallT id as _ -> do
-        seqFunCall id as
+    EFunCallT i as _ -> do
+        seqFunCall l i as
         addCmd $ LDR "RR"
     EOp1T op e _ -> do
-        seqExp e
+        seqExp l e
         addCmd $ OP1 $ case op of
             ONot -> "not"
             ONeg -> "sub"
     EOp2T OCons _ _ _ -> addCmd $ HALT "cons not yet implemented"
     EOp2T op e1 e2 _ -> do
-        seqExp e1
-        seqExp e2
+        seqExp l e1
+        seqExp l e2
         addCmd $ OP2 $ case op of
             OAnd -> "and"
             OOr -> "or"
@@ -292,10 +305,20 @@ seqExp e = case e of
             ODiv -> "div"
             OMod -> "mod"
 
-seqFunCall :: String -> [ExpT] -> Sequencer
-seqFunCall i as = let c = (i, map getType as) in do
-    gtodo (todo c)
-    endoSeq seqExp as
-    addCmd $ LDC (callLabel c)
-    addCmd JSR
-    gsp $ \sp -> sp - length as
+seqFunCall :: [StmtT] -> String -> [ExpT] -> Sequencer
+seqFunCall l i as =
+    let
+        c = (i, map getType as)
+        (b, names) = findFunction c l
+        n = length as + length (varDecls b)
+        as' = zip names as
+    in do
+        gtodo (todo c)
+        addCmd $ LINK n
+        flip endoSeqi as' $ \n (i, e) -> do
+            seqExp l e
+            addVariable i (-n - 1)
+            setVariable i
+        addCmd $ LDC (callLabel c)
+        addCmd JSR
+        addCmd $ UNLINK n
