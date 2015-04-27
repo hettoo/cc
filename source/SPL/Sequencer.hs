@@ -81,8 +81,13 @@ addCmd c = do
     gsp $ \sp -> sp + stackChange c
 
 seqOutput :: [StmtT] -> String
-seqOutput l = stateOutput $ globals l >> seqMain l >> seqTodo l >@>
-    (tnew, 0, cnew, 0, [])
+seqOutput l = stateOutput $ program >@> (tnew, 0, cnew, 0, [])
+    where
+    program = do
+        globals l
+        gvc cdown
+        seqMain l
+        seqTodo l
 
 stateOutput :: SO -> String
 stateOutput (_, _, _, _, l) = unlines (map cmdOutput l)
@@ -177,9 +182,13 @@ seqFunction c@(i, as) l = case i of -- TODO: unification
     "print" -> eId -- TODO
     _ -> let
             (b, names) = findFunction c l
-            names' = reverse $ names ++ map fst (varDecls b)
+            namesp = reverse names
+            namesi = reverse (map fst (varDecls b))
+            names' = namesi ++ namesp
         in do
-        addVariables (-length names') names'
+        addVariables (-length names') namesi
+        gvc cdown
+        addVariables (-length namesp) namesp
         seqStmt l False b
         where
         addVariables n l = case l of

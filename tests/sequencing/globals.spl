@@ -1,8 +1,8 @@
 Int a = f(0);
 Int b = f(1);
 
-Int f(Int c) {
-    return c;
+Int f(Int a) {
+    return a;
 }
 
 Int main() {
