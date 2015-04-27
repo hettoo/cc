@@ -21,7 +21,7 @@ data Command =
     JSR |
     RET |
     HALT String |
-    LINK Integer |
+    LINK |
     UNLINK
     deriving Show
 
@@ -39,8 +39,8 @@ stackChange c = case c of
     JSR -> 0
     RET -> -1
     HALT _ -> 0
-    LINK _ -> 0 -- let's pretend they don't
-    UNLINK -> 0 -- let's pretend they don't
+    LINK -> 1
+    UNLINK -> 0 -- we reset things manually after a function
 
 type Call = (String, [Type]) -- TODO: allow polymorphic outputs
 type SP = Int
@@ -101,7 +101,7 @@ cmdOutput c = case c of
     JSR -> "jsr"
     RET -> "ret"
     HALT s -> "halt" ++ if s == "" then "" else " ; " ++ s
-    LINK i -> "link " ++ (show i)
+    LINK -> "link 0"
     UNLINK -> "unlink"
 
 globals :: [StmtT] -> Sequencer
@@ -109,7 +109,7 @@ globals l = case l of
     [] -> eId
     s : r -> do
         case s of
-            VarDeclT t i e -> seqVariable t i e
+            VarDeclT t i e -> seqNewVariable t i e
             _ -> eId
         globals r
 
@@ -121,33 +121,30 @@ seqMain l = do
 
 seqTodo :: [StmtT] -> Sequencer
 seqTodo l = do
-    (_, _, vc, _, _) <- getState
-    seqTodo' vc l
+    (_, sp, vc, _, _) <- getState
+    seqTodo' sp vc l
     where
-    seqTodo' vc l = do
+    seqTodo' sp vc l = do
         (t, _, _, _, _) <- getState
         case getTodo t of
             (Nothing, _) -> eId
             (Just c@(i, as), t') -> do
                 gtodo $ const t'
+                gsp $ const (sp + length as)
                 gvc . st $ const vc
                 addCmd $ LABEL (callLabel c)
                 seqFunction c l
-                seqTodo' vc l
+                seqTodo' sp vc l
 
 callLabel :: Call -> String
-callLabel (s, l) = s ++ "_" ++ show (length l) ++ typesLabel l
-    where
-    typesLabel l = case l of
-        [] -> ""
-        a : r -> "_" ++ simplePrint a ++ typesLabel r
+callLabel (s, l) = s ++ "_" ++ show (length l) ++
+    foldr (\a r -> "_" ++ simplePrint a ++ r) "" l
 
-seqVariable :: Type -> String -> ExpT -> Sequencer
-seqVariable t i e = do
+seqNewVariable :: Type -> String -> ExpT -> Sequencer
+seqNewVariable t i e = do
     seqExp e
     (_, sp, _, _, _) <- getState
     gvc (cadd i sp ("redefined variable " ++ i))
-    -- TODO: stl (store local variable)
 
 seqFunction :: Call -> [StmtT] -> Sequencer
 seqFunction c@(i, as) l = case i of -- TODO: unification
@@ -155,14 +152,8 @@ seqFunction c@(i, as) l = case i of -- TODO: unification
     "read" -> eId -- TODO
     "print" -> eId -- TODO
     _ -> let s = findFunction c l in do
-        addCmd . LINK $ countVarDecl s
+        addCmd LINK
         seqStmt False s
-
-countVarDecl :: StmtT -> Integer
-countVarDecl t = case t of
-    StmtsT l -> sum $ map countVarDecl l
-    VarDeclT _ _ _ -> 1
-    _ -> 0 
 
 findFunction :: Call -> [StmtT] -> StmtT
 findFunction c@(i, as) l = case l of
@@ -185,7 +176,7 @@ flowLabel i = "_f" ++ show i
 seqStmt :: Bool -> StmtT -> Sequencer
 seqStmt main s = case s of
     StmtsT l -> endoSeq (seqStmt main) l
-    VarDeclT t i e -> seqVariable t i e
+    VarDeclT t i e -> seqNewVariable t i e
     FunDeclT _ _ _ _ -> addCmd $ HALT "nested functions are impossible"
     FunCallT "print" [e] -> do
         seqExp e
@@ -283,4 +274,4 @@ seqFunCall i as = let c = (i, map getType as) in do
     endoSeq seqExp as
     addCmd $ LDC (callLabel c)
     addCmd JSR
-    gsp $ \sp -> sp - length as + 1 -- TODO: clean up variables from the stack
+    gsp $ \sp -> sp - length as + 1 -- TODO: handle possible output
