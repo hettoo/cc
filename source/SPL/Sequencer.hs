@@ -11,11 +11,14 @@ import Control.Monad
 
 data Command =
     LABEL String |
+    AJS Int |
     LDC String |
     LDR String |
     STR String |
     LDS Int |
     STS Int |
+    LDH Int Int |
+    STH Int |
     OP1 String |
     OP2 String |
     PRINTI |
@@ -32,11 +35,14 @@ data Command =
 stackChange :: Command -> Int
 stackChange c = case c of
     LABEL _ -> 0
+    AJS n -> n
     LDC _ -> 1
     LDR _ -> 1
     STR _ -> -1
     LDS _ -> 1
     STS _ -> -1
+    LDH _ n -> n - 1
+    STH n -> 1 - n
     OP1 _ -> 0
     OP2 _ -> -1
     PRINTI -> -1
@@ -44,10 +50,33 @@ stackChange c = case c of
     BRA _ -> 0
     BRF _ -> -1
     JSR -> -1
-    LINK i -> i + 1
-    UNLINK i -> -i - 1
+    LINK n -> n + 1
+    UNLINK n -> -n - 1
     RET -> -1
     HALT _ -> 0
+
+cmdOutput :: Command -> String
+cmdOutput c = case c of
+    LABEL s -> s ++ ":"
+    AJS n -> "ajs " ++ show n
+    LDC s -> "ldc " ++ s
+    LDR s -> "ldr " ++ s
+    STR s -> "str " ++ s
+    LDS n -> "lds " ++ show n
+    STS n -> "sts " ++ show n
+    LDH m n -> "ldmh " ++ show m ++ " " ++ show n
+    STH n -> "stmh " ++ show n
+    OP1 s -> s
+    OP2 s -> s
+    PRINTI -> "trap 0"
+    PRINTC -> "trap 1"
+    BRA s -> "bra " ++ s
+    BRF s -> "brf " ++ s
+    JSR -> "jsr"
+    RET -> "ret"
+    HALT s -> "halt" ++ if s == "" then "" else " ; " ++ s
+    LINK n -> "link " ++ show n
+    UNLINK _ -> "unlink"
 
 type Call = (String, [Type]) -- TODO: allow polymorphic outputs
 type SP = Int
@@ -91,26 +120,6 @@ seqOutput l = stateOutput $ program >@> (tnew, 0, cnew, 0, [])
 
 stateOutput :: SO -> String
 stateOutput (_, _, _, _, l) = unlines (map cmdOutput l)
-
-cmdOutput :: Command -> String
-cmdOutput c = case c of
-    LABEL s -> s ++ ":"
-    LDC s -> "ldc " ++ s
-    LDR s -> "ldr " ++ s
-    STR s -> "str " ++ s
-    LDS i -> "lds " ++ (show i)
-    STS i -> "sts " ++ (show i)
-    OP1 s -> s
-    OP2 s -> s
-    PRINTI -> "trap 0"
-    PRINTC -> "trap 1"
-    BRA s -> "bra " ++ s
-    BRF s -> "brf " ++ s
-    JSR -> "jsr"
-    RET -> "ret"
-    HALT s -> "halt" ++ if s == "" then "" else " ; " ++ s
-    LINK i -> "link " ++ (show i)
-    UNLINK _ -> "unlink"
 
 globals :: [StmtT] -> Sequencer
 globals l = endoSeq declareGlobal l >> endoSeq setGlobal l
@@ -256,26 +265,7 @@ seqStmt ss main s = case s of
         setVariable i
     IfT c b m -> do
         seqExp ss c
-        (_, _, _, f, _) <- getState
-        case m of
-            Nothing -> do
-                gfresh (+1)
-                addCmd $ BRF (flowLabel f)
-                (_, sp, _, _, _) <- getState
-                seqStmt ss main b
-                addCmd $ LABEL (flowLabel f)
-                gsp $ const sp
-            Just e -> do
-                gfresh (+2)
-                addCmd $ BRF (flowLabel f)
-                (_, sp, _, _, _) <- getState
-                seqStmt ss main b
-                addCmd $ BRA (flowLabel (f + 1))
-                addCmd $ LABEL (flowLabel f)
-                gsp $ const sp
-                seqStmt ss main e
-                addCmd $ LABEL (flowLabel (f + 1))
-                gsp $ const sp
+        seqIf (seqStmt ss main b) (fmap (seqStmt ss main) m)
     WhileT c b -> do
         (_, _, _, f, _) <- getState
         gfresh (+2)
@@ -286,6 +276,29 @@ seqStmt ss main s = case s of
         addCmd $ BRA (flowLabel f)
         addCmd $ LABEL (flowLabel (f + 1))
 
+seqIf :: Sequencer -> Maybe Sequencer -> Sequencer
+seqIf b m = do
+    (_, _, _, f, _) <- getState
+    case m of
+        Nothing -> do
+            gfresh (+1)
+            addCmd $ BRF (flowLabel f)
+            (_, sp, _, _, _) <- getState
+            b
+            addCmd $ LABEL (flowLabel f)
+            gsp $ const sp
+        Just e -> do
+            gfresh (+2)
+            addCmd $ BRF (flowLabel f)
+            (_, sp, _, _, _) <- getState
+            b
+            addCmd $ BRA (flowLabel (f + 1))
+            addCmd $ LABEL (flowLabel f)
+            gsp $ const sp
+            e
+            addCmd $ LABEL (flowLabel (f + 1))
+            gsp $ const sp
+
 seqExp :: [StmtT] -> ExpT -> Sequencer
 seqExp l e = case e of
     EIntT x TInt -> addCmd $ LDC (show x)
@@ -294,9 +307,10 @@ seqExp l e = case e of
         False -> "0"
     ECharT x TChar -> addCmd $ LDC (show x)
     ENilT _ -> addCmd $ HALT "nil not yet implemented"
-    ETupleT e1 e2 _ -> do -- TODO: probably not like this
+    ETupleT e1 e2 _ -> do
         seqExp l e1
         seqExp l e2
+        addCmd $ STH 2
     EIdT i fs t -> do
         p <- varPos i
         addCmd $ LDS p
@@ -309,9 +323,42 @@ seqExp l e = case e of
             ONot -> "not"
             ONeg -> "sub"
     EOp2T OCons _ _ _ -> addCmd $ HALT "cons not yet implemented"
-    EOp2T op e1 e2 _ -> do
+    EOp2T op e1 e2 t -> do
         seqExp l e1
         seqExp l e2
+        applyOp2 op (getType e1, getType e2)
+
+applyBoolTupleFirst :: Op2 -> ((Type, Type), (Type, Type)) -> Sequencer
+applyBoolTupleFirst op ((t1, t2), (t1', t2')) = do
+    addCmd $ LDH 0 2
+    addCmd $ LDS (-2)
+    addCmd $ LDH 0 2
+    addCmd $ LDS (-1)
+    addCmd $ LDS (-4)
+    applyOp2 op (t1, t1')
+    seqIf quick (Just slow)
+    where
+    quick = do
+        addCmd $ AJS (-5)
+        addCmd $ LDC "-1"
+    slow = do
+        addCmd $ LDS (-2)
+        applyOp2 op (t2, t2')
+        addCmd $ STR "R5"
+        addCmd $ AJS (-4)
+        addCmd $ LDR "R5"
+
+applyOp2 :: Op2 -> (Type, Type) -> Sequencer
+applyOp2 op t = case (op, t) of
+    (OLt, (TTuple t1 t2, TTuple t1' t2')) ->
+        applyBoolTupleFirst op ((t1, t2), (t1', t2'))
+    (OGt, (TTuple t1 t2, TTuple t1' t2')) ->
+        applyBoolTupleFirst op ((t1, t2), (t1', t2'))
+    (OLe, (TTuple t1 t2, TTuple t1' t2')) ->
+        applyBoolTupleFirst op ((t1, t2), (t1', t2'))
+    (OGe, (TTuple t1 t2, TTuple t1' t2')) ->
+        applyBoolTupleFirst op ((t1, t2), (t1', t2'))
+    _ -> do
         addCmd $ OP2 $ case op of
             OAnd -> "and"
             OOr -> "or"

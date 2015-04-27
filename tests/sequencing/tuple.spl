@@ -1,0 +1,5 @@
+Bool main () {
+    (Int, Int) a = (1, 2);
+    (Int, Int) b = (1, 3);
+    return a < b;
+}
