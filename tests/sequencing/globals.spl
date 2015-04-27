@@ -1,0 +1,10 @@
+Int a = f(0);
+Int b = f(1);
+
+Int f(Int c) {
+    return c;
+}
+
+Int main() {
+    return f(2);
+}

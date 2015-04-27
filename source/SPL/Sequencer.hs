@@ -108,7 +108,16 @@ cmdOutput c = case c of
     UNLINK _ -> "unlink"
 
 globals :: [StmtT] -> Sequencer
-globals l = endoSeq (seqStmt l False) l
+globals l = endoSeq declareGlobal l >> endoSeq setGlobal l
+    where
+    declareGlobal s = case s of
+        VarDeclT _ i _ -> do
+            addCmd $ LDC "0" -- whatever
+            addVariable i 0
+        _ -> eId
+    setGlobal s = case s of
+        VarDeclT t i e -> seqNewVariable l False t i e
+        _ -> eId
 
 seqMain :: [StmtT] -> Sequencer
 seqMain l = do
