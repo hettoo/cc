@@ -328,19 +328,36 @@ seqExp l e = case e of
         seqExp l e2
         applyOp2 op (getType e1, getType e2)
 
-applyBoolTupleFirst :: Op2 -> ((Type, Type), (Type, Type)) -> Sequencer
-applyBoolTupleFirst op ((t1, t2), (t1', t2')) = do
+applyTuple :: Op2 -> ((Type, Type), (Type, Type)) -> Sequencer
+applyTuple op ((t1, t2), (t1', t2')) = do
     addCmd $ LDH 0 2
     addCmd $ LDS (-2)
     addCmd $ LDH 0 2
     addCmd $ LDS (-1)
     addCmd $ LDS (-4)
     applyOp2 op (t1, t1')
-    seqIf quick (Just slow)
+    addCmd $ LDS (-1)
+    addCmd $ LDS (-4)
+    applyOp2 op (t2, t2')
+    addCmd $ STH 2
+    addCmd $ STR "R5"
+    addCmd $ AJS (-5)
+    addCmd $ LDR "R5"
+
+applyBoolTuple :: Bool -> Bool -> Op2 -> ((Type, Type), (Type, Type)) -> Sequencer
+applyBoolTuple firstQuick quickValue op ((t1, t2), (t1', t2')) = do
+    addCmd $ LDH 0 2
+    addCmd $ LDS (-2)
+    addCmd $ LDH 0 2
+    addCmd $ LDS (-1)
+    addCmd $ LDS (-4)
+    applyOp2 op (t1, t1')
+    seqIf (if firstQuick then quick else slow)
+        (Just $ if firstQuick then slow else quick)
     where
     quick = do
         addCmd $ AJS (-5)
-        addCmd $ LDC "-1"
+        addCmd . LDC $ if quickValue then "-1" else "0"
     slow = do
         addCmd $ LDS (-2)
         applyOp2 op (t2, t2')
@@ -351,13 +368,27 @@ applyBoolTupleFirst op ((t1, t2), (t1', t2')) = do
 applyOp2 :: Op2 -> (Type, Type) -> Sequencer
 applyOp2 op t = case (op, t) of
     (OLt, (TTuple t1 t2, TTuple t1' t2')) ->
-        applyBoolTupleFirst op ((t1, t2), (t1', t2'))
+        applyBoolTuple True True op ((t1, t2), (t1', t2'))
     (OGt, (TTuple t1 t2, TTuple t1' t2')) ->
-        applyBoolTupleFirst op ((t1, t2), (t1', t2'))
+        applyBoolTuple True True op ((t1, t2), (t1', t2'))
     (OLe, (TTuple t1 t2, TTuple t1' t2')) ->
-        applyBoolTupleFirst op ((t1, t2), (t1', t2'))
+        applyBoolTuple True True op ((t1, t2), (t1', t2'))
     (OGe, (TTuple t1 t2, TTuple t1' t2')) ->
-        applyBoolTupleFirst op ((t1, t2), (t1', t2'))
+        applyBoolTuple True True op ((t1, t2), (t1', t2'))
+    (OEq, (TTuple t1 t2, TTuple t1' t2')) ->
+        applyBoolTuple False False op ((t1, t2), (t1', t2'))
+    (ONeq, (TTuple t1 t2, TTuple t1' t2')) ->
+        applyBoolTuple True False op ((t1, t2), (t1', t2'))
+    (OPlus, (TTuple t1 t2, TTuple t1' t2')) ->
+        applyTuple op ((t1, t2), (t1', t2'))
+    (OMinus, (TTuple t1 t2, TTuple t1' t2')) ->
+        applyTuple op ((t1, t2), (t1', t2'))
+    (OTimes, (TTuple t1 t2, TTuple t1' t2')) ->
+        applyTuple op ((t1, t2), (t1', t2'))
+    (ODiv, (TTuple t1 t2, TTuple t1' t2')) ->
+        applyTuple op ((t1, t2), (t1', t2'))
+    (OMod, (TTuple t1 t2, TTuple t1' t2')) ->
+        applyTuple op ((t1, t2), (t1', t2'))
     _ -> do
         addCmd $ OP2 $ case op of
             OAnd -> "and"
