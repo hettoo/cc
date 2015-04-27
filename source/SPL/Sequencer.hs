@@ -238,6 +238,28 @@ varPos i = do
 
 seqPrint :: Type -> Sequencer
 seqPrint t = case t of
+    TBool -> seqIf printTrue (Just printFalse)
+        where
+        printTrue = do
+            addCmd $ LDC (show $ ord 'T')
+            addCmd PRINTC
+            addCmd $ LDC (show $ ord 'r')
+            addCmd PRINTC
+            addCmd $ LDC (show $ ord 'u')
+            addCmd PRINTC
+            addCmd $ LDC (show $ ord 'e')
+            addCmd PRINTC
+        printFalse = do
+            addCmd $ LDC (show $ ord 'F')
+            addCmd PRINTC
+            addCmd $ LDC (show $ ord 'a')
+            addCmd PRINTC
+            addCmd $ LDC (show $ ord 'l')
+            addCmd PRINTC
+            addCmd $ LDC (show $ ord 's')
+            addCmd PRINTC
+            addCmd $ LDC (show $ ord 'e')
+            addCmd PRINTC
     TInt -> addCmd PRINTI
     TChar -> addCmd PRINTC
     TTuple t1 t2 -> do
