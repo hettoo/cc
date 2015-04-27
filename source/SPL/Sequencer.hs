@@ -351,7 +351,7 @@ seqExp l e = case e of
         seqExp l e1
         seqExp l e2
         addCmd $ STH 2
-    EIdT i fs t -> do
+    EIdT i fs t -> do -- TODO: fields
         p <- varPos i
         addCmd $ LDS p
     EFunCallT i as _ -> do
