@@ -262,6 +262,7 @@ seqPrint t = case t of
             addCmd PRINTC
     TInt -> addCmd PRINTI
     TChar -> addCmd PRINTC
+    TList t' -> eId -- TODO
     TTuple t1 t2 -> do
         addCmd $ LDC (show $ ord '(')
         addCmd PRINTC
@@ -346,7 +347,7 @@ seqExp l e = case e of
         True -> "-1"
         False -> "0"
     ECharT x TChar -> addCmd $ LDC (show x)
-    ENilT _ -> addCmd $ HALT "nil not yet implemented"
+    ENilT _ -> addCmd $ LDC "0"
     ETupleT e1 e2 _ -> do
         seqExp l e1
         seqExp l e2
@@ -360,8 +361,11 @@ seqExp l e = case e of
     EOp1T op e _ -> do
         seqExp l e
         applyOp1 op (getType e)
-    EOp2T OCons _ _ _ -> addCmd $ HALT "cons not yet implemented"
-    EOp2T op e1 e2 t -> do
+    EOp2T OCons e1 e2 _ -> do
+        seqExp l e1
+        seqExp l e2
+        addCmd $ STH 2
+    EOp2T op e1 e2 _ -> do
         seqExp l e1
         seqExp l e2
         applyOp2 op (getType e1, getType e2)
@@ -380,6 +384,7 @@ op1Tuple op (t1, t2) = do
 
 applyOp1 :: Op1 -> Type -> Sequencer
 applyOp1 op t = case t of
+    TList t' -> eId -- TODO
     TTuple t1 t2 -> op1Tuple op ((t1, t2))
     _ -> addCmd $ OP1 $ case op of
         ONot -> "not"
@@ -424,6 +429,8 @@ op2BoolTuple firstQuick quickValue op ((t1, t2), (t1', t2')) = do
 
 applyOp2 :: Op2 -> (Type, Type) -> Sequencer
 applyOp2 op t = case t of
+    (TList t1, TList t2) -> case op of
+        _ -> eId -- TODO
     (TTuple t1 t2, TTuple t1' t2') -> case op of
         OLt -> op2BoolTuple True True op ((t1, t2), (t1', t2'))
         OGt -> op2BoolTuple True True op ((t1, t2), (t1', t2'))
