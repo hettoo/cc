@@ -1,0 +1,12 @@
+Int facI (Int n) {
+    Int r = 1;
+    while (n > 1) {
+        r = r * n;
+        n = n - 1;
+    }
+    return r;
+}
+
+Int main () {
+    return facI(4);
+}

@@ -118,7 +118,7 @@ globals l = case l of
 seqMain :: [StmtT] -> Sequencer
 seqMain l = do
     (_, _, vc, _, _) <- getState
-    seqStmt True (findFunction ("main", []) l)
+    seqStmt True (fst $ findFunction ("main", []) l)
     gvc . st $ const vc
 
 seqTodo :: [StmtT] -> Sequencer
@@ -142,32 +142,45 @@ callLabel :: Call -> String
 callLabel (s, l) = s ++ "_" ++ show (length l) ++
     foldr (\a r -> "_" ++ simplePrint a ++ r) "" l
 
+addVariable :: String -> Int -> Sequencer
+addVariable i o = do
+    (_, sp, _, _, _) <- getState
+    gvc (cadd i (sp + o) ("redefined variable " ++ i))
+
 seqNewVariable :: Type -> String -> ExpT -> Sequencer
 seqNewVariable t i e = do
     seqExp e
-    (_, sp, _, _, _) <- getState
-    gvc (cadd i sp ("redefined variable " ++ i))
+    addVariable i 0
 
 seqFunction :: Call -> [StmtT] -> Sequencer
 seqFunction c@(i, as) l = case i of -- TODO: unification
     "isEmpty" -> eId -- TODO
     "read" -> eId -- TODO
     "print" -> eId -- TODO
-    _ -> let b = findFunction c l in do
+    _ -> let (b, as') = findFunction c l in do
+        addVariables (-length as') as'
         addCmd LINK
         seqStmt False b
+        where
+        addVariables n l = case l of
+            [] -> eId
+            a : r -> do
+                addVariable a n
+                addVariables (n + 1) r
 
-findFunction :: Call -> [StmtT] -> StmtT
+findFunction :: Call -> [StmtT] -> (StmtT, [String])
 findFunction c@(i, as) l = case l of
     [] -> error $ "function " ++ show c ++ " not found"
     s : r -> case s of
         FunDeclT t i' as' b ->
             if i == i' {-&& as == map fst as'-} then -- TODO: unify
                 case t of
-                    TVoid -> StmtsT [b, ReturnT Nothing] -- just to be sure
-                    _ -> b
+                    TVoid -> (StmtsT [b, ReturnT Nothing], n) -- just to be sure
+                    _ -> (b, n)
             else
                 rec
+            where
+            n = map snd as'
         _ -> rec
         where
         rec = findFunction c r
@@ -253,7 +266,6 @@ seqExp e = case e of
         p <- varPos i
         addCmd $ LDS p
     EFunCallT id as _ -> do
-        endoSeq seqExp as
         seqFunCall id as
         addCmd $ LDR "RR"
     EOp1T op e _ -> do
