@@ -109,8 +109,7 @@ globals l = case l of
     [] -> eId
     s : r -> do
         case s of
-            VarDeclT t i e ->
-                seqVariable t i e
+            VarDeclT t i e -> seqVariable t i e
             _ -> eId
         globals r
 
@@ -152,13 +151,12 @@ seqVariable t i e = do
 
 seqFunction :: Call -> [StmtT] -> Sequencer
 seqFunction c@(i, as) l = case i of -- TODO: unification
-        "isEmpty" -> eId -- TODO
-        "read" -> eId -- TODO
-        "print" -> eId -- TODO
-        _ -> let s = findFunction c l in do
-            addCmd . LINK $ countVarDecl s
-            seqStmt False s
-            addCmd $ UNLINK -- TODO: unreachable code, this should be added before 'ret', maybe remove 'ret' from seqStmt?
+    "isEmpty" -> eId -- TODO
+    "read" -> eId -- TODO
+    "print" -> eId -- TODO
+    _ -> let s = findFunction c l in do
+        addCmd . LINK $ countVarDecl s
+        seqStmt False s
 
 countVarDecl :: StmtT -> Integer
 countVarDecl t = case t of
@@ -207,7 +205,8 @@ seqStmt main s = case s of
             Nothing -> eId
         if main then
             addCmd $ HALT "program end"
-        else
+        else do
+            addCmd $ UNLINK
             addCmd RET
     AssignT _ _ _ -> addCmd $ HALT "assignment not yet implemented"
     IfT c b m -> case m of
