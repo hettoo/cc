@@ -423,29 +423,19 @@ op2BoolTuple firstQuick quickValue op ((t1, t2), (t1', t2')) = do
         addCmd $ LDR "R5"
 
 applyOp2 :: Op2 -> (Type, Type) -> Sequencer
-applyOp2 op t = case (op, t) of
-    (OLt, (TTuple t1 t2, TTuple t1' t2')) ->
-        op2BoolTuple True True op ((t1, t2), (t1', t2'))
-    (OGt, (TTuple t1 t2, TTuple t1' t2')) ->
-        op2BoolTuple True True op ((t1, t2), (t1', t2'))
-    (OLe, (TTuple t1 t2, TTuple t1' t2')) ->
-        op2BoolTuple True True op ((t1, t2), (t1', t2'))
-    (OGe, (TTuple t1 t2, TTuple t1' t2')) ->
-        op2BoolTuple True True op ((t1, t2), (t1', t2'))
-    (OEq, (TTuple t1 t2, TTuple t1' t2')) ->
-        op2BoolTuple False False op ((t1, t2), (t1', t2'))
-    (ONeq, (TTuple t1 t2, TTuple t1' t2')) ->
-        op2BoolTuple True False op ((t1, t2), (t1', t2'))
-    (OPlus, (TTuple t1 t2, TTuple t1' t2')) ->
-        op2Tuple op ((t1, t2), (t1', t2'))
-    (OMinus, (TTuple t1 t2, TTuple t1' t2')) ->
-        op2Tuple op ((t1, t2), (t1', t2'))
-    (OTimes, (TTuple t1 t2, TTuple t1' t2')) ->
-        op2Tuple op ((t1, t2), (t1', t2'))
-    (ODiv, (TTuple t1 t2, TTuple t1' t2')) ->
-        op2Tuple op ((t1, t2), (t1', t2'))
-    (OMod, (TTuple t1 t2, TTuple t1' t2')) ->
-        op2Tuple op ((t1, t2), (t1', t2'))
+applyOp2 op t = case t of
+    (TTuple t1 t2, TTuple t1' t2') -> case op of
+        OLt -> op2BoolTuple True True op ((t1, t2), (t1', t2'))
+        OGt -> op2BoolTuple True True op ((t1, t2), (t1', t2'))
+        OLe -> op2BoolTuple True True op ((t1, t2), (t1', t2'))
+        OGe -> op2BoolTuple True True op ((t1, t2), (t1', t2'))
+        OEq -> op2BoolTuple False False op ((t1, t2), (t1', t2'))
+        ONeq -> op2BoolTuple True False op ((t1, t2), (t1', t2'))
+        OPlus -> op2Tuple op ((t1, t2), (t1', t2'))
+        OMinus -> op2Tuple op ((t1, t2), (t1', t2'))
+        OTimes -> op2Tuple op ((t1, t2), (t1', t2'))
+        ODiv -> op2Tuple op ((t1, t2), (t1', t2'))
+        OMod -> op2Tuple op ((t1, t2), (t1', t2'))
     _ -> do
         addCmd $ OP2 $ case op of
             OAnd -> "and"
