@@ -13,6 +13,8 @@ data Command =
     LDC String |
     LDR String |
     STR String |
+    LDS Int |
+    STS Int |
     OP1 String |
     OP2 String |
     PRINTI |
@@ -32,6 +34,8 @@ stackChange c = case c of
     LDC _ -> 1
     LDR _ -> 1
     STR _ -> -1
+    LDS _ -> 1
+    STS _ -> -1
     OP1 _ -> -1
     OP2 _ -> -2
     PRINTI -> -1
@@ -88,6 +92,8 @@ cmdOutput c = case c of
     LDC s -> "ldc " ++ s
     LDR s -> "ldr " ++ s
     STR s -> "str " ++ s
+    LDS i -> "lds " ++ (show i)
+    STS i -> "sts " ++ (show i)
     OP1 s -> s
     OP2 s -> s
     PRINTI -> "trap 0"
@@ -169,6 +175,11 @@ findFunction c@(i, as) l = case l of
 flowLabel :: Int -> String
 flowLabel i = "_f" ++ show i
 
+varPos :: String -> State SO Int
+varPos i = do
+    (_, sp, vc, _, _) <- getState
+    return $ (clookupe i >!> vc) - sp
+
 seqStmt :: Bool -> StmtT -> Sequencer
 seqStmt main s = case s of
     StmtsT l -> endoSeq (seqStmt main) l
@@ -195,7 +206,10 @@ seqStmt main s = case s of
         else do
             addCmd $ UNLINK
             addCmd RET
-    AssignT _ _ _ -> addCmd $ HALT "assignment not yet implemented"
+    AssignT i fs e -> do -- TODO: fields
+        seqExp e
+        p <- varPos i
+        addCmd $ STS p
     IfT c b m -> case m of
         Nothing -> do
             seqExp c
@@ -235,7 +249,9 @@ seqExp e = case e of
     ETupleT e1 e2 _ -> do -- TODO: probably not like this
         seqExp e1
         seqExp e2
-    EIdT _ _ _ -> addCmd $ HALT "variables not yet implemented"
+    EIdT i fs t -> do
+        p <- varPos i
+        addCmd $ LDS p
     EFunCallT id as _ -> do
         endoSeq seqExp as
         seqFunCall id as
