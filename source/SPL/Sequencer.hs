@@ -11,7 +11,8 @@ import Control.Monad
 data Command =
     LABEL String |
     LDC String |
-    STL Integer |
+    LDR String |
+    STR String |
     OP1 String |
     OP2 String |
     PRINTI |
@@ -19,28 +20,29 @@ data Command =
     BRA String |
     BRF String |
     JSR |
-    RET |
-    HALT String |
     LINK |
-    UNLINK
+    UNLINK |
+    RET |
+    HALT String
     deriving Show
 
 stackChange :: Command -> Int
 stackChange c = case c of
     LABEL _ -> 0
     LDC _ -> 1
-    STL _ -> -1
+    LDR _ -> 1
+    STR _ -> -1
     OP1 _ -> -1
     OP2 _ -> -2
     PRINTI -> -1
     PRINTC -> -1
     BRA _ -> 0
     BRF _ -> -1
-    JSR -> 0
-    RET -> -1
-    HALT _ -> 0
+    JSR -> -1
     LINK -> 1
     UNLINK -> 0 -- we reset things manually after a function
+    RET -> -1
+    HALT _ -> 0
 
 type Call = (String, [Type]) -- TODO: allow polymorphic outputs
 type SP = Int
@@ -73,13 +75,6 @@ addCmd c = do
     gcmd $ \l -> l ++ [c]
     gsp $ \sp -> sp + stackChange c
 
-discard :: Int -> Sequencer
-discard n = case n of
-    0 -> eId
-    n -> do
-        addCmd $ STL 0 -- TODO: proper way to pop and discard?
-        discard (n - 1) -- TODO: all in one command?
-
 seqOutput :: [StmtT] -> String
 seqOutput l = stateOutput $ globals l >> seqMain l >> seqTodo l >@>
     (tnew, 0, cnew, 0, [])
@@ -91,7 +86,8 @@ cmdOutput :: Command -> String
 cmdOutput c = case c of
     LABEL s -> s ++ ":"
     LDC s -> "ldc " ++ s
-    STL i -> "stl " ++ (show i)
+    LDR s -> "ldr " ++ s
+    STR s -> "str " ++ s
     OP1 s -> s
     OP2 s -> s
     PRINTI -> "trap 0"
@@ -151,9 +147,9 @@ seqFunction c@(i, as) l = case i of -- TODO: unification
     "isEmpty" -> eId -- TODO
     "read" -> eId -- TODO
     "print" -> eId -- TODO
-    _ -> let s = findFunction c l in do
+    _ -> let b = findFunction c l in do
         addCmd LINK
-        seqStmt False s
+        seqStmt False b
 
 findFunction :: Call -> [StmtT] -> StmtT
 findFunction c@(i, as) l = case l of
@@ -184,15 +180,15 @@ seqStmt main s = case s of
             TInt -> addCmd PRINTI
             TChar -> addCmd PRINTC
             _ -> addCmd $ HALT ("print not yet implemented for " ++ show e)
-    FunCallT id as -> seqFunCall id as
+    FunCallT i as -> seqFunCall i as
     ReturnT m -> do
         case m of
             Just e -> do
+                seqExp e
                 if main then
                     eId -- TODO: print according to the return type
                 else
-                    eId
-                seqExp e
+                    addCmd $ STR "RR"
             Nothing -> eId
         if main then
             addCmd $ HALT "program end"
@@ -243,7 +239,7 @@ seqExp e = case e of
     EFunCallT id as _ -> do
         endoSeq seqExp as
         seqFunCall id as
-        discard 1
+        addCmd $ LDR "RR"
     EOp1T op e _ -> do
         seqExp e
         addCmd $ OP1 $ case op of
@@ -274,4 +270,4 @@ seqFunCall i as = let c = (i, map getType as) in do
     endoSeq seqExp as
     addCmd $ LDC (callLabel c)
     addCmd JSR
-    gsp $ \sp -> sp - length as + 1 -- TODO: handle possible output
+    gsp $ \sp -> sp - length as
