@@ -36,8 +36,8 @@ stackChange c = case c of
     STR _ -> -1
     LDS _ -> 1
     STS _ -> -1
-    OP1 _ -> -1
-    OP2 _ -> -2
+    OP1 _ -> 0
+    OP2 _ -> -1
     PRINTI -> -1
     PRINTC -> -1
     BRA _ -> 0
