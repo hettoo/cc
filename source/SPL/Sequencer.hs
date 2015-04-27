@@ -168,9 +168,9 @@ seqFunction c@(i, as) l = case i of -- TODO: unification
     "print" -> eId -- TODO
     _ -> let
             (b, names) = findFunction c l
-            names' = names ++ map fst (varDecls b)
+            names' = reverse $ names ++ map fst (varDecls b)
         in do
-        addVariables (-length names' - 1) names'
+        addVariables (-length names') names'
         seqStmt l False b
         where
         addVariables n l = case l of

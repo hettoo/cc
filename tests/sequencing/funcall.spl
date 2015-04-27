@@ -4,5 +4,6 @@ Void main() {
 
 Int f(Bool b) {
     Int x = 42;
-    return 666;
+    b = !b;
+    return x;
 }
