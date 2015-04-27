@@ -317,8 +317,7 @@ seqFunCall l i as =
         addCmd $ LINK n
         flip endoSeqi as' $ \n (i, e) -> do
             seqExp l e
-            addVariable i (-n - 1)
-            setVariable i
+            addCmd $ STS (-n - 1)
         addCmd $ LDC (callLabel c)
         addCmd JSR
         addCmd $ UNLINK n
