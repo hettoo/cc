@@ -199,7 +199,11 @@ seqFunction c@(i, as) l = case i of -- TODO: unification
 
 findFunction :: Call -> [StmtT] -> (StmtT, [String])
 findFunction c@(i, as) l = case l of
-    [] -> error $ "function " ++ show c ++ " not found"
+    [] -> case i of -- TODO: check arity and types
+        "isEmpty" -> (StmtsT [], ["l"]) -- TODO
+        "read" -> (StmtsT [], []) -- TODO
+        "print" -> (StmtsT [], ["x"]) -- TODO
+        _ -> error $ "function " ++ show c ++ " not found"
     s : r -> case s of
         FunDeclT t i' as' b ->
             if i == i' {-&& as == map fst as'-} then -- TODO: unify
