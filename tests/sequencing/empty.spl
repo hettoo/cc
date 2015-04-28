@@ -1,0 +1,12 @@
+Void main() {
+  empty_test();
+  nonempty_test();
+}
+
+Void empty_test() {
+  isEmpty([]);
+}
+
+Void nonempty_test() {
+  isEmpty(42 : []);
+}
