@@ -162,12 +162,12 @@ callLabel (s, l) = s ++ "_" ++ show (length l) ++
     foldr (\a r -> "_" ++ overloadPrint a ++ r) "" l
     where
     overloadPrint t = case t of
-        TPoly s -> s
+        TPoly s -> "POLY" -- TODO: s may contain ? (illegal char)
         TInt -> "Int"
         TBool -> "Bool"
         TChar -> "Char"
-        TTuple u v -> "T_" ++ simplePrint u ++ "_" ++ simplePrint v ++ "_ET"
-        TList u -> "L_" ++ simplePrint u ++ "_EL"
+        TTuple u v -> "T_" ++ overloadPrint u ++ "_" ++ overloadPrint v ++ "_ET"
+        TList u -> "L_" ++ overloadPrint u ++ "_EL"
         TVoid -> "Void"
 
 addVariable :: String -> Int -> Sequencer
