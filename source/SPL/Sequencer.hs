@@ -250,22 +250,33 @@ seqPrint t = case t of
         printFalse = seqPrintStr "False"
     TInt -> addCmd PRINTI
     TChar -> addCmd PRINTC
-    TList t' -> eId -- TODO
+    TList t' -> do
+        addCmd $ LDC (enc '[')
+        addCmd PRINTC
+        testNonEmpty
+        seqIf printElement (Just . addCmd $ AJS (-1))
+        seqWhile testNonEmpty printNextElement
+        addCmd $ LDC (enc ']')
+        addCmd PRINTC
+        where
+        testNonEmpty = addCmd $ LDS 0
+        printElement = do
+            addCmd $ LDH 0 2
+            seqPrint t'
+        printNextElement = do
+            seqPrintStr ", "
+            printElement
     TTuple t1 t2 -> do
-        addCmd $ LDC (show $ ord '(')
+        addCmd $ LDC (enc '(')
         addCmd PRINTC
         addCmd $ LDH 0 2
         addCmd $ LDS (-1)
         seqPrint t1
-        addCmd $ LDC (show $ ord ',')
-        addCmd PRINTC
-        addCmd $ LDC (show $ ord ' ')
-        addCmd PRINTC
+        seqPrintStr ", "
         seqPrint t1
-        addCmd $ LDC (show $ ord ')')
+        addCmd $ LDC (enc ')')
         addCmd PRINTC
         addCmd $ AJS (-1)
-    _ -> eId -- TODO
 
 enc :: Char -> String
 enc = show . ord
@@ -298,15 +309,7 @@ seqStmt ss main s = case s of
     IfT c b m -> do
         seqExp ss c
         seqIf (seqStmt ss main b) (fmap (seqStmt ss main) m)
-    WhileT c b -> do
-        (_, _, _, f, _) <- getState
-        gfresh (+2)
-        addCmd $ LABEL (flowLabel f)
-        seqExp ss c
-        addCmd $ BRF (flowLabel (f + 1))
-        seqStmt ss main b
-        addCmd $ BRA (flowLabel f)
-        addCmd $ LABEL (flowLabel (f + 1))
+    WhileT c b -> seqWhile (seqExp ss c) (seqStmt ss main b)
 
 seqIf :: Sequencer -> Maybe Sequencer -> Sequencer
 seqIf b m = do
@@ -331,6 +334,17 @@ seqIf b m = do
             addCmd $ LABEL (flowLabel (f + 1))
             gsp $ const sp
 
+seqWhile :: Sequencer -> Sequencer -> Sequencer
+seqWhile c b = do
+    (_, _, _, f, _) <- getState
+    gfresh (+2)
+    addCmd $ LABEL (flowLabel f)
+    c
+    addCmd $ BRF (flowLabel (f + 1))
+    b
+    addCmd $ BRA (flowLabel f)
+    addCmd $ LABEL (flowLabel (f + 1))
+
 seqExp :: [StmtT] -> ExpT -> Sequencer
 seqExp l e = case e of
     EIntT x TInt -> addCmd $ LDC (show x)
@@ -353,8 +367,8 @@ seqExp l e = case e of
         seqExp l e
         applyOp1 op (getType e)
     EOp2T OCons e1 e2 _ -> do
-        seqExp l e1
         seqExp l e2
+        seqExp l e1
         addCmd $ STH 2
     EOp2T op e1 e2 _ -> do
         seqExp l e1
