@@ -458,6 +458,7 @@ seqFunCall discard l i as =
         (("print", [t]), [e]) -> do
             seqExp l e
             seqPrint t
+        (("read", []), []) -> eId -- TODO
         (("isEmpty", [TList _]), [e]) -> do
             seqExp l e
             seqIf (addCmd $ LDC "0") (Just . addCmd $ LDC "-1")
