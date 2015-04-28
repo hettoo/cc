@@ -280,7 +280,8 @@ seqPrint t = case t of
     _ -> eId -- TODO
 
 seqPrintStr :: String -> Sequencer
-seqPrintStr s = addCmds . concat $ map (\c -> [LDC . show . ord $ c, PRINTC]) s
+seqPrintStr s = addCmds $ concatMap (\c -> [LDC $ enc c, PRINTC]) s
+    where enc = show . ord
 
 seqStmt :: [StmtT] -> Bool -> StmtT -> Sequencer
 seqStmt ss main s = case s of
