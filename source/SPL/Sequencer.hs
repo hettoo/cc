@@ -198,40 +198,27 @@ varDecls t = case t of
     _ -> []
 
 seqFunction :: Call -> [StmtT] -> Sequencer
-seqFunction c@(i, as) l = case i of -- TODO: unification
-    "isEmpty" -> do
-        addCmd $ LDS (-1) -- TODO: proper way to get argv[0]?
-        seqStmt l False (StmtsT [])
-        addCmd $ LDH 0 1
-        addCmd $ LDC "0"
-        applyOp2 OEq (TInt, TInt)
-        addCmd $ RET -- TODO: nope
-    "read" -> eId -- TODO
-    "print" -> eId -- TODO
-    _ -> let
-            (b, names) = findFunction c l
-            namesp = reverse names
-            namesi = reverse (map fst (varDecls b))
-            names' = namesi ++ namesp
-        in do
-        addVariables (-length names') namesi
-        gvc cdown
-        addVariables (-length namesp) namesp
-        seqStmt l False b
-        where
-        addVariables n l = case l of
-            [] -> eId
-            a : r -> do
-                addVariable a n
-                addVariables (n + 1) r
+seqFunction c@(i, as) l = -- TODO: unification
+    let
+        (b, names) = findFunction c l
+        namesp = reverse names
+        namesi = reverse (map fst (varDecls b))
+        names' = namesi ++ namesp
+    in do
+    addVariables (-length names') namesi
+    gvc cdown
+    addVariables (-length namesp) namesp
+    seqStmt l False b
+    where
+    addVariables n l = case l of
+        [] -> eId
+        a : r -> do
+            addVariable a n
+            addVariables (n + 1) r
 
 findFunction :: Call -> [StmtT] -> (StmtT, [String])
 findFunction c@(i, as) l = case l of
-    [] -> case i of -- TODO: check arity and types
-        "isEmpty" -> (StmtsT [], ["l"]) -- TODO
-        "read" -> (StmtsT [], []) -- TODO
-        "print" -> (StmtsT [], ["x"]) -- TODO
-        _ -> error $ "function " ++ show c ++ " not found"
+    [] -> error $ "function " ++ show c ++ " not found"
     s : r -> case s of
         FunDeclT t i' as' b ->
             if i == i' {-&& as == map fst as'-} then -- TODO: unify
@@ -288,10 +275,7 @@ seqStmt ss main s = case s of
     StmtsT l -> endoSeq (seqStmt ss main) l
     VarDeclT t i e -> seqNewVariable ss main t i e
     FunDeclT _ _ _ _ -> eId
-    FunCallT "print" [e] -> do
-        seqExp ss e
-        seqPrint $ getType e
-    FunCallT i as -> seqFunCall ss i as
+    FunCallT i as -> seqFunCall True ss i as
     ReturnT m -> do
         case m of
             Just e -> do
@@ -351,11 +335,7 @@ seqExp l e = case e of
         True -> "-1"
         False -> "0"
     ECharT x TChar -> addCmd $ LDC (show x)
-    ENilT _ -> do
-        addCmd $ LDC "0"
-        addCmd $ LDC "0"
-        addCmd $ LDC "0"
-        addCmd $ STH 3
+    ENilT _ -> addCmd $ LDC "0"
     ETupleT e1 e2 _ -> do
         seqExp l e1
         seqExp l e2
@@ -364,16 +344,15 @@ seqExp l e = case e of
         p <- varPos i
         addCmd $ LDS p
     EFunCallT i as _ -> do
-        seqFunCall l i as
+        seqFunCall False l i as
         addCmd $ LDR "RR"
     EOp1T op e _ -> do
         seqExp l e
         applyOp1 op (getType e)
     EOp2T OCons e1 e2 _ -> do
-        seqExp l e2 -- leaves pointer on stack 
         seqExp l e1
-        addCmd $ LDC "1"
-        addCmd $ STH 3
+        seqExp l e2
+        addCmd $ STH 2
     EOp2T op e1 e2 _ -> do
         seqExp l e1
         seqExp l e2
@@ -468,18 +447,29 @@ applyOp2 op t = case t of
             ODiv -> "div"
             OMod -> "mod"
 
-seqFunCall :: [StmtT] -> String -> [ExpT] -> Sequencer
-seqFunCall l i as =
+seqFunCall :: Bool -> [StmtT] -> String -> [ExpT] -> Sequencer
+seqFunCall discard l i as =
     let
         c = (i, map getType as)
         (b, names) = findFunction c l
         n = length as + length (varDecls b)
         as' = zip names as
-    in do
-        gtodo (todo c)
-        addCmd $ LINK n
-        flip endoSeq as' $ \(_, e) -> seqExp l e
-        addCmd $ LDC (callLabel c)
-        addCmd JSR
-        addCmd $ UNLINK n
-        gsp (\sp -> sp - 1)
+    in case (c, as) of
+        (("print", [t]), [e]) -> do
+            seqExp l e
+            seqPrint t
+        (("isEmpty", [TList _]), [e]) -> do
+            seqExp l e
+            seqIf (addCmd $ LDC "0") (Just . addCmd $ LDC "-1")
+            if discard then
+                addCmd $ AJS (-1)
+            else
+                eId
+        _ -> do
+            gtodo (todo c)
+            addCmd $ LINK n
+            flip endoSeq as' $ \(_, e) -> seqExp l e
+            addCmd $ LDC (callLabel c)
+            addCmd JSR
+            addCmd $ UNLINK n
+            gsp (\sp -> sp - 1)
