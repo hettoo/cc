@@ -267,9 +267,11 @@ seqPrint t = case t of
         addCmd $ AJS (-1)
     _ -> eId -- TODO
 
+enc :: Char -> String
+enc = show . ord
+
 seqPrintStr :: String -> Sequencer
 seqPrintStr s = addCmds $ concatMap (\c -> [LDC $ enc c, PRINTC]) s
-    where enc = show . ord
 
 seqStmt :: [StmtT] -> Bool -> StmtT -> Sequencer
 seqStmt ss main s = case s of
@@ -335,7 +337,7 @@ seqExp l e = case e of
     EBoolT x TBool -> addCmd $ LDC $ case x of
         True -> "-1"
         False -> "0"
-    ECharT x TChar -> addCmd $ LDC (show x)
+    ECharT x TChar -> addCmd $ LDC (enc x)
     ENilT _ -> addCmd $ LDC "0"
     ETupleT e1 e2 _ -> do
         seqExp l e1
