@@ -1,0 +1,8 @@
+Void main() {
+  [Int] empty = [];
+  [Int] one = 42 : [];
+  [Int] two = 42 : (1337 : []);
+
+  isEmpty(empty);
+  isEmpty(one);
+}
