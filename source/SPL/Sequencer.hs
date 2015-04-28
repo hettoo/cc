@@ -347,7 +347,7 @@ seqExp l e = case e of
         True -> "-1"
         False -> "0"
     ECharT x TChar -> addCmd $ LDC (show x)
-    ENilT _ -> addCmd $ LDC "0"
+    ENilT _ -> addCmd $ LDC "0" -- TODO: nil should be on heap
     ETupleT e1 e2 _ -> do
         seqExp l e1
         seqExp l e2
@@ -363,7 +363,7 @@ seqExp l e = case e of
         applyOp1 op (getType e)
     EOp2T OCons e1 e2 _ -> do
         seqExp l e1
-        seqExp l e2
+        seqExp l e2 -- TODO: cons should store pointer
         addCmd $ STH 2
     EOp2T op e1 e2 _ -> do
         seqExp l e1
