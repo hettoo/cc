@@ -277,6 +277,8 @@ seqPrint t = case t of
         addCmd $ LDC (enc ')')
         addCmd PRINTC
         addCmd $ AJS (-1)
+    TPoly _ -> eId -- TODO: get rid of this
+    _ -> error $ "unable to print for type " ++ show t
 
 enc :: Char -> String
 enc = show . ord
@@ -375,6 +377,15 @@ seqExp l e = case e of
         seqExp l e2
         applyOp2 op (getType e1, getType e2)
 
+op1List :: Op1 -> Type -> Sequencer
+op1List op t = do
+    seqWhile testNonEmpty processElement
+    where
+    testNonEmpty = addCmd $ LDS 0
+    processElement = do
+        addCmd $ LDH 0 2
+        applyOp1 op t
+
 op1Tuple :: Op1 -> (Type, Type) -> Sequencer
 op1Tuple op (t1, t2) = do
     addCmd $ LDH 0 2
@@ -389,11 +400,19 @@ op1Tuple op (t1, t2) = do
 
 applyOp1 :: Op1 -> Type -> Sequencer
 applyOp1 op t = case t of
-    TList t' -> eId -- TODO
+    TList t' -> op1List op t'
     TTuple t1 t2 -> op1Tuple op ((t1, t2))
     _ -> addCmd $ OP1 $ case op of
         ONot -> "not"
         ONeg -> "neg"
+
+op2BoolListAll :: Op2 -> (Type, Type) -> Sequencer
+op2BoolListAll op (t1, t2) = do
+    addCmd $ AJS (-1) -- TODO
+
+op2BoolListEither :: Bool -> Op2 -> (Type, Type) -> Sequencer
+op2BoolListEither def op (t1, t2) = do
+    addCmd $ AJS (-1) -- TODO
 
 op2Tuple :: Op2 -> ((Type, Type), (Type, Type)) -> Sequencer
 op2Tuple op ((t1, t2), (t1', t2')) = do
@@ -435,7 +454,13 @@ op2BoolTuple firstQuick quickValue op ((t1, t2), (t1', t2')) = do
 applyOp2 :: Op2 -> (Type, Type) -> Sequencer
 applyOp2 op t = case t of
     (TList t1, TList t2) -> case op of
-        _ -> eId -- TODO
+        OLt -> op2BoolListEither False op (t1, t2)
+        OGt -> op2BoolListEither False op (t1, t2)
+        OLe -> op2BoolListEither True OLt (t1, t2)
+        OGe -> op2BoolListEither True OGt (t1, t2)
+        OEq -> op2BoolListAll op (t1, t2)
+        ONeq -> op2BoolListAll op (t1, t2)
+        _ -> error $ (show op) ++ " is not defined for lists"
     (TTuple t1 t2, TTuple t1' t2') -> case op of
         OLt -> op2BoolTuple True True op ((t1, t2), (t1', t2'))
         OGt -> op2BoolTuple True True op ((t1, t2), (t1', t2'))

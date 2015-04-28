@@ -1,0 +1,6 @@
+Void main() {
+    [Int] a = 1 : 2 : [];
+    [Int] b = 1 : 3 : [];
+    print(a < b);
+    print(a < a);
+}
