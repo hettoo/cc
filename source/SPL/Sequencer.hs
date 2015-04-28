@@ -166,7 +166,7 @@ callLabel (s, l) = s ++ "_" ++ show (length l) ++
     foldr (\a r -> "_" ++ overloadPrint a ++ r) "" l
     where
     overloadPrint t = case t of
-        TPoly s -> "POLY" -- will eventually never show up
+        TPoly s -> "POLY" -- TODO: get rid of this
         TInt -> "Int"
         TBool -> "Bool"
         TChar -> "Char"
