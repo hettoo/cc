@@ -327,14 +327,15 @@ seqIf b m = do
         Just e -> do
             gfresh (+2)
             addCmd $ BRF (flowLabel f)
-            (_, sp, _, _, _) <- getState
+            (_, spStart, _, _, _) <- getState
             b
             addCmd $ BRA (flowLabel (f + 1))
+            (_, spEnd, _, _, _) <- getState
             addCmd $ LABEL (flowLabel f)
-            gsp $ const sp
+            gsp $ const spStart
             e
             addCmd $ LABEL (flowLabel (f + 1))
-            gsp $ const sp
+            gsp $ const spEnd
 
 seqWhile :: Sequencer -> Sequencer -> Sequencer
 seqWhile c b = do
