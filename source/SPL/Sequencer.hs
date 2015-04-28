@@ -254,8 +254,9 @@ seqPrint t = case t of
         addCmd $ LDC (enc '[')
         addCmd PRINTC
         testNonEmpty
-        seqIf printElement (Just . addCmd $ AJS (-1))
+        seqIf printElement Nothing
         seqWhile testNonEmpty printNextElement
+        addCmd $ AJS (-1)
         addCmd $ LDC (enc ']')
         addCmd PRINTC
         where
