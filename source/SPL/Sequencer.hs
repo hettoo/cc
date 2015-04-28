@@ -110,6 +110,9 @@ addCmd c = do
     gcmd $ \l -> l ++ [c]
     gsp $ \sp -> sp + stackChange c
 
+addCmds :: [Command] -> Sequencer
+addCmds cs = foldl (>>) eId $ map addCmd cs
+
 seqOutput :: [StmtT] -> String
 seqOutput l = stateOutput $ program >@> (tnew, 0, cnew, 0, [])
     where
@@ -255,26 +258,8 @@ seqPrint :: Type -> Sequencer
 seqPrint t = case t of
     TBool -> seqIf printTrue (Just printFalse)
         where
-        printTrue = do
-            addCmd $ LDC (show $ ord 'T')
-            addCmd PRINTC
-            addCmd $ LDC (show $ ord 'r')
-            addCmd PRINTC
-            addCmd $ LDC (show $ ord 'u')
-            addCmd PRINTC
-            addCmd $ LDC (show $ ord 'e')
-            addCmd PRINTC
-        printFalse = do
-            addCmd $ LDC (show $ ord 'F')
-            addCmd PRINTC
-            addCmd $ LDC (show $ ord 'a')
-            addCmd PRINTC
-            addCmd $ LDC (show $ ord 'l')
-            addCmd PRINTC
-            addCmd $ LDC (show $ ord 's')
-            addCmd PRINTC
-            addCmd $ LDC (show $ ord 'e')
-            addCmd PRINTC
+        printTrue = seqPrintStr "True"
+        printFalse = seqPrintStr "False"
     TInt -> addCmd PRINTI
     TChar -> addCmd PRINTC
     TList t' -> eId -- TODO
@@ -293,6 +278,9 @@ seqPrint t = case t of
         addCmd PRINTC
         addCmd $ AJS (-1)
     _ -> eId -- TODO
+
+seqPrintStr :: String -> Sequencer
+seqPrintStr s = addCmds . concat $ map (\c -> [LDC . show . ord $ c, PRINTC]) s
 
 seqStmt :: [StmtT] -> Bool -> StmtT -> Sequencer
 seqStmt ss main s = case s of
