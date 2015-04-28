@@ -159,7 +159,16 @@ seqTodo l = do
 
 callLabel :: Call -> String
 callLabel (s, l) = s ++ "_" ++ show (length l) ++
-    foldr (\a r -> "_" ++ simplePrint a ++ r) "" l
+    foldr (\a r -> "_" ++ overloadPrint a ++ r) "" l
+    where
+    overloadPrint t = case t of
+        TPoly s -> s
+        TInt -> "Int"
+        TBool -> "Bool"
+        TChar -> "Char"
+        TTuple u v -> "T_" ++ simplePrint u ++ "_" ++ simplePrint v ++ "_ET"
+        TList u -> "L_" ++ simplePrint u ++ "_EL"
+        TVoid -> "Void"
 
 addVariable :: String -> Int -> Sequencer
 addVariable i o = do
