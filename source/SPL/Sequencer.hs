@@ -196,7 +196,13 @@ varDecls t = case t of
 
 seqFunction :: Call -> [StmtT] -> Sequencer
 seqFunction c@(i, as) l = case i of -- TODO: unification
-    "isEmpty" -> eId -- TODO
+    "isEmpty" -> do
+        addCmd $ LDS (-1) -- TODO: proper way to get argv[0]?
+        seqStmt l False (StmtsT [])
+        addCmd $ LDH 0 1
+        addCmd $ LDC "0"
+        applyOp2 OEq (TInt, TInt)
+        addCmd $ RET -- TODO: nope
     "read" -> eId -- TODO
     "print" -> eId -- TODO
     _ -> let
@@ -485,7 +491,7 @@ seqFunCall l i as =
         addCmd $ LINK n
         flip endoSeqi as' $ \n (i, e) -> do
             seqExp l e
-            addCmd $ STS (-n - 1)
+            --addCmd $ STS (-n - 1)
         addCmd $ LDC (callLabel c)
         addCmd JSR
         addCmd $ UNLINK n
