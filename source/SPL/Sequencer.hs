@@ -165,7 +165,7 @@ callLabel (s, l) = s ++ "_" ++ show (length l) ++
     foldr (\a r -> "_" ++ overloadPrint a ++ r) "" l
     where
     overloadPrint t = case t of
-        TPoly s -> "POLY" -- TODO: s may contain ? (illegal char)
+        TPoly s -> "POLY" -- will eventually never show up
         TInt -> "Int"
         TBool -> "Bool"
         TChar -> "Char"
@@ -478,9 +478,8 @@ seqFunCall l i as =
     in do
         gtodo (todo c)
         addCmd $ LINK n
-        flip endoSeqi as' $ \n (i, e) -> do
-            seqExp l e
-            --addCmd $ STS (-n - 1)
+        flip endoSeq as' $ \(_, e) -> seqExp l e
         addCmd $ LDC (callLabel c)
         addCmd JSR
         addCmd $ UNLINK n
+        gsp (\sp -> sp - 1)
