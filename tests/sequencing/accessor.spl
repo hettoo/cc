@@ -1,0 +1,8 @@
+Void main() {
+    (Int, Int) a = (0, 1);
+    [Int] b = 2 : 3 : [];
+    print(a.fst);
+    print(a.snd);
+    print(b.hd);
+    print(b.tl);
+}

@@ -363,6 +363,23 @@ seqExp l e = case e of
     EIdT i fs t -> do -- TODO: fields
         p <- varPos i
         addCmd $ LDS p
+        flip endoSeq fs $ \f -> case f of
+            First -> do
+                addCmd $ LDH 0 2
+                addCmd $ AJS (-1)
+            Second -> do
+                addCmd $ LDH 0 2
+                addCmd $ STR "R5"
+                addCmd $ AJS (-1)
+                addCmd $ LDR "R5"
+            Head -> do
+                addCmd $ LDH 0 2
+                addCmd $ STR "R5"
+                addCmd $ AJS (-1)
+                addCmd $ LDR "R5"
+            Tail -> do
+                addCmd $ LDH 0 2
+                addCmd $ AJS (-1)
     EFunCallT i as _ -> do
         seqFunCall False l i as
         addCmd $ LDR "RR"
