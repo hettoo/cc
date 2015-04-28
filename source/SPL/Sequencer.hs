@@ -140,7 +140,8 @@ globals l = endoSeq declareGlobal l >> endoSeq setGlobal l
 seqMain :: [StmtT] -> Sequencer
 seqMain l = do
     (_, _, vc, _, _) <- getState
-    seqStmt l True (fst $ findFunction ("main", []) l)
+    let (s, _, _) = findFunction ("main", []) l in
+        seqStmt l True s
     gvc . st $ const vc
 
 seqTodo :: [StmtT] -> Sequencer
@@ -200,7 +201,7 @@ varDecls t = case t of
 seqFunction :: Call -> [StmtT] -> Sequencer
 seqFunction c@(i, as) l = -- TODO: unification
     let
-        (b, names) = findFunction c l
+        (b, names, _) = findFunction c l
         namesp = reverse names
         namesi = reverse (map fst (varDecls b))
         names' = namesi ++ namesp
@@ -216,15 +217,15 @@ seqFunction c@(i, as) l = -- TODO: unification
             addVariable a n
             addVariables (n + 1) r
 
-findFunction :: Call -> [StmtT] -> (StmtT, [String])
+findFunction :: Call -> [StmtT] -> (StmtT, [String], Type)
 findFunction c@(i, as) l = case l of
     [] -> error $ "function " ++ show c ++ " not found"
     s : r -> case s of
         FunDeclT t i' as' b ->
             if i == i' {-&& as == map fst as'-} then -- TODO: unify
                 case t of
-                    TVoid -> (StmtsT [b, ReturnT Nothing], n) -- just to be sure
-                    _ -> (b, n)
+                    TVoid -> (StmtsT [b, ReturnT Nothing], n, t)
+                    _ -> (b, n, t)
             else
                 rec
             where
@@ -451,7 +452,7 @@ seqFunCall :: Bool -> [StmtT] -> String -> [ExpT] -> Sequencer
 seqFunCall discard l i as =
     let
         c = (i, map getType as)
-        (b, names) = findFunction c l
+        (b, names, rt) = findFunction c l
         n = length as + length (varDecls b)
         as' = zip names as
     in case (c, as) of
@@ -462,10 +463,7 @@ seqFunCall discard l i as =
         (("isEmpty", [TList _]), [e]) -> do
             seqExp l e
             seqIf (addCmd $ LDC "0") (Just . addCmd $ LDC "-1")
-            if discard then
-                addCmd $ AJS (-1)
-            else
-                eId
+            doDiscard
         _ -> do
             gtodo (todo c)
             addCmd $ LINK n
@@ -474,3 +472,12 @@ seqFunCall discard l i as =
             addCmd JSR
             addCmd $ UNLINK n
             gsp (\sp -> sp - 1)
+            case rt of
+                TVoid -> eId
+                _ -> doDiscard
+        where
+        doDiscard =
+            if discard then
+                addCmd $ AJS (-1)
+            else
+                eId
