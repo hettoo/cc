@@ -47,11 +47,6 @@ caddfun i as t = do
 instance DistinctSequence Type where
     createN n = TPoly ("?" ++ show n)
 
-isFlexible :: String -> Bool
-isFlexible s = case s of
-    '?' : r -> True
-    _ -> False
-
 fieldType :: Field -> State (Context Type) (Type, Type)
 fieldType f = case f of
     Head -> do
@@ -76,8 +71,8 @@ combineTypes l = case l of
         [] -> a
         _ -> TTuple a (combineTypes r)
 
-unify :: Type -> Type -> Maybe (Context Type)
-unify t u = let (b, c) = apply (unify' t u) cnew in
+unify :: Bool -> Type -> Type -> Maybe (Context Type)
+unify all t u = let (b, c) = apply (unify' t u) cnew in
     if b then Just c else Nothing
     where
     unify' :: Type -> Type -> State (Context Type) Bool
@@ -126,9 +121,19 @@ unify t u = let (b, c) = apply (unify' t u) cnew in
             name t = case t of
                 TPoly i -> i
                 _ -> ""
+            isFlexible s = case s of
+                '?' : r -> True
+                _ -> all
+
+
+unifyf :: Type -> Type -> Maybe (Context Type)
+unifyf = unify False
+
+unifyAll :: Type -> Type -> Maybe (Context Type)
+unifyAll = unify True
 
 unifiable :: Type -> Type -> Bool
-unifiable t u = case unify t u of
+unifiable t u = case unifyf t u of
     Nothing -> False
     Just _ -> True
 
@@ -148,7 +153,7 @@ treplace t = case t of
         _ -> Nothing
 
 checkApp :: (Type, Type) -> Type -> State a Type
-checkApp (t, t') a = case unify t a of
+checkApp (t, t') a = case unifyf t a of
     Nothing -> fail $ "application mismatch: `" ++ simplePrint t ++
         "' does not cover `" ++ simplePrint a ++ "'"
     Just c -> return $ treplace t' >!> c
@@ -316,7 +321,7 @@ applyFun i as = do
     as <- mapM annotateE as
     let a = combineTypes (map getType as) in do
         us <- mapM (\(t, t') ->
-            return $ fmap (\c -> treplace t' >!> c) (unify t a)) ts
+            return $ fmap (\c -> treplace t' >!> c) (unifyf t a)) ts
         us <- filterM (\m -> return $ case m of Just _ -> True; _ -> False) us
         us <- mapM (\m -> case m of Just t -> return t) us
         t <- case us of
