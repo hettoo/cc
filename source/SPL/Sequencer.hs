@@ -272,14 +272,14 @@ seqPrint t = case t of
         printNextElement = do
             seqPrintStr ", "
             printElement
-    TTuple t1 t2 -> do -- TODO: fix nested tuples
+    TTuple t1 t2 -> do
         addCmd $ LDC (enc '(')
         addCmd PRINTC
         addCmd $ LDH 0 2
         addCmd $ LDS (-1)
         seqPrint t1
         seqPrintStr ", "
-        seqPrint t1
+        seqPrint t2
         addCmd $ LDC (enc ')')
         addCmd PRINTC
         addCmd $ AJS (-1)
