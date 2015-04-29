@@ -144,7 +144,9 @@ globals l = endoSeq declareGlobal l >> endoSeq setGlobal l
             addVariable i 0
         _ -> eId
     setGlobal s = case s of
-        VarDeclT t i e -> seqNewVariable l False t i e
+        VarDeclT t i e -> do
+            seqExp l e
+            setVariable i
         _ -> eId
 
 seqTodo :: [StmtT] -> Sequencer
@@ -192,14 +194,6 @@ getVariable i = do
     p <- varPos i
     addCmd $ LDS p
 
-seqNewVariable :: [StmtT] -> Bool -> Type -> String -> ExpT -> Sequencer
-seqNewVariable l main t i e = do
-    seqExp l e
-    if main then
-        addVariable i 0
-    else
-        setVariable i
-
 varDecls :: StmtT -> [(String, ExpT)]
 varDecls t = case t of
     StmtsT l -> concat $ map varDecls l
@@ -217,7 +211,7 @@ seqFunction c@(i, as) l =
     addVariables (-length names') namesi
     gvc cdown
     addVariables (-length namesp) namesp
-    seqStmt l False b
+    seqStmt l b
     where
     addVariables n l = case l of
         [] -> eId
@@ -295,10 +289,12 @@ enc = show . ord
 seqPrintStr :: String -> Sequencer
 seqPrintStr s = addCmds $ concatMap (\c -> [LDC $ enc c, PRINTC]) s
 
-seqStmt :: [StmtT] -> Bool -> StmtT -> Sequencer
-seqStmt ss main s = case s of
-    StmtsT l -> endoSeq (seqStmt ss main) l
-    VarDeclT t i e -> seqNewVariable ss main t i e
+seqStmt :: [StmtT] -> StmtT -> Sequencer
+seqStmt ss s = case s of
+    StmtsT l -> endoSeq (seqStmt ss) l
+    VarDeclT t i e -> do
+        seqExp ss e
+        setVariable i
     FunDeclT _ _ _ _ -> eId
     FunCallT i as -> seqFunCall True ss i as
     ReturnT m -> do
@@ -370,8 +366,8 @@ seqStmt ss main s = case s of
                             addCmd $ LDR "R5"
     IfT c b m -> do
         seqExp ss c
-        seqIf (seqStmt ss main b) (fmap (seqStmt ss main) m)
-    WhileT c b -> seqWhile (seqExp ss c) (seqStmt ss main b)
+        seqIf (seqStmt ss b) (fmap (seqStmt ss) m)
+    WhileT c b -> seqWhile (seqExp ss c) (seqStmt ss b)
 
 seqIf :: Sequencer -> Maybe Sequencer -> Sequencer
 seqIf b m = do
