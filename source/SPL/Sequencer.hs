@@ -184,6 +184,11 @@ setVariable i = do
     p <- varPos i
     addCmd $ STS p
 
+getVariable :: String -> Sequencer
+getVariable i = do
+    p <- varPos i
+    addCmd $ LDS p
+
 seqNewVariable :: [StmtT] -> Bool -> Type -> String -> ExpT -> Sequencer
 seqNewVariable l main t i e = do
     seqExp l e
@@ -199,7 +204,7 @@ varDecls t = case t of
     _ -> []
 
 seqFunction :: Call -> [StmtT] -> Sequencer
-seqFunction c@(i, as) l = -- TODO: unification
+seqFunction c@(i, as) l =
     let
         (b, names, _) = findFunction c l
         namesp = reverse names
@@ -222,7 +227,7 @@ findFunction c@(i, as) l = case l of
     [] -> error $ "function " ++ show c ++ " not found"
     s : r -> case s of
         FunDeclT t i' as' b ->
-            if i == i' {-&& as == map fst as'-} then -- TODO: unify
+            if i == i' {-&& as == map fst as'-} then -- TODO: unification
                 case t of
                     TVoid -> (StmtsT [b, ReturnT Nothing], n, t)
                     _ -> (b, n, t)
@@ -267,7 +272,7 @@ seqPrint t = case t of
         printNextElement = do
             seqPrintStr ", "
             printElement
-    TTuple t1 t2 -> do
+    TTuple t1 t2 -> do -- TODO: fix nested tuples
         addCmd $ LDC (enc '(')
         addCmd PRINTC
         addCmd $ LDH 0 2
@@ -306,9 +311,66 @@ seqStmt ss main s = case s of
             addCmd $ HALT "program end"
         else do
             addCmd RET
-    AssignT i fs e -> do -- TODO: fields
-        seqExp ss e
-        setVariable i
+    AssignT i fs e -> -- TODO: fields
+        case fs of
+            [] -> do
+                seqExp ss e
+                setVariable i
+            _ -> do
+                getVariable i
+                setFields fs
+                setVariable i
+        where
+        setFields fs = case fs of
+            f : r -> do
+                addCmd $ LDH 0 2
+                case r of
+                    [] -> case f of
+                        First -> do
+                            seqExp ss e
+                            addCmd $ LDS (-1)
+                            addCmd $ STH 2
+                            addCmd $ STR "R5"
+                            addCmd $ AJS (-2)
+                            addCmd $ LDR "R5"
+                        Second -> do
+                            addCmd $ AJS (-1)
+                            seqExp ss e
+                            addCmd $ STH 2
+                        Head -> do
+                            addCmd $ AJS (-1)
+                            seqExp ss e
+                            addCmd $ STH 2
+                        Tail -> do
+                            seqExp ss e
+                            addCmd $ LDS (-1)
+                            addCmd $ STH 2
+                            addCmd $ STR "R5"
+                            addCmd $ AJS (-2)
+                            addCmd $ LDR "R5"
+                    _ -> case f of
+                        First -> do
+                            addCmd $ LDS (-1)
+                            setFields r
+                            addCmd $ LDS (-1)
+                            addCmd $ STH 2
+                            addCmd $ STR "R5"
+                            addCmd $ AJS (-2)
+                            addCmd $ LDR "R5"
+                        Second -> do
+                            setFields r
+                            addCmd $ STH 2
+                        Head -> do
+                            setFields r
+                            addCmd $ STH 2
+                        Tail -> do
+                            addCmd $ LDS (-1)
+                            setFields r
+                            addCmd $ LDS (-1)
+                            addCmd $ STH 2
+                            addCmd $ STR "R5"
+                            addCmd $ AJS (-2)
+                            addCmd $ LDR "R5"
     IfT c b m -> do
         seqExp ss c
         seqIf (seqStmt ss main b) (fmap (seqStmt ss main) m)
@@ -362,8 +424,7 @@ seqExp l e = case e of
         seqExp l e2
         addCmd $ STH 2
     EIdT i fs t -> do
-        p <- varPos i
-        addCmd $ LDS p
+        getVariable i
         flip endoSeq fs $ \f -> case f of
             First -> do
                 addCmd $ LDH 0 2

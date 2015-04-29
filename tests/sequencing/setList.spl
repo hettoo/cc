@@ -1,0 +1,5 @@
+Void main () {
+    [[Int]] a = (1 : []) : [];
+    a.hd.tl = 2 : 3 : [];
+    print(a);
+}

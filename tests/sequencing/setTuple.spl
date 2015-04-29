@@ -1,0 +1,4 @@
+Void main () {
+    ((Int, Int), Int) a = ((2, 3), 5);
+    a.fst.snd = 7;
+}
