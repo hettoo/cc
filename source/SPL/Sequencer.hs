@@ -144,6 +144,7 @@ seqMain :: [StmtT] -> Sequencer
 seqMain l = do
     (_, _, vc, _, _) <- getState
     let (s, _, _) = findFunction ("main", []) l in
+        -- TODO: variables in main
         seqStmt l True s
     gvc . st $ const vc
 
@@ -580,6 +581,8 @@ seqFunCall discard l i as =
         n = length as + length (varDecls b)
         as' = zip names as
     in case (c, as) of
+        -- TODO: this will work once we have polymorphism
+        --(("print", [TList _]), [e]) -> seqFunCall discard l "_print" as
         (("print", [t]), [e]) -> do
             seqExp l e
             seqPrint t
