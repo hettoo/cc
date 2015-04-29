@@ -122,7 +122,7 @@ seqOutput l = stateOutput $ program >@> (tnew, 0, cnew, 0, [])
     program = do
         globals l'
         gvc cdown
-        seqFunCall False l "main" []
+        seqFunCall l "main" []
         let (_, _, t) = findFunction ("main", []) l in
             case t of
                 TVoid -> eId
@@ -299,7 +299,7 @@ seqStmt ss s = case s of
         seqExp ss e
         setVariable i
     FunDeclT _ _ _ _ -> eId
-    FunCallT i as -> seqFunCall True ss i as
+    FunCallT i as -> seqFunCall ss i as
     ReturnT m -> do
         case m of
             Just e -> do
@@ -439,7 +439,7 @@ seqExp l e = case e of
                 addCmd $ LDH 0 2
                 addCmd $ AJS (-1)
     EFunCallT i as _ -> do
-        seqFunCall False l i as
+        seqFunCall l i as
         addCmd $ LDR "RR"
     EOp1T op e _ -> do
         seqExp l e
@@ -565,8 +565,8 @@ applyOp2 op t = case t of
             ODiv -> "div"
             OMod -> "mod"
 
-seqFunCall :: Bool -> [StmtT] -> String -> [ExpT] -> Sequencer
-seqFunCall discard l i as =
+seqFunCall :: [StmtT] -> String -> [ExpT] -> Sequencer
+seqFunCall l i as =
     let
         c = (i, map getType as)
         (b, names, rt) = findFunction c l
@@ -574,7 +574,7 @@ seqFunCall discard l i as =
         as' = zip names as
     in case (c, as) of
         -- TODO: this should be working :(
-        --(("print", [TList _]), [e]) -> seqFunCall discard l "_print" as
+        (("print", [TList _]), [e]) -> seqFunCall l "_print" as
         (("print", [t]), [e]) -> do
             seqExp l e
             seqPrint t
@@ -582,7 +582,7 @@ seqFunCall discard l i as =
         (("isEmpty", [TList _]), [e]) -> do
             seqExp l e
             seqIf (addCmd $ LDC "0") (Just . addCmd $ LDC "-1")
-            doDiscard
+            addCmd $ STR "RR"
         _ -> do
             gtodo (todo c)
             addCmd $ LINK n
@@ -591,12 +591,3 @@ seqFunCall discard l i as =
             addCmd JSR
             addCmd $ UNLINK n
             gsp (\sp -> sp - 1)
-            case rt of
-                TVoid -> eId
-                _ -> doDiscard
-        where
-        doDiscard =
-            if discard then
-                addCmd $ AJS (-1)
-            else
-                eId
