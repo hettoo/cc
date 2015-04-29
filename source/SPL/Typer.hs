@@ -1,5 +1,6 @@
 module SPL.Typer where
 import SPL.Algebra
+import SPL.Unifier
 import Context
 import State
 import Utils
@@ -71,72 +72,6 @@ combineTypes l = case l of
         [] -> a
         _ -> TTuple a (combineTypes r)
 
-unify :: Bool -> Type -> Type -> Maybe (Context Type)
-unify all t u = let (b, c) = apply (unify' t u) cnew in
-    if b then Just c else Nothing
-    where
-    unify' :: Type -> Type -> State (Context Type) Bool
-    unify' t u = do
-        rt <- rewrite t
-        ru <- rewrite u
-        case (rt, ru) of
-            (TTuple t1 t2, TTuple t1' t2') -> do
-                b <- unify' t1 t1'
-                case b of
-                    False -> return False
-                    True -> unify' t2 t2'
-            (TList t', TList t'') -> unify' t' t''
-            (TPoly i, TPoly j) ->
-                if i == j then
-                    return True
-                else
-                    if isFlexible i then do
-                        caddr i u "?"
-                        return True
-                    else
-                        if isFlexible j then do
-                            caddr j t "?"
-                            return True
-                        else
-                            return False
-            (TPoly i, _) ->
-                if isFlexible i then do
-                    caddr i u "?"
-                    return True
-                else
-                    return False
-            (_, TPoly j) ->
-                if isFlexible j then do
-                    caddr j t "?"
-                    return True
-                else
-                    return False
-            (t', u') -> return (t' == u')
-            where
-            rewrite t = do
-                m <- clookup (name t)
-                return $ case m of
-                    Nothing -> t
-                    Just t' -> t'
-            name t = case t of
-                TPoly i -> i
-                _ -> ""
-            isFlexible s = case s of
-                '?' : r -> True
-                _ -> all
-
-
-unifyf :: Type -> Type -> Maybe (Context Type)
-unifyf = unify False
-
-unifyAll :: Type -> Type -> Maybe (Context Type)
-unifyAll = unify True
-
-unifiable :: Type -> Type -> Bool
-unifiable t u = case unifyf t u of
-    Nothing -> False
-    Just _ -> True
-
 treplace :: Type -> State (Context Type) Type
 treplace t = case t of
     TTuple t1 t2 -> do
@@ -193,41 +128,6 @@ op2Type o = case o of
     taaB = do
         a <- fresh
         return (TTuple a a, TBool)
-
-data StmtT =
-    StmtsT [StmtT]
-    | VarDeclT Type String ExpT
-    | FunDeclT Type String [(Type, String)] StmtT
-    | FunCallT String [ExpT]
-    | ReturnT (Maybe ExpT)
-    | AssignT String [Field] ExpT
-    | IfT ExpT StmtT (Maybe StmtT)
-    | WhileT ExpT StmtT
-    deriving (Eq, Show)
-
-data ExpT =
-    EIntT Int Type
-    | EBoolT Bool Type
-    | ECharT Char Type
-    | ENilT Type
-    | ETupleT ExpT ExpT Type
-    | EIdT String [Field] Type
-    | EFunCallT String [ExpT] Type
-    | EOp1T Op1 ExpT Type
-    | EOp2T Op2 ExpT ExpT Type
-    deriving (Eq, Show)
-
-getType :: ExpT -> Type
-getType e = case e of
-    EIntT _ t -> t
-    EBoolT _ t -> t
-    ECharT _ t -> t
-    ENilT t -> t
-    ETupleT _ _ t -> t
-    EIdT _ _ t -> t
-    EFunCallT _ _ t -> t
-    EOp1T _ _ t -> t
-    EOp2T _ _ _ t -> t
 
 initContext :: [Stmt] -> State SPLC ()
 initContext l = case l of

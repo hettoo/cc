@@ -10,6 +10,9 @@ cnew = (0, 0, [])
 cdown :: State (Context t) ()
 cdown = st $ \(i, n, l) -> (i + 1, n, l)
 
+cget :: Context t -> [(String, t)]
+cget (_, _, l) = map (\(s, t, _) -> (s, t)) l -- TODO: filter on highest level
+
 data CAddPolicy =
     Both
     | Override

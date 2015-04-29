@@ -1,7 +1,8 @@
 module SPL.Sequencer where
 import SPL.Algebra
-import SPL.Typer
+import SPL.Unifier
 import SPL.Parser
+import SPL.Typer
 import SPL.Std
 import SPL.Printer
 import Context

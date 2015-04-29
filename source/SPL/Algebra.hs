@@ -61,3 +61,38 @@ data Exp =
     | EOp1 Op1 Exp
     | EOp2 Op2 Exp Exp
     deriving (Eq, Show)
+
+data StmtT =
+    StmtsT [StmtT]
+    | VarDeclT Type String ExpT
+    | FunDeclT Type String [(Type, String)] StmtT
+    | FunCallT String [ExpT]
+    | ReturnT (Maybe ExpT)
+    | AssignT String [Field] ExpT
+    | IfT ExpT StmtT (Maybe StmtT)
+    | WhileT ExpT StmtT
+    deriving (Eq, Show)
+
+data ExpT =
+    EIntT Int Type
+    | EBoolT Bool Type
+    | ECharT Char Type
+    | ENilT Type
+    | ETupleT ExpT ExpT Type
+    | EIdT String [Field] Type
+    | EFunCallT String [ExpT] Type
+    | EOp1T Op1 ExpT Type
+    | EOp2T Op2 ExpT ExpT Type
+    deriving (Eq, Show)
+
+getType :: ExpT -> Type
+getType e = case e of
+    EIntT _ t -> t
+    EBoolT _ t -> t
+    ECharT _ t -> t
+    ENilT t -> t
+    ETupleT _ _ t -> t
+    EIdT _ _ t -> t
+    EFunCallT _ _ t -> t
+    EOp1T _ _ t -> t
+    EOp2T _ _ _ t -> t
