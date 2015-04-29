@@ -39,7 +39,7 @@ caddfun i as t = do
             (t, _) <- freshen p
             (t', _) <- freshen p'
             return $
-                if unifiable t t' then
+                if unifiablef t t' then
                     Reject
                 else
                     Both
@@ -239,7 +239,7 @@ annotateS l s = case s of
         if b then do
             e <- annotateE e
             let et = getType e in
-                if unifiable et t then do
+                if unifiablef et t then do
                     caddvar i t
                     return (VarDeclT t i e)
                 else
@@ -274,7 +274,7 @@ annotateS l s = case s of
             Just e -> do
                 e <- annotateE e
                 let t = getType e in
-                    if unifiable t a then
+                    if unifiablef t a then
                         return $ ReturnT (Just e)
                     else
                         fail $ "invalid return type `" ++
@@ -284,7 +284,7 @@ annotateS l s = case s of
         vt <- idType i fs
         e <- annotateE e
         let t = getType e in
-            if unifiable t vt then
+            if unifiablef t vt then
                 return $ AssignT i fs e
             else
                 fail $ "assignment mismatch: `" ++ simplePrint t ++

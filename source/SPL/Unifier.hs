@@ -2,6 +2,7 @@ module SPL.Unifier where
 import SPL.Algebra
 import State
 import Context
+import Utils
 
 unify :: Bool -> Type -> Type -> Maybe (Context Type)
 unify all t u = let (b, c) = apply (unify' t u) cnew in
@@ -57,40 +58,50 @@ unify all t u = let (b, c) = apply (unify' t u) cnew in
                 '?' : r -> True
                 _ -> all
 
-
 unifyf :: Type -> Type -> Maybe (Context Type)
 unifyf = unify False
 
 unifyAll :: Type -> Type -> Maybe (Context Type)
 unifyAll = unify True
 
-unifiable :: Type -> Type -> Bool
-unifiable t u = case unifyf t u of
+unifiable :: Bool -> Type -> Type -> Bool
+unifiable b t u = case unify b t u of
     Nothing -> False
     Just _ -> True
 
+unifiablef :: Type -> Type -> Bool
+unifiablef = unifiable False
+
+unifiableAll :: Type -> Type -> Bool
+unifiableAll = unifiable True
+
 applyUnificationS :: Context Type -> StmtT -> StmtT
 applyUnificationS c s = case s of
-    StmtsT l -> s -- TODO
-    VarDeclT t i e -> s -- TODO
-    FunDeclT t i a b -> s -- TODO
-    FunCallT i as -> s -- TODO
-    ReturnT m -> s -- TODO
-    AssignT i fs e -> s -- TODO
-    IfT c b m -> s -- TODO
-    WhileT c b -> s -- TODO
+    StmtsT l -> StmtsT (map aus l)
+    VarDeclT t i e -> VarDeclT (aut t) i (aue e)
+    FunDeclT t i as b -> FunDeclT (aut t) i (map (left aut) as) (aus b)
+    FunCallT i as -> FunCallT i (map aue as)
+    ReturnT m -> ReturnT $ fmap aue m
+    AssignT i fs e -> AssignT i fs (aue e)
+    IfT c b m -> IfT (aue c) (aus b) (fmap aus m)
+    WhileT c b -> WhileT (aue c) (aus b)
+    where
+    aus = applyUnificationS c
+    aue = applyUnificationE c
+    aut = applyUnificationT c
 
 applyUnificationE :: Context Type -> ExpT -> ExpT
 applyUnificationE c e = case e of
-    EIntT n t -> e -- TODO
-    EBoolT b t -> e -- TODO
-    ECharT c t -> e -- TODO
-    ENilT t -> e -- TODO
-    ETupleT e1 e2 t -> e -- TODO
-    EIdT i fs t -> e -- TODO
-    EFunCallT i as t -> e -- TODO
-    EOp1T o e' t -> e -- TODO
-    EOp2T o e1 e2 t -> e -- TODO
+    ENilT t -> ENilT (aut t)
+    ETupleT e1 e2 t -> ETupleT (aue e1) (aue e2) (aut t)
+    EIdT i fs t -> EIdT i fs (aut t)
+    EFunCallT i as t -> EFunCallT i (map aue as) (aut t)
+    EOp1T o e' t -> EOp1T o (aue e') (aut t)
+    EOp2T o e1 e2 t -> EOp2T o (aue e1) (aue e2) (aut t)
+    _ -> e
+    where
+    aue = applyUnificationE c
+    aut = applyUnificationT c
 
 applyUnificationT :: Context Type -> Type -> Type
 applyUnificationT c t = case t of
@@ -99,6 +110,8 @@ applyUnificationT c t = case t of
         findApplication l = case l of
             [] -> t
             (i, t') : r -> if p == i then t' else findApplication r
-    TTuple t1 t2 -> TTuple (applyUnificationT c t1) (applyUnificationT c t2)
-    TList t' -> TList (applyUnificationT c t')
+    TTuple t1 t2 -> TTuple (aut t1) (aut t2)
+    TList t' -> TList (aut t')
     _ -> t
+    where
+    aut = applyUnificationT c
