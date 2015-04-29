@@ -1,6 +1,8 @@
 module SPL.Sequencer where
 import SPL.Algebra
 import SPL.Typer
+import SPL.Parser
+import SPL.Std
 import SPL.Printer
 import Context
 import Todo
@@ -117,10 +119,11 @@ seqOutput :: [StmtT] -> String
 seqOutput l = stateOutput $ program >@> (tnew, 0, cnew, 0, [])
     where
     program = do
-        globals l
+        globals l'
         gvc cdown
-        seqMain l
-        seqTodo l
+        seqMain l'
+        seqTodo l'
+    l' = l ++ annotateProgram (parseSPL' True stdSPL)
 
 stateOutput :: SO -> String
 stateOutput (_, _, _, _, l) = unlines (map cmdOutput l)

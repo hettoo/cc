@@ -8,29 +8,34 @@ import Data.Char
 import Data.Either
 
 parseSPL :: String -> [Stmt]
-parseSPL s = (parse $ pPre >@ parse pSPL) (map double s)
+parseSPL s = parseSPL' False s
+
+parseSPL' :: Bool -> String -> [Stmt]
+parseSPL' std s = (parse $ pPre >@ parse (pSPL std)) (map double s)
 
 pPre :: CharParser [(Char, CharState)]
 pPre = star ((sseq "//" .*. star (nsym '\n') .*. (sym '\n' \+/ eof) \+/
     sseq "/*" .*. star (sym '*' -*. nsym '/' \/ nsym '*') .*.  sseq "*/") \+/
     reveal anything) .*- eof >@ rights
 
-pSPL :: CharReParser [Stmt]
-pSPL = ows -*. star (pDecl .*- ows) .*- eof
+pSPL :: Bool -> CharReParser [Stmt]
+pSPL std = ows -*. star (pDecl std .*- ows) .*- eof
 
-pDecl :: CharReParser Stmt
-pDecl = pVarDecl \/ pFunDecl
+pDecl :: Bool -> CharReParser Stmt
+pDecl std = if std then pFunDecl std else pVarDecl \/ pFunDecl std
 
 pVarDecl :: CharReParser Stmt
 pVarDecl l = (pType .*?*. pId .*?*. (sym '=' -*?*. pExp .*?*- sym ';') >@
     (uncurry . uncurry) VarDecl) l
 
-pFunDecl :: CharReParser Stmt
-pFunDecl = pRetType .*?*. pId .*?*.
+pFunDecl :: Bool -> CharReParser Stmt
+pFunDecl std = pRetType .*?*. fId .*?*.
     (sym '(' -*?*. commaList (pType .*?*. pId) .*?*- sym ')') .*?*.
     (sym '{' -*?*. (star (pVarDecl .*- ows) .*.
         star (pStmt .*- ows) >@ Stmts . uncurry (++)) .*- sym '}') >@
         (uncurry . uncurry . uncurry) FunDecl
+    where
+    fId = if std then sym '_' .*. pId >@ uncurry (:) else pId
 
 pRetType :: CharReParser Type
 pRetType = sseq "Void" .*- nalphanum_ >! TVoid \/ pType
