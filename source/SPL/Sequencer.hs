@@ -122,13 +122,10 @@ seqOutput l = stateOutput $ program >@> (tnew, 0, cnew, 0, [])
     program = do
         globals l'
         gvc cdown
-        seqFunCall l "main" []
         let (_, _, t) = findFunction ("main", []) l in
             case t of
-                TVoid -> eId
-                _ -> do
-                    addCmd $ LDR "RR"
-                    seqPrint t
+                TVoid -> seqStmt l (FunCallT "main" [])
+                _ -> seqStmt l (FunCallT "print" [EFunCallT "main" [] t])
         addCmd $ HALT "program end"
         seqTodo l'
     l' = l ++ annotateProgram (parseSPL' True stdSPL)
@@ -177,6 +174,8 @@ callLabel (s, l) = s ++ "_" ++ show (length l) ++
         TChar -> "Char"
         TTuple u v -> "T_" ++ overloadPrint u ++ "_" ++ overloadPrint v ++ "_ET"
         TList u -> "L_" ++ overloadPrint u ++ "_EL"
+        TPoly p -> "P_" ++ map (\c -> if c == '?' then '_' else c) p ++ "_EP"
+        -- ^empty list trick :(
         TVoid -> "Void"
 
 addVariable :: String -> Int -> Sequencer
@@ -256,23 +255,7 @@ seqPrint t = case t of
         printFalse = seqPrintStr "False"
     TInt -> addCmd PRINTI
     TChar -> addCmd PRINTC
-    TList t' -> do
-        addCmd $ LDC (enc '[')
-        addCmd PRINTC
-        testNonEmpty
-        seqIf printElement Nothing
-        seqWhile testNonEmpty printNextElement
-        addCmd $ AJS (-1)
-        addCmd $ LDC (enc ']')
-        addCmd PRINTC
-        where
-        testNonEmpty = addCmd $ LDS 0
-        printElement = do
-            addCmd $ LDH 0 2
-            seqPrint t'
-        printNextElement = do
-            seqPrintStr ", "
-            printElement
+    TPoly _ -> eId -- dummy for empty list code
     TTuple t1 t2 -> do
         addCmd $ LDC (enc '(')
         addCmd PRINTC
@@ -573,7 +556,6 @@ seqFunCall l i as =
         n = length as + length (varDecls b)
         as' = zip names as
     in case (c, as) of
-        -- TODO: this should be working :(
         (("print", [TList _]), [e]) -> seqFunCall l "_print" as
         (("print", [t]), [e]) -> do
             seqExp l e
