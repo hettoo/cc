@@ -121,7 +121,14 @@ seqOutput l = stateOutput $ program >@> (tnew, 0, cnew, 0, [])
     program = do
         globals l'
         gvc cdown
-        seqMain l' -- TODO: sequence a function call to main and print
+        seqFunCall False l "main" []
+        let (_, _, t) = findFunction ("main", []) l in
+            case t of
+                TVoid -> eId
+                _ -> do
+                    addCmd $ LDR "RR"
+                    seqPrint t
+                    addCmd $ HALT "program end"
         seqTodo l'
     l' = l ++ annotateProgram (parseSPL' True stdSPL)
 
@@ -139,13 +146,6 @@ globals l = endoSeq declareGlobal l >> endoSeq setGlobal l
     setGlobal s = case s of
         VarDeclT t i e -> seqNewVariable l False t i e
         _ -> eId
-
-seqMain :: [StmtT] -> Sequencer
-seqMain l = do
-    (_, _, vc, _, _) <- getState
-    let (s, _, _) = findFunction ("main", []) l in
-        seqStmt l True s
-    gvc . st $ const vc
 
 seqTodo :: [StmtT] -> Sequencer
 seqTodo l = do
@@ -305,15 +305,9 @@ seqStmt ss main s = case s of
         case m of
             Just e -> do
                 seqExp ss e
-                if main then
-                    seqPrint $ getType e
-                else
-                    addCmd $ STR "RR"
+                addCmd $ STR "RR"
             Nothing -> eId
-        if main then
-            addCmd $ HALT "program end"
-        else do
-            addCmd RET
+        addCmd RET
     AssignT i fs e -> -- TODO: fields
         case fs of
             [] -> do
