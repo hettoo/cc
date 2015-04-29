@@ -65,13 +65,6 @@ fieldType f = case f of
         b <- fresh
         return (TTuple a b, b)
 
-combineTypes :: [Type] -> Type
-combineTypes l = case l of
-    [] -> TVoid
-    a : r -> case r of
-        [] -> a
-        _ -> TTuple a (combineTypes r)
-
 treplace :: Type -> State (Context Type) Type
 treplace t = case t of
     TTuple t1 t2 -> do

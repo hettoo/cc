@@ -172,7 +172,6 @@ callLabel (s, l) = s ++ "_" ++ show (length l) ++
     foldr (\a r -> "_" ++ overloadPrint a ++ r) "" l
     where
     overloadPrint t = case t of
-        TPoly s -> "POLY" -- TODO: get rid of this
         TInt -> "Int"
         TBool -> "Bool"
         TChar -> "Char"
@@ -225,14 +224,18 @@ findFunction c@(i, as) l = case l of
     [] -> error $ "function " ++ show c ++ " not found"
     s : r -> case s of
         FunDeclT t i' as' b ->
-            if i == i' {-&& as == map fst as'-} then -- TODO: unification
-                case t of
-                    TVoid -> (StmtsT [b, ReturnT Nothing], n, t)
-                    _ -> (b, n, t)
+            if i == i' then
+                case unifyAll (combineTypes as) (combineTypes $ map fst as') of
+                    Nothing -> rec
+                    Just c -> case t of
+                        TVoid -> (StmtsT [b', ReturnT Nothing], n, t')
+                        _ -> (b', n, t')
+                        where
+                        b' = applyUnificationS c b
+                        t' = applyUnificationT c t
+                        n = map snd as'
             else
                 rec
-            where
-            n = map snd as'
         _ -> rec
         where
         rec = findFunction c r
@@ -281,7 +284,6 @@ seqPrint t = case t of
         addCmd $ LDC (enc ')')
         addCmd PRINTC
         addCmd $ AJS (-1)
-    TPoly _ -> eId -- TODO: get rid of this
     _ -> error $ "unable to print for type " ++ show t
 
 enc :: Char -> String

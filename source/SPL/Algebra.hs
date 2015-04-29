@@ -96,3 +96,10 @@ getType e = case e of
     EFunCallT _ _ t -> t
     EOp1T _ _ t -> t
     EOp2T _ _ _ t -> t
+
+combineTypes :: [Type] -> Type
+combineTypes l = case l of
+    [] -> TVoid
+    a : r -> case r of
+        [] -> a
+        _ -> TTuple a (combineTypes r)
