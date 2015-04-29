@@ -573,7 +573,7 @@ seqFunCall discard l i as =
         n = length as + length (varDecls b)
         as' = zip names as
     in case (c, as) of
-        -- TODO: this will work once we have polymorphism
+        -- TODO: this should be working :(
         --(("print", [TList _]), [e]) -> seqFunCall discard l "_print" as
         (("print", [t]), [e]) -> do
             seqExp l e

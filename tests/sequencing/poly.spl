@@ -1,0 +1,7 @@
+Void main() {
+    print(id(5));
+}
+
+a id(a e) {
+    return e;
+}
