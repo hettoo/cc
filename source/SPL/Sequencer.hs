@@ -247,28 +247,6 @@ varPos i = do
     (_, sp, vc, _, _) <- getState
     return $ (clookupe i >!> vc) - sp
 
-seqPrint :: Type -> Sequencer
-seqPrint t = case t of
-    TBool -> seqIf printTrue (Just printFalse)
-        where
-        printTrue = seqPrintStr "True"
-        printFalse = seqPrintStr "False"
-    TInt -> addCmd PRINTI
-    TChar -> addCmd PRINTC
-    TPoly _ -> eId -- dummy for empty list code
-    TTuple t1 t2 -> do
-        addCmd $ LDC (enc '(')
-        addCmd PRINTC
-        addCmd $ LDH 0 2
-        addCmd $ LDS (-1)
-        seqPrint t1
-        seqPrintStr ", "
-        seqPrint t2
-        addCmd $ LDC (enc ')')
-        addCmd PRINTC
-        addCmd $ AJS (-1)
-    _ -> error $ "unable to print for type " ++ show t
-
 enc :: Char -> String
 enc = show . ord
 
@@ -556,10 +534,19 @@ seqFunCall l i as =
         n = length as + length (varDecls b)
         as' = zip names as
     in case (c, as) of
-        (("print", [TList _]), [e]) -> seqFunCall l "_print" as
-        (("print", [t]), [e]) -> do
-            seqExp l e
-            seqPrint t
+        (("print", [t]), [e]) -> case t of
+            TList _ -> stdprint
+            TTuple _ _ -> stdprint
+            TBool -> stdprint
+            TInt -> do
+                seqExp l e
+                addCmd PRINTI
+            TChar -> do
+                seqExp l e
+                addCmd PRINTC
+            TPoly _ -> eId -- dummy for empty list code
+            where
+            stdprint = seqFunCall l "_print" as
         (("read", []), []) -> eId -- TODO
         (("isEmpty", [TList _]), [e]) -> do
             seqExp l e
