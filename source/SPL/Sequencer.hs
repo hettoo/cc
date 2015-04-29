@@ -124,8 +124,8 @@ seqOutput l = stateOutput $ program >@> (tnew, 0, cnew, 0, [])
         gvc cdown
         let (_, _, t) = findFunction ("main", []) l in
             case t of
-                TVoid -> seqStmt l (FunCallT "main" [])
-                _ -> seqStmt l (FunCallT "print" [EFunCallT "main" [] t])
+                TVoid -> seqStmt l' (FunCallT "main" [])
+                _ -> seqStmt l' (FunCallT "print" [EFunCallT "main" [] t])
         addCmd $ HALT "program end"
         seqTodo l'
     l' = l ++ annotateProgram (parseSPL' True stdSPL)
@@ -138,7 +138,7 @@ globals l = endoSeq declareGlobal l >> endoSeq setGlobal l
     where
     declareGlobal s = case s of
         VarDeclT _ i _ -> do
-            addCmd $ LDC "0" -- whatever
+            addCmd $ LDC "0"
             addVariable i 0
         _ -> eId
     setGlobal s = case s of
@@ -268,7 +268,7 @@ seqStmt ss s = case s of
                 addCmd $ STR "RR"
             Nothing -> eId
         addCmd RET
-    AssignT i fs e -> -- TODO: fields
+    AssignT i fs e ->
         case fs of
             [] -> do
                 seqExp ss e
@@ -402,129 +402,52 @@ seqExp l e = case e of
     EFunCallT i as _ -> do
         seqFunCall l i as
         addCmd $ LDR "RR"
-    EOp1T op e _ -> do
-        seqExp l e
-        applyOp1 op (getType e)
+    EOp1T op e _ -> case getType e of
+        TList _ -> stdop1
+        TTuple _ _ -> stdop1
+        _ -> do
+            seqExp l e
+            addCmd $ OP1 (op1name op)
+        where
+        stdop1 = do
+            seqFunCall l ("_op_" ++ op1name op) [e]
+            addCmd $ LDR "RR"
     EOp2T OCons e1 e2 _ -> do
         seqExp l e2
         seqExp l e1
         addCmd $ STH 2
-    EOp2T op e1 e2 _ -> do
-        seqExp l e1
-        seqExp l e2
-        applyOp2 op (getType e1, getType e2)
+    EOp2T op e1 e2 _ -> case getType e of
+        TList _ -> stdop2
+        TTuple _ _ -> stdop2
+        _ -> do
+            seqExp l e1
+            seqExp l e2
+            addCmd $ OP2 (op2name op)
+        where
+        stdop2 = do
+            seqFunCall l ("_op_" ++ op2name op) [e1, e2]
+            addCmd $ LDR "RR"
 
-op1List :: Op1 -> Type -> Sequencer
-op1List op t = do
-    seqWhile testNonEmpty processElement
-    where
-    testNonEmpty = addCmd $ LDS 0
-    processElement = do
-        addCmd $ LDH 0 2
-        applyOp1 op t
+op1name :: Op1 -> String
+op1name op = case op of
+    ONot -> "not"
+    ONeg -> "neg"
 
-op1Tuple :: Op1 -> (Type, Type) -> Sequencer
-op1Tuple op (t1, t2) = do
-    addCmd $ LDH 0 2
-    addCmd $ LDS (-1)
-    applyOp1 op t1
-    addCmd $ LDS (-1)
-    applyOp1 op t2
-    addCmd $ STH 2
-    addCmd $ STR "R5"
-    addCmd $ AJS (-2)
-    addCmd $ LDR "R5"
-
-applyOp1 :: Op1 -> Type -> Sequencer
-applyOp1 op t = case t of
-    TList t' -> op1List op t'
-    TTuple t1 t2 -> op1Tuple op ((t1, t2))
-    _ -> addCmd $ OP1 $ case op of
-        ONot -> "not"
-        ONeg -> "neg"
-
-op2BoolListAll :: Op2 -> (Type, Type) -> Sequencer
-op2BoolListAll op (t1, t2) = do
-    addCmd $ AJS (-1) -- TODO
-
-op2BoolListEither :: Bool -> Op2 -> (Type, Type) -> Sequencer
-op2BoolListEither def op (t1, t2) = do
-    addCmd $ AJS (-1) -- TODO
-
-op2Tuple :: Op2 -> ((Type, Type), (Type, Type)) -> Sequencer
-op2Tuple op ((t1, t2), (t1', t2')) = do
-    addCmd $ LDH 0 2
-    addCmd $ LDS (-2)
-    addCmd $ LDH 0 2
-    addCmd $ LDS (-1)
-    addCmd $ LDS (-4)
-    applyOp2 op (t1, t1')
-    addCmd $ LDS (-1)
-    addCmd $ LDS (-4)
-    applyOp2 op (t2, t2')
-    addCmd $ STH 2
-    addCmd $ STR "R5"
-    addCmd $ AJS (-5)
-    addCmd $ LDR "R5"
-
-op2BoolTuple :: Bool -> Bool -> Op2 -> ((Type, Type), (Type, Type)) -> Sequencer
-op2BoolTuple firstQuick quickValue op ((t1, t2), (t1', t2')) = do
-    addCmd $ LDH 0 2
-    addCmd $ LDS (-2)
-    addCmd $ LDH 0 2
-    addCmd $ LDS (-1)
-    addCmd $ LDS (-4)
-    applyOp2 op (t1, t1')
-    seqIf (if firstQuick then quick else slow)
-        (Just $ if firstQuick then slow else quick)
-    where
-    quick = do
-        addCmd $ AJS (-5)
-        addCmd . LDC $ if quickValue then "-1" else "0"
-    slow = do
-        addCmd $ LDS (-2)
-        applyOp2 op (t2, t2')
-        addCmd $ STR "R5"
-        addCmd $ AJS (-4)
-        addCmd $ LDR "R5"
-
-applyOp2 :: Op2 -> (Type, Type) -> Sequencer
-applyOp2 op t = case t of
-    (TList t1, TList t2) -> case op of
-        OLt -> op2BoolListEither False op (t1, t2)
-        OGt -> op2BoolListEither False op (t1, t2)
-        OLe -> op2BoolListEither True OLt (t1, t2)
-        OGe -> op2BoolListEither True OGt (t1, t2)
-        OEq -> op2BoolListAll op (t1, t2)
-        ONeq -> op2BoolListAll op (t1, t2)
-        _ -> error $ (show op) ++ " is not defined for lists"
-    (TTuple t1 t2, TTuple t1' t2') -> case op of
-        OLt -> op2BoolTuple True True op ((t1, t2), (t1', t2'))
-        OGt -> op2BoolTuple True True op ((t1, t2), (t1', t2'))
-        OLe -> op2BoolTuple True True op ((t1, t2), (t1', t2'))
-        OGe -> op2BoolTuple True True op ((t1, t2), (t1', t2'))
-        OEq -> op2BoolTuple False False op ((t1, t2), (t1', t2'))
-        ONeq -> op2BoolTuple True False op ((t1, t2), (t1', t2'))
-        OPlus -> op2Tuple op ((t1, t2), (t1', t2'))
-        OMinus -> op2Tuple op ((t1, t2), (t1', t2'))
-        OTimes -> op2Tuple op ((t1, t2), (t1', t2'))
-        ODiv -> op2Tuple op ((t1, t2), (t1', t2'))
-        OMod -> op2Tuple op ((t1, t2), (t1', t2'))
-    _ -> do
-        addCmd $ OP2 $ case op of
-            OAnd -> "and"
-            OOr -> "or"
-            OEq -> "eq"
-            ONeq -> "ne"
-            OLt -> "lt"
-            OGt -> "gt"
-            OLe -> "le"
-            OGe -> "ge"
-            OPlus -> "add"
-            OMinus -> "sub"
-            OTimes -> "mul"
-            ODiv -> "div"
-            OMod -> "mod"
+op2name :: Op2 -> String
+op2name op = case op of
+    OAnd -> "and"
+    OOr -> "or"
+    OEq -> "eq"
+    ONeq -> "ne"
+    OLt -> "lt"
+    OGt -> "gt"
+    OLe -> "le"
+    OGe -> "ge"
+    OPlus -> "add"
+    OMinus -> "sub"
+    OTimes -> "mul"
+    ODiv -> "div"
+    OMod -> "mod"
 
 seqFunCall :: [StmtT] -> String -> [ExpT] -> Sequencer
 seqFunCall l i as =

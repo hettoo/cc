@@ -40,4 +40,16 @@ stdSPL = "\
 \       }\
 \       print(']');\
 \   }\
+
+\   (a, b) _op_not((a, b) t) {\
+\       return (!t.fst, !t.snd);\
+\   }\
+
+\   (a, b) _op_neg((a, b) t) {\
+\       return (-t.fst, -t.snd);\
+\   }\
+
+\   (a, b) _op_add((a, b) t1, (a, b) t2) {\
+\       return (t1.fst + t2.fst, t1.snd + t2.snd);\
+\   }\
 \ "
