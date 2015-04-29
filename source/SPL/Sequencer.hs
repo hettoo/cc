@@ -203,7 +203,7 @@ seqFunction :: Call -> [StmtT] -> Sequencer
 seqFunction c@(i, as) l =
     let
         (b, names, _) = findFunction c l
-        namesp = reverse names
+        namesp = names
         namesi = reverse (map fst (varDecls b))
         names' = namesi ++ namesp
     in do
@@ -482,4 +482,4 @@ seqFunCall l i as =
             addCmd $ LDC (callLabel c)
             addCmd JSR
             addCmd $ UNLINK n
-            gsp (\sp -> sp - 1)
+            gsp (\sp -> sp - (length as'))

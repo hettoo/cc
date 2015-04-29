@@ -2,4 +2,10 @@ Void main() {
     (Int, Int) a = (3, 5);
     print(a < a);
     print(a < a);
+    f(1, 2);
+}
+
+Void f(Int a, Int b) {
+    print(a);
+    print(b);
 }
