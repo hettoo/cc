@@ -121,7 +121,7 @@ seqOutput l = stateOutput $ program >@> (tnew, 0, cnew, 0, [])
     program = do
         globals l'
         gvc cdown
-        seqMain l'
+        seqMain l' -- TODO: sequence a function call to main and print
         seqTodo l'
     l' = l ++ annotateProgram (parseSPL' True stdSPL)
 
@@ -144,7 +144,6 @@ seqMain :: [StmtT] -> Sequencer
 seqMain l = do
     (_, _, vc, _, _) <- getState
     let (s, _, _) = findFunction ("main", []) l in
-        -- TODO: variables in main
         seqStmt l True s
     gvc . st $ const vc
 
