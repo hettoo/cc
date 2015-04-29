@@ -129,7 +129,7 @@ seqOutput l = stateOutput $ program >@> (tnew, 0, cnew, 0, [])
                 _ -> do
                     addCmd $ LDR "RR"
                     seqPrint t
-                    addCmd $ HALT "program end"
+        addCmd $ HALT "program end"
         seqTodo l'
     l' = l ++ annotateProgram (parseSPL' True stdSPL)
 
