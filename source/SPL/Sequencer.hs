@@ -178,6 +178,8 @@ callLabel (s, l) = s ++ "_" ++ show (length l) ++
         -- ^empty list trick :(
         TVoid -> "Void"
 
+-- TODO: fix global variables
+
 addVariable :: String -> Int -> Sequencer
 addVariable i o = do
     (_, sp, _, _, _) <- getState
