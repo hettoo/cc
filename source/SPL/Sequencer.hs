@@ -361,7 +361,7 @@ seqExp l e = case e of
         seqExp l e1
         seqExp l e2
         addCmd $ STH 2
-    EIdT i fs t -> do -- TODO: fields
+    EIdT i fs t -> do
         p <- varPos i
         addCmd $ LDS p
         flip endoSeq fs $ \f -> case f of
