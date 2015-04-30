@@ -1,0 +1,11 @@
+Void main() {
+    f();
+}
+
+Int f() {
+    return 0;
+}
+
+Char f() {
+    return '0';
+}
