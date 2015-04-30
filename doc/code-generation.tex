@@ -388,6 +388,15 @@ The empty list is represented by a null pointer.
 
 A program compiled by our compiler first assigns to the global variables in order their initial values, after which it calls the main function of which the return value, if any, is printed.
 
+On a more technical level, whenever we encounter a function call, we reserve room for all the parameters and variables in the relevant function and assign the values of the parameters.
+The function is then called, and if it returns a value this will be stored in the return register.
+For function calls as statements this can simply be ignored, but if the function call is used as an expression it will load the value of that register onto the stack (after the variables of the function are unlinked).
+
+At the beginning of the program we copy the value of the stack pointer to another register (R7) such that we can calculate at any point the addresses of the global variables.
+
+Many (cases of) built-in functions and operators are implemented through a standard library.
+The remaining primitive cases (Int/Char printing, basic operators, etc.) are compiled inline, without a function call.
+
 \subsection{Test Cases}
 
 The directory \verb|tests/sequencing/| contains additional tests tailored for the functionality introduced in the code generation phase.
