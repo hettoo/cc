@@ -31,6 +31,8 @@ data Command =
     OP2 String |
     PRINTI |
     PRINTC |
+    READI |
+    READC |
     BRA String |
     BRF String |
     JSR |
@@ -59,6 +61,8 @@ stackChange c = case c of
     OP2 _ -> -1
     PRINTI -> -1
     PRINTC -> -1
+    READI -> 1
+    READC -> 1
     BRA _ -> 0
     BRF _ -> -1
     JSR -> -1
@@ -86,6 +90,8 @@ cmdOutput c = case c of
     OP2 s -> s
     PRINTI -> "trap 0"
     PRINTC -> "trap 1"
+    READI -> "trap 10"
+    READC -> "trap 11"
     BRA s -> "bra " ++ s
     BRF s -> "brf " ++ s
     JSR -> "jsr"
@@ -490,7 +496,9 @@ seqFunCall l i as =
             TPoly _ -> eId -- dummy for empty list code
             where
             stdprint = seqFunCall l "_print" as
-        (("read", []), []) -> eId -- TODO
+        (("read", []), []) -> do -- TODO: other types
+            addCmd $ READI
+            addCmd $ STR "RR"
         (("isEmpty", [TList _]), [e]) -> do
             seqExp l e
             seqIf (addCmd $ LDC "0") (Just . addCmd $ LDC "-1")

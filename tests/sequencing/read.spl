@@ -1,0 +1,4 @@
+Void main() {
+    Int a = read();
+    print(a);
+}
