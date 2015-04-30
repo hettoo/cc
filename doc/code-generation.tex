@@ -1,0 +1,369 @@
+\documentclass[a4paper]{article}
+
+\usepackage[latin1]{inputenc}
+\usepackage[english]{babel}
+\usepackage{mathtools}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[nounderscore]{syntax}
+\usepackage{bussproofs}
+
+\setlength{\grammarparsep}{0pt}
+\renewcommand{\syntleft}{\normalfont\itshape}
+\renewcommand{\syntright}{}
+
+\title{SPL Code Generation}
+\author{Tom Sanders and Gerco van Heerdt}
+
+\begin{document}
+
+\maketitle
+
+\section{Syntax}
+
+Recall our final version of the SPL grammar.
+\setlength{\grammarindent}{7.1em}
+\begin{grammar}
+    <SPL> ::= <Decl>+
+
+    <Decl> ::= <VarDecl> | <FunDecl>
+
+    <VarDecl> ::= <Type> <id> `=' <Exp> `;'
+
+    <FunDecl> ::= <RetType> <id> `(' [\,<FArgs>\,] `)' `{' <VarDecl>* <Stmt>+ `}'
+
+    <RetType> ::= <Type> | `Void'
+
+    <Type> ::= <id> | <BasicType> | `(' <Type> `,' <Type> `)' | `[' <Type> `]'
+
+    <BasicType> ::= `Int' | `Bool' | `Char'
+
+    <FArgs> ::= <Type> <id> [\,`,' <FArgs>\,]
+
+    <Stmt> ::= `{' <Stmt>* `}' | <StmtId> `;' | `return' [\,<Exp>\,] `;'
+    \alt `if' `(' <Exp> `)' <Stmt> [\,`else' <Stmt>\,]
+    \alt `while' `(' <Exp> `)' <Stmt>
+
+    <StmtId> ::= <id> (\,[\,<Field>\,] `=' <Exp> | `(' [\,<ActArgs>\,] `)'\,)
+
+    <Exp> ::= <Exp1> [\,`:' <Exp>\,]
+
+    <Exp1> ::= <Exp2> (\,(\,`&&' | `||'\,) <Exp2>\,)*
+
+    <Exp2> ::= <Exp3> (\,(\,`==' | `!='\,) <Exp3>\,)*
+
+    <Exp3> ::= <Exp4> (\,(\,`<' | `>' | `<=' | `>='\,) <Exp4>\,)*
+
+    <Exp4> ::= <Exp5> (\,(\,`+' | `-'\,) <Exp5>\,)*
+
+    <Exp5> ::= <Exp6> (\,(\,`*' | `/' | `%'\,) <Exp6>\,)*
+
+    <Exp6> ::= (\,`!' | `-'\,) <Exp6> | <NonOpExp>
+
+    <NonOpExp> ::= <int> | <char> | <bool> | `[]' | <ExpId>
+    \alt `(' <Exp> `)' | `(' <Exp> `,' <Exp> `)'
+
+    <ExpId> ::= <id> (\,[\,<Field>\,] | `(' [\,<ActArgs>\,] `)'\,)
+
+    <Field> ::= `.' (\,`hd' | `tl' | `fst' | `snd'\,) [\,<Field>\,]
+
+    <ActArgs> ::= <Exp> [\,`,' <ActArgs>\,]
+
+    <int> ::= [\,`-'\,] <digit>+
+
+    <char> ::= `\'' <any> `\''
+
+    <bool> ::= `False' | `True'
+
+    <id> ::= <alpha> (\,`_' | <alphaNum>\,)*
+\end{grammar}
+
+What matters for typing is not the syntax used to recognize a program, but rather the syntax used to store it (the relation with the above grammar should be clear).
+For instance, the grammar describing our expressions is shown below.
+\setlength{\grammarindent}{4.1em}
+\begin{grammar}
+    <Exp> ::= Int $i$ | Bool $b$ | Char $c$ | Nil | $\ominus$<Exp> | <Exp> $\otimes$ <Exp>
+    \alt (\,<Exp>, <Exp>\,) | Var <id> <Field>* | Fun <id> <Exp>*
+\end{grammar}
+Here $\ominus$ stands for a unary operator, and $\otimes$ can be any binary operator.
+
+\section{Typing rules}
+
+For convenience, we use the notation that a context $\Gamma$ is made up of a variable context $\Gamma_v$ and a function context $\Gamma_f$.
+Formally, $\Gamma = (\Gamma_v, \Gamma_f)$.
+
+\begin{center}
+    \AxiomC{}
+    \UnaryInfC{$\Gamma \vdash \text{Int } i : \text{Int}$}
+    \DisplayProof
+    \qquad
+    \AxiomC{}
+    \UnaryInfC{$\Gamma \vdash \text{Bool } i : \text{Bool}$}
+    \DisplayProof
+    \qquad
+    \AxiomC{}
+    \UnaryInfC{$\Gamma \vdash \text{Char } i : \text{Char}$}
+    \DisplayProof
+\end{center}
+
+\begin{center}
+    \AxiomC{}
+    \UnaryInfC{$\Gamma \vdash \text{Nil} : \forall a.\,[a]$}
+    \DisplayProof
+    \qquad
+    \AxiomC{$\Gamma \vdash e_1 : \sigma_1$}
+    \AxiomC{$\Gamma \vdash e_2 : \sigma_2$}
+    \BinaryInfC{$\Gamma \vdash (e_1, e_2) : (\sigma_1, \sigma_2)$}
+    \DisplayProof
+    \qquad
+    \AxiomC{$(i, \sigma) \in \Gamma_v$}
+    \UnaryInfC{$\Gamma \vdash \text{Var } i\;[\,] : \sigma$}
+    \DisplayProof
+\end{center}
+
+\begin{center}
+    \AxiomC{$(i, \sigma) \in \Gamma_v$}
+    \AxiomC{$\Gamma \vdash f : \sigma \to \tau$}
+    \AxiomC{$((\Gamma_{v \setminus i}, i : \tau), \Gamma_f) \vdash \text{Var } i\;r : \chi$}
+    \TrinaryInfC{$\Gamma \vdash \text{Var } i\;(f :: r) : \chi$}
+    \DisplayProof
+\end{center}
+Here $\Gamma_{v \setminus i} = \{(v, t) \in \Gamma_v \mid v \neq i\}$.
+
+Note that the above rule requires us to type field specifiers as well.
+We will do this later.
+
+\begin{center}
+    \AxiomC{$\forall_{1 \le j \le n}\,\Gamma \vdash e_j : \sigma_j$}
+    \AxiomC{$(i, (\sigma_1, \sigma_2, \ldots, \sigma_n) \to \tau) \in \Gamma_f$}
+    \BinaryInfC{$\Gamma \vdash \text{Fun } i\;(e_1, e_2, \ldots, e_n) : \tau$}
+    \DisplayProof
+\end{center}
+
+Finally, we have to specify all operators.
+
+\begin{center}
+    \AxiomC{$\Gamma \vdash e : \text{Int}$}
+    \UnaryInfC{$\Gamma \vdash -e : \text{Int}$}
+    \DisplayProof
+    \qquad
+    \AxiomC{$\Gamma \vdash e : \text{Bool}$}
+    \UnaryInfC{$\Gamma \vdash\;!e : \text{Bool}$}
+    \DisplayProof
+    \qquad
+    \AxiomC{$\Gamma \vdash e_1 : \sigma$}
+    \AxiomC{$\Gamma \vdash e_2 : \sigma$}
+    \BinaryInfC{$\Gamma \vdash e_1 \bullet e_2 : \sigma$}
+    \DisplayProof
+\end{center}
+where $\bullet \in \{+, -, *, /, \%\}$.
+
+\begin{center}
+    \AxiomC{$\Gamma \vdash e : \sigma$}
+    \AxiomC{$\Gamma \vdash l : [\sigma]$}
+    \BinaryInfC{$\Gamma \vdash (e : l) : [\sigma]$}
+    \DisplayProof
+    \qquad
+    \AxiomC{$\Gamma \vdash e_1 : \sigma$}
+    \AxiomC{$\Gamma \vdash e_2 : \sigma$}
+    \BinaryInfC{$\Gamma \vdash e_1 \diamond e_2 : \text{Bool}$}
+    \DisplayProof
+\end{center}
+with $\diamond \in \{==, <, >, <=, >=, !\!=\}$.
+
+\begin{center}
+    \AxiomC{$\Gamma \vdash e_1 : \text{Bool}$}
+    \AxiomC{$\Gamma \vdash e_2 : \text{Bool}$}
+    \BinaryInfC{$\Gamma \vdash e_1 \text{ \&\& } e_2 : \text{Bool}$}
+    \DisplayProof
+    \qquad
+    \AxiomC{$\Gamma \vdash e_1 : \text{Bool}$}
+    \AxiomC{$\Gamma \vdash e_2 : \text{Bool}$}
+    \BinaryInfC{$\Gamma \vdash e_1 \text{ \textbar\textbar{} } e_2 : \text{Bool}$}
+    \DisplayProof
+\end{center}
+
+Field specifiers are given by the following grammar:
+\setlength{\grammarindent}{4.3em}
+\begin{grammar}
+    <Field> ::= Head | Tail | First | Second
+\end{grammar}
+
+The types of these are given by the axioms below.
+\begin{center}
+    \AxiomC{}
+    \UnaryInfC{$\Gamma \vdash \text{Head} : [\sigma] \to \sigma$}
+    \DisplayProof
+    \qquad
+    \AxiomC{}
+    \UnaryInfC{$\Gamma \vdash \text{Tail} : [\sigma] \to [\sigma]$}
+    \DisplayProof
+\end{center}
+\begin{center}
+    \AxiomC{}
+    \UnaryInfC{$\Gamma \vdash \text{First} : (\sigma_1, \sigma_2) \to \sigma_1$}
+    \DisplayProof
+    \qquad
+    \AxiomC{}
+    \UnaryInfC{$\Gamma \vdash \text{Second} : (\sigma_1, \sigma_2) \to \sigma_2$}
+    \DisplayProof
+\end{center}
+
+Finally, we have the following built-in functions, typed through context initialization:
+\[
+    \begin{array}{lcl}
+        \mathit{isEmpty} & : & [\sigma] \to \text{Bool} \\
+        \mathit{print}   & : & \sigma \to \text{Void} \\
+        \mathit{read}    & : & \text{Int}
+    \end{array}
+\]
+Here Void simply indicates the absence of a return value.
+Note that we do not allow overloading or polymorphism purely on the return type, and so we choose to fix the type of the $\mathit{read}$ function to Int.
+The reason for this is to avoid ambiguity: instead of as an expression a function call may appear as a statement, in which case the desired return type is not defined.
+
+\section{Semantic Analysis}
+
+Binding time analysis consists in determining where variables that are used in the program were bound.
+We use the usual precedence rules to do this: variables defined later override earlier ones, unless they were defined in the same scope (block of code or function argument lists), which is an error.
+Note that both function arguments and function bodies introduce a new scope.
+
+Typechecking a function consists in ensuring that the returned values for all possible executions of the function (assuming just that it terminates) are compatible with the type given to it.
+An execution not hitting a return statement is equivalent to it returning a variable of type Void in the end.
+Of course there are no such variables, but this is in turn modeled by the return statement without parameter.
+
+Functions may be overloaded, but it is not allowed that multiple versions of a function apply for any possible way the function can be called.
+Note that the current implementation does not allow overloading the return type of a function at all.
+
+\subsection{Test cases}
+
+The following test cases primarily test for program instances that should be rejected by the compiler due to typing problems.
+For positive tests we have mostly relied on using the example programs for the first assignment, except for specific type constructs which were not covered by these examples.
+General tests beyond the scope of semantic analysis are contained within the \verb|tests/general| directory of the project and have already been described in the previous assignment.
+
+\paragraph{tests/typing/error1.spl}
+In this example we show that polymorphic returns are checked.
+Calling \verb|g| with an integer yield an integer, which is too specific for the return type of \verb|f|.
+    \begin{verbatim}
+compiler: invalid return type `Int'; expected `a'\end{verbatim}
+
+\paragraph{tests/typing/error2.spl}
+This test builds on the previous one, modifying the return type for \verb|g|.
+The compiler correctly rejects this test, because the return of \verb|g| is now ill-typed.
+    \begin{verbatim}
+compiler: invalid return type `c'; expected `b'\end{verbatim}
+
+\paragraph{tests/typing/error3.spl}
+Function application is performed with incorrect arity.
+    \begin{verbatim}
+compiler: no candidate for application of f found\end{verbatim}
+
+\paragraph{tests/typing/error4.spl}
+Function application is performed with incorrect arity.
+    \begin{verbatim}
+compiler: no candidate for application of f found\end{verbatim}
+
+\paragraph{tests/typing/error5.spl}
+Return type is too general
+    \begin{verbatim}
+compiler: assignment mismatch: `a' does not cover `Int'\end{verbatim}
+
+\paragraph{tests/typing/error6.spl}
+This program describes an instance where a variable cannot be typed because of the unknown return type of \verb|read()|.
+    \begin{verbatim}
+compiler: free polymorphic variable x\end{verbatim}
+
+\paragraph{tests/typing/error7.spl}
+The type checker ensures a valid return for all possible code paths when control structures are used within a function body.
+    \begin{verbatim}
+compiler: function g may not return a value\end{verbatim}
+
+\paragraph{tests/typing/error8.spl}
+A return in a while control block is not sufficient to ensure all possible code paths have a valid return, because the loop condition is not evaluated at compile-time.
+    \begin{verbatim}
+compiler: function f may not return a value\end{verbatim}
+
+\paragraph{tests/typing/error9.spl}
+Variables may only be defined once in their scope.
+    \begin{verbatim}
+compiler: redefined variable x\end{verbatim}
+
+\paragraph{tests/typing/error10.spl}
+Functions may only be defined once.
+    \begin{verbatim}
+compiler: redefined function f\end{verbatim}
+
+\paragraph{tests/typing/error11.spl}
+Function arguments may only be defined once.
+    \begin{verbatim}
+compiler: duplicate formal arguments for function n\end{verbatim}
+
+\paragraph{tests/typing/error12.spl}
+Variables may not be used outside of their scope.
+    \begin{verbatim}
+compiler: undeclared entity a\end{verbatim}
+
+\paragraph{tests/typing/error13.spl}
+Functions must be called with the right arity.
+    \begin{verbatim}
+compiler: no candidate for application of f found\end{verbatim}
+
+\paragraph{tests/typing/error14.spl}
+Function overloading instances must have mutually exclusive types.
+    \begin{verbatim}
+compiler: redefined function id\end{verbatim}
+
+\paragraph{tests/typing/overloading1.spl}\mbox{}\\ % TODO: :(
+Overloaded function applications are allowed.
+    \begin{verbatim}
+Void f () {
+    f((0 @ Int));
+}
+
+Void f (Int a) {
+}\end{verbatim}
+
+\paragraph{tests/typing/overloading2.spl}\mbox{}\\ % TODO: :(
+Overloaded function applications are allowed.
+    \begin{verbatim}
+Void f (Char a) {
+    f((0 @ Int));
+}
+
+Void f (Int a) {
+}\end{verbatim}
+
+\paragraph{tests/typing/scope1.spl}
+Local variables may hide local variables.
+    \begin{verbatim}
+Int a = (0 @ Int);
+
+Char f (Char a) {
+    return (a @ Char);
+}\end{verbatim}
+
+\paragraph{tests/typing/scope2.spl}
+Local variables may hide function arguments.
+    \begin{verbatim}
+Int f (Char a) {
+    Int a = (0 @ Int);
+
+    return (a @ Int);
+}\end{verbatim}
+
+\section{Compilation Schemes}
+
+% TODO
+
+\subsection{Examples}
+
+% TODO
+
+\section{Build Instructions}
+
+Building the project requires a modern Haskell compiler and a Make-like system.
+Internally, GHC 7.6.3 and GNU Make 3.81 were used.
+Running \verb|make| in the project root will build the compiler in the \verb|build| folder.
+Tests can either be run manually by feeding SPL source files into the compiler with \verb|build/compiler < program.spl| or automatically by calling \verb|make tests| in the project root to run a set of predefined tests.
+If no problems are encountered, the compiler generates the file \verb|a.ssm| containing the compiled program.
+
+\end{document}
