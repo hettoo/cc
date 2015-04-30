@@ -377,9 +377,10 @@ Int f (Char a) {
 
 \section{Compilation Schemes}
 
-We use \emph{by-value} assignments.
-For tuples and lists this value is a pointer to objects on the heap that gets passed around, but in our implementation the heap is immutable.
+We employ \emph{by-value} assignments and calling: a copy of an object---as shallow as possible---is made on assignment.
+For tuples and lists this value is a pointer to objects on the heap, but note that the heap is immutable because of the assignment convention.
 Thus, an object passed to a function will never actually be modified by that function.
+Our current implementation does never actually free memory from the heap.
 
 All objects are represented on the stack with a single value.
 As mentioned above, tuples and lists are stored on the heap.
@@ -387,6 +388,8 @@ In the case of a tuple the first object is stored first, followed by the second 
 The empty list is represented by a null pointer.
 
 A program compiled by our compiler first assigns to the global variables in order their initial values, after which it calls the main function of which the return value, if any, is printed.
+Our implementation uses a todo list maintaining the instances of functions that still need to be compiled.
+Because of our design choices all types are known at compile time, so we can provide polymorphism simply through overloading as only a finite number of instances of a function can be called by a program.
 
 On a more technical level, whenever we encounter a function call, we reserve room for all the parameters and variables in the relevant function and assign the values of the parameters.
 The function is then called, and if it returns a value this will be stored in the return register.
@@ -395,7 +398,7 @@ For function calls as statements this can simply be ignored, but if the function
 At the beginning of the program we copy the value of the stack pointer to another register (R7) such that we can calculate at any point the addresses of the global variables.
 
 Many (cases of) built-in functions and operators are implemented through a standard library.
-The remaining primitive cases (Int/Char printing, basic operators, etc.) are compiled inline, without a function call.
+The remaining primitive cases (Int/Char printing, basic operators, etc.) are compiled inline.
 
 \subsection{Test Cases}
 
