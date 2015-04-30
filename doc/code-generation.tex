@@ -381,7 +381,10 @@ We use \emph{by-value} assignments.
 For tuples and lists this value is a pointer to objects on the heap that gets passed around, but in our implementation the heap is immutable.
 Thus, an object passed to a function will never actually be modified by that function.
 
-% TODO
+All objects are represented on the stack with a single value.
+As mentioned above, tuples and lists are stored on the heap.
+In the case of a tuple the first object is stored first, followed by the second object; in the case of a list we store the tail first and the head second.
+The empty list is represented by a null pointer.
 
 \subsection{Test Cases}
 
