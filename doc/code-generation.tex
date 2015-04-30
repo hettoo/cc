@@ -239,6 +239,7 @@ Note that the current implementation does not allow overloading the return type 
 
 The following test cases primarily test for program instances that should be rejected by the compiler due to typing problems.
 For positive tests we have mostly relied on using the example programs for the first assignment, except for specific type constructs which were not covered by these examples.
+These test cases also introduce some of our design choices.
 General tests beyond the scope of semantic analysis are contained within the \verb|tests/general| directory of the project and have already been described in the previous assignment.
 
 \paragraph{tests/typing/error1.spl}
@@ -375,6 +376,10 @@ Int f (Char a) {
 }\end{verbatim}
 
 \section{Compilation Schemes}
+
+We use \emph{by-value} assignments.
+For tuples and lists this value is a pointer to objects on the heap that gets passed around, but in our implementation the heap is immutable.
+Thus, an object passed to a function will never actually be modified by that function.
 
 % TODO
 
