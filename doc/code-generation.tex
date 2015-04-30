@@ -245,7 +245,8 @@ General tests beyond the scope of semantic analysis are contained within the \ve
 In this example we show that polymorphic returns are checked.
 Calling \verb|g| with an integer yield an integer, which is too specific for the return type of \verb|f|.
     \begin{verbatim}
-incompatible return type `Int' provided; expected `a' in function f\end{verbatim}
+incompatible return type `Int' provided; expected `a' in
+function f\end{verbatim}
 
 \paragraph{tests/typing/error2.spl}
 This test builds on the previous one, modifying the return type for \verb|g|.
@@ -266,7 +267,8 @@ no candidate for application of f found\end{verbatim}
 \paragraph{tests/typing/error5.spl}
 Return type is too general
     \begin{verbatim}
-assignment mismatch: expected type `Int' does not cover given type `a' (variable y)\end{verbatim}
+assignment mismatch: expected type `Int' does not cover
+given type `a' (variable y)\end{verbatim}
 
 \paragraph{tests/typing/error6.spl}
 This program describes an instance where a variable cannot be typed because of the unknown return type of \verb|read()|.
@@ -331,7 +333,8 @@ redefined function f\end{verbatim}
 \paragraph{tests/typing/error18.spl}
 The arguments for the application of a polymorphic function must match its scheme.
     \begin{verbatim}
-application mismatch: expected type `(?1, ?1)' does not cover given type `(Int, Char)'\end{verbatim}
+application mismatch: expected type `(?1, ?1)' does not cover
+given type `(Int, Char)'\end{verbatim}
 
 \paragraph{tests/typing/overloading1.spl}\mbox{}\\ % TODO: :(
 Overloaded function applications are allowed.
@@ -354,7 +357,7 @@ Void f (Int a) {
 }\end{verbatim}
 
 \paragraph{tests/typing/scope1.spl}
-Local variables may hide local variables.
+Local variables hide local variables.
     \begin{verbatim}
 Int a = (0 @ Int);
 
@@ -363,7 +366,7 @@ Char f (Char a) {
 }\end{verbatim}
 
 \paragraph{tests/typing/scope2.spl}
-Local variables may hide function arguments.
+Local variables hide function arguments.
     \begin{verbatim}
 Int f (Char a) {
     Int a = (0 @ Int);
@@ -382,7 +385,6 @@ Int f (Char a) {
 \section{Build Instructions}
 
 Building the project requires a modern Haskell compiler and a Make-like system.
-Internally, GHC 7.6.3 and GNU Make 3.81 were used.
 Running \verb|make| in the project root will build the compiler in the \verb|build| folder.
 Tests can either be run manually by feeding SPL source files into the compiler with \verb|build/compiler < program.spl| or automatically by calling \verb|make tests| in the project root to run a set of predefined tests.
 If no problems are encountered, the compiler generates the file \verb|a.ssm| containing the compiled program.
