@@ -124,7 +124,7 @@ initContext l = case l of
         splcv (return ())
         splcf $ do
             cadd "isEmpty" (TList (TPoly "t"), TBool) "?"
-            cadd "read" (TVoid, TPoly "t") "?"
+            cadd "read" (TVoid, TInt) "?"
             cadd "print" (TPoly "t", TVoid) "?"
     s : r -> case s of
         VarDecl t i _ -> do
