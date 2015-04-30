@@ -251,8 +251,9 @@ annotateS l s = case s of
         else
             fail "invalid main function"
                 where
-                addArg (t, i) =
-                    cadd i t ("duplicate formal arguments for function " ++ i)
+                addArg (t, j) =
+                    cadd i t ("duplicate formal argument " ++ j ++
+                        " for function " ++ i)
     FunCall i as -> do
         (es, _) <- applyFun i as
         return $ FunCallT i es
@@ -266,7 +267,7 @@ annotateS l s = case s of
                     if unifiablef t a then
                         return $ ReturnT (Just e)
                     else
-                        fail $ "invalid return type `" ++
+                        fail $ "incompatible return type `" ++
                             simplePrint t ++ "' provided; expected `" ++
                             simplePrint a ++ "' in function " ++ i
     Assign i fs e -> do
