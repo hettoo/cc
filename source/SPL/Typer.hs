@@ -82,8 +82,9 @@ treplace t = case t of
 
 checkApp :: (Type, Type) -> Type -> State a Type
 checkApp (t, t') a = case unifyf t a of
-    Nothing -> fail $ "application mismatch: `" ++ simplePrint t ++
-        "' does not cover `" ++ simplePrint a ++ "'"
+    Nothing -> fail $ "application mismatch: expected type `" ++
+        simplePrint t ++ "' does not cover given type `" ++
+        simplePrint a ++ "'"
     Just c -> return $ treplace t' >!> c
 
 op1Type :: Op1 -> State Cv (Type, Type)
@@ -173,7 +174,7 @@ annotateProgram l = let
         annotateMulti [] l'
     ) >!> (cnew, cnew)
 
-annotateMulti :: [Type] -> [Stmt] -> State SPLC [StmtT]
+annotateMulti :: [(Type, String)] -> [Stmt] -> State SPLC [StmtT]
 annotateMulti l = mapM (annotateS l)
 
 checkPoly :: [Type] -> Type -> State SPLC Bool
@@ -217,23 +218,23 @@ applyFun i as = do
             _ -> fail $ "no candidate for application of " ++ i ++ " found"
         return (as, t)
 
-annotateS :: [Type] -> Stmt -> State SPLC StmtT
+annotateS :: [(Type, String)] -> Stmt -> State SPLC StmtT
 annotateS l s = case s of
     Stmts s -> do
         s <- annotateMulti l s
         return $ StmtsT s
-    VarDecl t i e -> do
-        b <- checkPoly l t
+    VarDecl et i e -> do
+        b <- checkPoly (map fst l) et
         if b then do
             e <- annotateE e
-            let et = getType e in
-                if unifiablef et t then do
-                    caddvar i t
-                    return (VarDeclT t i e)
+            let t = getType e in
+                if unifiablef t et then do
+                    caddvar i et
+                    return (VarDeclT et i e)
                 else
-                    fail $ "assignment mismatch: `" ++
-                        simplePrint et ++ "' does not cover `" ++
-                        simplePrint t ++ "'"
+                    fail $ "assignment mismatch: expected type `" ++
+                        simplePrint et ++ "' does not cover given type `" ++
+                        simplePrint t ++ "' (variable " ++ i ++ ")"
         else
             fail ("free polymorphic variable " ++ i)
     FunDecl t i as b -> do
@@ -245,7 +246,7 @@ annotateS l s = case s of
                 splcv (mapM_ addArg as)
                 splcf cdown
                 splcv cdown
-                b <- annotateS (t : l) b
+                b <- annotateS ((t, i) : l) b
                 return $ FunDeclT t i as b
         else
             fail "invalid main function"
@@ -257,7 +258,7 @@ annotateS l s = case s of
         return $ FunCallT i es
     Return m -> case l of
         [] -> fail "return outside function"
-        a : l' -> case m of
+        (a, i) : l' -> case m of
             Nothing -> return $ ReturnT Nothing
             Just e -> do
                 e <- annotateE e
@@ -266,8 +267,8 @@ annotateS l s = case s of
                         return $ ReturnT (Just e)
                     else
                         fail $ "invalid return type `" ++
-                            simplePrint t ++ "'; expected `" ++
-                            simplePrint a ++ "'"
+                            simplePrint t ++ "' provided; expected `" ++
+                            simplePrint a ++ "' in function " ++ i
     Assign i fs e -> do
         vt <- idType i fs
         e <- annotateE e
@@ -275,8 +276,9 @@ annotateS l s = case s of
             if unifiablef t vt then
                 return $ AssignT i fs e
             else
-                fail $ "assignment mismatch: `" ++ simplePrint t ++
-                    "' does not cover `" ++ simplePrint vt ++ "'"
+                fail $ "assignment mismatch: expected type `" ++
+                    simplePrint vt ++ "' does not cover given type `" ++
+                    simplePrint t ++ "' (variable " ++ i ++ ")"
     If e s m -> do
         e <- annotateE e
         s <- indiff (annotateS l s)

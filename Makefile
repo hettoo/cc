@@ -45,5 +45,6 @@ tests: all
 	@$(call testError,typing/error15)
 	@$(call testError,typing/error16)
 	@$(call testError,typing/error17)
+	@$(call testError,typing/error18)
 
 .PHONY: all run tests
