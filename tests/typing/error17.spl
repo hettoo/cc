@@ -7,5 +7,5 @@ Int f() {
 }
 
 Char f() {
-    return '0';
+    return 'a';
 }
