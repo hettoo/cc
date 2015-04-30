@@ -3,6 +3,8 @@ Int o = 5;
 Void main() {
     Int a = f(2);
     Int b = f(3);
+    print(a);
+    print(b);
 }
 
 Int f(Int a) {

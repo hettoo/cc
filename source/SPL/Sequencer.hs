@@ -16,13 +16,17 @@ import Control.Monad
 data Command =
     LABEL String |
     AJS Int |
+    SWP |
     LDC String |
     LDR String |
     STR String |
     LDS Int |
     STS Int |
+    LDA Int |
+    STA Int |
     LDH Int Int |
     STH Int |
+    LDRR String String |
     OP1 String |
     OP2 String |
     PRINTI |
@@ -40,13 +44,17 @@ stackChange :: Command -> Int
 stackChange c = case c of
     LABEL _ -> 0
     AJS n -> n
+    SWP -> 0
     LDC _ -> 1
     LDR _ -> 1
     STR _ -> -1
     LDS _ -> 1
     STS _ -> -1
+    LDA _ -> 0
+    STA _ -> -2
     LDH _ n -> n - 1
     STH n -> 1 - n
+    LDRR _ _ -> 0
     OP1 _ -> 0
     OP2 _ -> -1
     PRINTI -> -1
@@ -63,13 +71,17 @@ cmdOutput :: Command -> String
 cmdOutput c = case c of
     LABEL s -> s ++ ":"
     AJS n -> "ajs " ++ show n
+    SWP -> "swp"
     LDC s -> "ldc " ++ s
     LDR s -> "ldr " ++ s
     STR s -> "str " ++ s
     LDS n -> "lds " ++ show n
     STS n -> "sts " ++ show n
+    LDA n -> "lda " ++ show n
+    STA n -> "sta " ++ show n
     LDH m n -> "ldmh " ++ show m ++ " " ++ show n
     STH n -> "stmh " ++ show n
+    LDRR s t -> "ldrr " ++ s ++ " " ++ t
     OP1 s -> s
     OP2 s -> s
     PRINTI -> "trap 0"
@@ -84,7 +96,7 @@ cmdOutput c = case c of
 
 type Call = (String, [Type]) -- TODO: allow polymorphic outputs
 type SP = Int
-type VarContext = Context SP
+type VarContext = Context (SP, Bool)
 type SO = (Todo Call, SP, VarContext, Int, [Command])
 type Sequencer = Endo SO
 
@@ -134,18 +146,18 @@ stateOutput :: SO -> String
 stateOutput (_, _, _, _, l) = unlines (map cmdOutput l)
 
 globals :: [StmtT] -> Sequencer
-globals l = endoSeq declareGlobal l >> endoSeq setGlobal l
+globals l = do
+    addCmd $ LDRR "R7" "SP"
+    setGlobals l 0
     where
-    declareGlobal s = case s of
-        VarDeclT _ i _ -> do
-            addCmd $ LDC "0"
-            addVariable i 0
-        _ -> eId
-    setGlobal s = case s of
-        VarDeclT t i e -> do
-            seqExp l e
-            setVariable i
-        _ -> eId
+    setGlobals l n = case l of
+        [] -> eId
+        s : r -> case s of
+            VarDeclT t i e -> do
+                seqExp l e
+                addVariable i n True
+                setGlobals r (n + 1)
+            _ -> setGlobals r n
 
 seqTodo :: [StmtT] -> Sequencer
 seqTodo l = do
@@ -178,22 +190,33 @@ callLabel (s, l) = s ++ "_" ++ show (length l) ++
         -- ^empty list trick :(
         TVoid -> "Void"
 
--- TODO: fix global variables
-
-addVariable :: String -> Int -> Sequencer
-addVariable i o = do
+addVariable :: String -> Int -> Bool -> Sequencer
+addVariable i o b = do
     (_, sp, _, _, _) <- getState
-    gvc (cadd i (sp + o) ("redefined variable " ++ i))
-
-setVariable :: String -> Sequencer
-setVariable i = do
-    p <- varPos i
-    addCmd $ STS p
+    gvc (cadd i (if b then o + 1 else sp + o, b) ("redefined variable " ++ i))
 
 getVariable :: String -> Sequencer
 getVariable i = do
-    p <- varPos i
-    addCmd $ LDS p
+    (p, b) <- varPos i
+    if b then addCmd $ LDS p
+        else do
+            addCmd $ LDR "R7"
+            addCmd $ LDA p
+
+setVariable :: String -> Sequencer
+setVariable i = do
+    (p, b) <- varPos i
+    if b then addCmd $ STS p
+        else do
+            addCmd $ LDR "R7"
+            addCmd $ SWP
+            addCmd $ STA p
+
+varPos :: String -> State SO (Int, Bool)
+varPos i = do
+    (_, sp, vc, _, _) <- getState
+    let (p, b) = clookupe i >!> vc in
+        return $ if b then (p, False) else (p - sp, True)
 
 varDecls :: StmtT -> [(String, ExpT)]
 varDecls t = case t of
@@ -217,7 +240,7 @@ seqFunction c@(i, as) l =
     addVariables n l = case l of
         [] -> eId
         a : r -> do
-            addVariable a n
+            addVariable a n False
             addVariables (n + 1) r
 
 findFunction :: Call -> [StmtT] -> (StmtT, [String], Type)
@@ -243,11 +266,6 @@ findFunction c@(i, as) l = case l of
 
 flowLabel :: Int -> String
 flowLabel i = "_f" ++ show i
-
-varPos :: String -> State SO Int
-varPos i = do
-    (_, sp, vc, _, _) <- getState
-    return $ (clookupe i >!> vc) - sp
 
 enc :: Char -> String
 enc = show . ord
