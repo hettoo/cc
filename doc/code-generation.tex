@@ -220,6 +220,7 @@ Finally, we have the following built-in functions, typed through context initial
 Here Void simply indicates the absence of a return value.
 Note that we do not allow overloading or polymorphism purely on the return type, and so we choose to fix the type of the $\mathit{read}$ function to Int.
 The reason for this is to avoid ambiguity: instead of as an expression a function call may appear as a statement, in which case the desired return type is not defined.
+We further reject overloading when two versions of a function potentially apply to a certain same combination of argument types.
 
 \section{Semantic Analysis}
 
@@ -311,6 +312,8 @@ compiler: no candidate for application of f found\end{verbatim}
 Function overloading instances must have mutually exclusive types.
     \begin{verbatim}
 compiler: redefined function id\end{verbatim}
+
+% TODO: some typing tests have been added
 
 \paragraph{tests/typing/overloading1.spl}\mbox{}\\ % TODO: :(
 Overloaded function applications are allowed.
