@@ -383,12 +383,15 @@ Thus, an object passed to a function will never actually be modified by that fun
 
 All objects are represented on the stack with a single value.
 As mentioned above, tuples and lists are stored on the heap.
-In the case of a tuple the first object is stored first, followed by the second object; in the case of a list we store the tail first and the head second.
+In the case of a tuple the first object is stored first, followed by the second object; for a list we store the tail first and the head second.
 The empty list is represented by a null pointer.
+
+A program compiled by our compiler first assigns to the global variables in order their initial values, after which it calls the main function of which the return value, if any, is printed.
 
 \subsection{Test Cases}
 
-% TODO
+The directory \verb|tests/sequencing/| contains additional tests tailored for the functionality introduced in the code generation phase.
+These include tests for recursion, polymorphic operators, global variables, field setters and getters, etc.
 
 \section{Build Instructions}
 

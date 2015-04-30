@@ -1,12 +1,12 @@
 Void main() {
-  empty_test();
-  nonempty_test();
+    print(empty_test());
+    print(nonempty_test());
 }
 
-Void empty_test() {
-  isEmpty([]);
+Bool empty_test() {
+    return isEmpty([]);
 }
 
-Void nonempty_test() {
-  isEmpty(42 : []);
+Bool nonempty_test() {
+    return isEmpty(42 : []);
 }
