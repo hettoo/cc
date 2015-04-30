@@ -90,10 +90,6 @@ op1Type :: Op1 -> State Cv (Type, Type)
 op1Type o = do
     a <- fresh
     return (a, a)
--- TODO: reason to limit back to this?
---op1Type o = return $ case o of
---    ONot -> (TBool, TBool)
---    ONeg -> (TInt, TInt)
 
 op2Type :: Op2 -> State Cv (Type, Type)
 op2Type o = case o of
@@ -153,7 +149,6 @@ guaranteeReturn s = case s of
     guaranteeReturn' l = case l of
         [] -> False
         s' : l' -> guaranteeReturn s' || guaranteeReturn' l'
-
 
 guaranteeReturns :: [Stmt] -> [Stmt]
 guaranteeReturns l = case l of

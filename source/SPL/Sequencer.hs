@@ -4,14 +4,12 @@ import SPL.Unifier
 import SPL.Parser
 import SPL.Typer
 import SPL.Std
-import SPL.Printer
 import Context
 import Todo
 import Endo
 import State
 import Utils
 import Data.Char
-import Control.Monad
 
 data Command =
     LABEL String |
