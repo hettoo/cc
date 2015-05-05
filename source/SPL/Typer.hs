@@ -198,9 +198,7 @@ checkPoly l t = checkPoly' (listPoly t) (concat (map listPoly l))
 
 checkMain :: String -> Type -> [(Type, String)] -> State SPLC Bool
 checkMain i t as = case i of
-    "main" -> case as of
-        [] -> checkPoly [] t
-        _ -> return False
+    "main" -> return $ isEmpty as
     _ -> return True
 
 applyFun :: String -> [Exp] -> State SPLC ([ExpT], Type)
