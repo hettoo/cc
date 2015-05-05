@@ -252,7 +252,7 @@ annotateS l s = case s of
             fail "invalid main function"
                 where
                 addArg (t, j) =
-                    cadd i t ("duplicate formal argument " ++ j ++
+                    cadd j t ("duplicate formal argument " ++ j ++
                         " for function " ++ i)
     FunCall i as -> do
         (es, _) <- applyFun i as
