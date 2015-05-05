@@ -223,6 +223,7 @@ annotateS l s = case s of
     Stmts s -> do
         s <- annotateMulti l s
         return $ StmtsT s
+    DataDecl i l -> return $ DataDeclT i l
     VarDecl et i e -> do
         b <- checkPoly (map fst l) et
         if b then do
