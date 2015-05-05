@@ -53,6 +53,21 @@ nalphanum_ :: ParserState s b =>
     Parser Char b s (Maybe Char)
 nalphanum_ = sep (satisfy (\c -> not (c == '_' || isAlphaNum c)))
 
+(.*-*.) :: ParserState s b =>
+    Parser Char b s v -> Parser Char b s w -> Parser Char b s (v, w)
+(.*-*.) p q = (p .*- ws) .*. q
+infixl 7 .*-*.
+
+(-*-*.) :: ParserState s b =>
+    Parser Char b s v -> Parser Char b s w -> Parser Char b s w
+(-*-*.) p q = (p .*. ws) -*. q
+infixl 7 -*-*.
+
+(.*-*-) :: ParserState s b =>
+    Parser Char b s v -> Parser Char b s w -> Parser Char b s v
+(.*-*-) p q = p .*- (ws .*. q)
+infixl 7 .*-*-
+
 (.*?*.) :: ParserState s b =>
     Parser Char b s v -> Parser Char b s w -> Parser Char b s (v, w)
 (.*?*.) p q = (p .*- ows) .*. q
