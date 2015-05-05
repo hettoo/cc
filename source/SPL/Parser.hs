@@ -22,7 +22,18 @@ pSPL :: Bool -> CharReParser [Stmt]
 pSPL std = ows -*. star (pDecl std .*- ows) .*- eof
 
 pDecl :: Bool -> CharReParser Stmt
-pDecl std = if std then pFunDecl std else pVarDecl \/ pFunDecl std
+pDecl std = if std then pFunDecl std else pDataDecl \/ pVarDecl \/ pFunDecl std
+
+pDataDecl :: CharReParser Stmt
+pDataDecl = (sseq "data" -*?*. pId .*?*- sym '=') .*?*. -- TODO: arguments
+    (opt (cons .*?*. star (ows -*. sym '|' -*?*. cons)) >@ listify') .*?*-
+    sym ';' >@ uncurry DataDecl
+    where
+    cons :: CharReParser (String, [Type])
+    cons = pId .*. star (ws -*. pType)
+    listify' m = case m of -- somehow listify will not compile :(
+        Nothing -> []
+        Just (p, l) -> p : l
 
 pVarDecl :: CharReParser Stmt
 pVarDecl l = (pType .*?*. pId .*?*. (sym '=' -*?*. pExp .*?*- sym ';') >@
@@ -40,6 +51,7 @@ pFunDecl std = pRetType .*?*. fId .*?*.
 pRetType :: CharReParser Type
 pRetType = sseq "Void" .*- nalphanum_ >! TVoid \/ pType
 
+-- TODO: custom types, distinguishing them from polys by capitalization rules
 pType :: CharReParser Type
 pType = pBasicType \/ pId >@ TPoly \/
     sym '[' -*?*. pType .*?*- sym ']' >@ TList \/

@@ -22,6 +22,15 @@ instance PrettyPrinter StmtT where
     prettyPrint' n stmt = case stmt of
         StmtsT l -> "{\n" ++ prettyPrint' (n + 1) l ++ prettyPrint' n () ++ "}"
         _ -> prettyPrint' n () ++ case stmt of
+            DataDeclT i l -> "data " ++ i ++ " =" ++ cons l ++ ";\n"
+                where
+                cons l = case l of
+                    [] -> ""
+                    (c, ts) : r -> " " ++ c ++
+                        foldr (\t r -> " " ++ simplePrint t ++ r) "" ts ++
+                        case r of
+                            [] -> ""
+                            _ -> " |" ++ cons r
             VarDeclT t s e -> simplePrint t ++ " " ++ s ++ " = " ++
                 simplePrint e ++ ";\n"
             FunDeclT t s a b -> simplePrint t ++ " " ++ s ++
@@ -81,8 +90,11 @@ instance PrettyPrinter [StmtT] where
                     "\n" ++ e ++ prettyPrint'' DSFun n r
                 VarDeclT _ _ _ | not (s `elem` [DSPre, DSVar]) ->
                     "\n" ++ e ++ prettyPrint'' DSVar n r
+                DataDeclT _ _ | not (s `elem` [DSPre, DSData]) ->
+                    "\n" ++ e ++ prettyPrint'' DSData n r
                 FunDeclT _ _ _ _ -> e ++ prettyPrint'' DSFun n r
                 VarDeclT _ _ _ -> e ++ prettyPrint'' DSVar n r
+                DataDeclT _ _ -> e ++ prettyPrint'' DSData n r
                 _ | not (s `elem` [DSPre, DSNormal]) ->
                     "\n" ++ e ++ prettyPrint'' DSNormal n r
                 _ -> e ++ prettyPrint'' DSNormal n r

@@ -2,7 +2,7 @@ module SPL.Algebra where
 
 data Stmt =
     Stmts [Stmt]
-    | DataDecl String [(String, [Type])]
+    | DataDecl String [(String, [Type])] -- TODO: arguments
     | VarDecl Type String Exp
     | FunDecl Type String [(Type, String)] Stmt
     | FunCall String [Exp]
