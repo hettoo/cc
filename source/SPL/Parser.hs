@@ -25,9 +25,9 @@ pDecl :: Bool -> CharReParser Stmt
 pDecl std = if std then pFunDecl std else pDataDecl \/ pVarDecl \/ pFunDecl std
 
 pDataDecl :: CharReParser Stmt
-pDataDecl = (sseq "data" -*-*. pId .*?*- sym '=') .*?*. -- TODO: arguments
+pDataDecl = (sseq "data" -*-*. pId .*. star (ws -*. pId) .*?*- sym '=') .*?*.
     (opt (cons .*?*. star (ows -*. sym '|' -*?*. cons)) >@ listify') .*?*-
-    sym ';' >@ uncurry DataDecl
+    sym ';' >@ (uncurry . uncurry) DataDecl
     where
     cons :: CharReParser (String, [Type])
     cons = pId .*. star (ws -*. pType)
