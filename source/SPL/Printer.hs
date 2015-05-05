@@ -141,6 +141,8 @@ instance SimplePrinter [Field] where
 instance SimplePrinter Type where
     simplePrint t = case t of
         TPoly s -> s
+        TCustom s l -> "\\" ++ s ++
+            foldr (\a r -> " " ++ simplePrint a ++ r) "" l ++ "/"
         TInt -> "Int"
         TBool -> "Bool"
         TChar -> "Char"

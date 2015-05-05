@@ -14,6 +14,7 @@ data Stmt =
 
 data Type =
     TPoly String
+    | TCustom String [Type]
     | TInt
     | TBool
     | TChar

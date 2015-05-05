@@ -51,9 +51,10 @@ pFunDecl std = pRetType .*?*. fId .*?*.
 pRetType :: CharReParser Type
 pRetType = sseq "Void" .*- nalphanum_ >! TVoid \/ pType
 
--- TODO: custom types, distinguishing them from polys by capitalization rules
 pType :: CharReParser Type
 pType = pBasicType \/ pId >@ TPoly \/
+    sym '\\' -*?*. pId .*. star (ws -*. pType) .*?*- sym '/' >@
+        uncurry TCustom \/
     sym '[' -*?*. pType .*?*- sym ']' >@ TList \/
     sym '(' -*?*. (pType .*?*- sym ',') .*?*. pType .*?*- sym ')' >@
         uncurry TTuple
