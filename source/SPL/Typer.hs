@@ -87,7 +87,7 @@ treplace t = case t of
 checkApp :: (Type, Type) -> Type -> State a Type
 checkApp (t, t') a = case unifyf t a of
     Nothing -> fail $ "application mismatch: expected type `" ++
-        simplePrint t ++ "' does not cover given type `" ++
+        simplePrint t ++ "' cannot be unified with given type `" ++
         simplePrint a ++ "'"
     Just c -> return $ treplace t' >!> c
 
@@ -253,7 +253,8 @@ annotateS l s = case s of
                     return (VarDeclT et i e)
                 else
                     fail $ "assignment mismatch: expected type `" ++
-                        simplePrint et ++ "' does not cover given type `" ++
+                        simplePrint et ++
+                        "' cannot be unified with given type `" ++
                         simplePrint t ++ "' (variable " ++ i ++ ")"
         else
             fail ("free polymorphic variable " ++ i)
@@ -298,7 +299,8 @@ annotateS l s = case s of
                 return $ AssignT i fs e
             else
                 fail $ "assignment mismatch: expected type `" ++
-                    simplePrint vt ++ "' does not cover given type `" ++
+                    simplePrint vt ++
+                    "' cannot be unified with given type `" ++
                     simplePrint t ++ "' (variable " ++ i ++ ")"
     If e s m -> do
         e <- annotateE e
