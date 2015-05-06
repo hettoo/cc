@@ -9,7 +9,7 @@ import Control.Monad
 
 type Cv = Context Type
 type Cf = Context (Type, Type)
-type Cd = Context String
+type Cd = Context (String, [String], [Type])
 type SPLC = ((Cv, Cf), Cd)
 
 splcv :: State Cv a -> State SPLC a
@@ -137,8 +137,8 @@ initContext l = case l of
             FunDecl t i as _ -> do
                 caddfun i as t
             DataDecl i as cs -> sequence_ (map addCons cs)
-                where -- TODO: types
-                addCons (c, ts) = splcd $ cadd c i
+                where
+                addCons (c, ts) = splcd $ cadd c (i, as, ts)
                     ("duplicate constructor " ++ c)
             _ -> return ()
         initContext r
