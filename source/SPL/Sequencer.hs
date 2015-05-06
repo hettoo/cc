@@ -8,6 +8,7 @@ import Context
 import Todo
 import State
 import Data.Char
+import Data.List
 
 data Command =
     LABEL String |
@@ -397,6 +398,13 @@ seqWhile c b = do
     addCmd $ BRA (flowLabel f)
     addCmd $ LABEL (flowLabel (f + 1))
 
+consIndex :: [StmtT] -> String -> Int
+consIndex l i = case l of
+    a : r -> case a of
+        DataDeclT _ _ cs -> case findIndex (\t -> fst t == i) cs of
+            Just n -> n
+            Nothing -> consIndex r i
+
 seqExp :: [StmtT] -> ExpT -> Sequencer
 seqExp l e = case e of
     EIntT x TInt -> addCmd $ LDC (show x)
@@ -430,7 +438,11 @@ seqExp l e = case e of
             Tail -> do
                 addCmd $ LDH 0 2
                 addCmd $ AJS (-1)
-    EConsT i as t -> ids -- TODO
+    EConsT i as t -> do
+        n <- return $ consIndex l i
+        addCmd $ LDC (show n)
+        sequence_ $ map (seqExp l) as
+        addCmd $ STH (length as + 1)
     EFunCallT i as _ -> do
         seqFunCall l i as
         addCmd $ LDR "RR"
