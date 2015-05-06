@@ -132,19 +132,23 @@ addCmds :: [Command] -> Sequencer
 addCmds cs = foldl (>>) ids $ map addCmd cs
 
 seqOutput :: [StmtT] -> String
-seqOutput l = stateOutput $ program >@>
-    SO {todoCalls = tnew, sp = 0, vc = cnew, freshNum = 0, cmds = []}
+seqOutput l = stateOutput $ program l >@> initialState
+
+program :: [StmtT] -> Sequencer
+program l = do
+    globals l'
+    gvc cdown
+    let (_, _, t) = findFunction ("main", []) l in
+        case t of
+            TVoid -> seqStmt l' (FunCallT "main" [])
+            _ -> seqStmt l' (FunCallT "print" [EFunCallT "main" [] t])
+    addCmd $ HALT "program end"
+    seqTodo l'
     where
-    program = do
-        globals l'
-        gvc cdown
-        let (_, _, t) = findFunction ("main", []) l in
-            case t of
-                TVoid -> seqStmt l' (FunCallT "main" [])
-                _ -> seqStmt l' (FunCallT "print" [EFunCallT "main" [] t])
-        addCmd $ HALT "program end"
-        seqTodo l'
     l' = l ++ annotateProgram (parseSPL' True stdSPL)
+
+initialState :: SO
+initialState = SO {todoCalls = tnew, sp = 0, vc = cnew, freshNum = 0, cmds = []}
 
 stateOutput :: SO -> String
 stateOutput = unlines . (map cmdOutput) . cmds
