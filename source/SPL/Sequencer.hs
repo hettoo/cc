@@ -6,7 +6,6 @@ import SPL.Typer
 import SPL.Std
 import Context
 import Todo
-import Endo
 import State
 import Utils
 import Data.Char
@@ -101,39 +100,40 @@ cmdOutput c = case c of
 type Call = (String, [Type]) -- TODO: allow polymorphic outputs
 type SP = Int
 type VarContext = Context (SP, Bool)
-type SO = (Todo Call, SP, VarContext, Int, [Command])
-type Sequencer = Endo SO
+data SO = SO {
+    todoCalls :: Todo Call,
+    sp :: SP,
+    vc :: VarContext,
+    freshNum :: Int,
+    cmds :: [Command]}
+type Sequencer = State SO ()
 
-gtodo :: (Todo Call -> Todo Call) -> Sequencer
-gtodo = globalizef (\(t, _, _, _, _) -> t)
-    (\t (_, sp, vc, f, l) -> (t, sp, vc, f, l))
+gtodo :: State (Todo Call) a -> State SO a
+gtodo = stWrap todoCalls (\x c -> c {todoCalls = x})
 
-gsp :: (SP -> SP) -> Sequencer
-gsp = globalizef (\(_, sp, _, _, _) -> sp)
-    (\sp (t, _, vc, f, l) -> (t, sp, vc, f, l))
+gsp :: State SP a -> State SO a
+gsp = stWrap sp (\x c -> c {sp = x})
 
-gvc :: Endo VarContext -> Sequencer
-gvc = globalize (\(_, _, vc, _, _) -> vc)
-    (\vc (t, sp, _, f, l) -> (t, sp, vc, f, l))
+gvc :: State VarContext a -> State SO a
+gvc = stWrap vc (\x c -> c {vc = x})
 
-gfresh :: (Int -> Int) -> Sequencer
-gfresh = globalizef (\(_, _, _, f, _) -> f)
-    (\f (t, sp, vc, _, l) -> (t, sp, vc, f, l))
+gfresh :: State Int a -> State SO a
+gfresh = stWrap freshNum (\x c -> c {freshNum = x})
 
-gcmd :: ([Command] -> [Command]) -> Sequencer
-gcmd = globalizef (\(_, _, _, _, l) -> l)
-    (\l (t, sp, vc, f, _) -> (t, sp, vc, f, l))
+gcmd :: State [Command] a -> State SO a
+gcmd = stWrap cmds (\x c -> c {cmds = x})
 
 addCmd :: Command -> Sequencer
 addCmd c = do
-    gcmd $ \l -> l ++ [c]
-    gsp $ \sp -> sp + stackChange c
+    gcmd . st $ \l -> l ++ [c]
+    gsp . st $ \sp -> sp + stackChange c
 
 addCmds :: [Command] -> Sequencer
-addCmds cs = foldl (>>) eId $ map addCmd cs
+addCmds cs = foldl (>>) ids $ map addCmd cs
 
 seqOutput :: [StmtT] -> String
-seqOutput l = stateOutput $ program >@> (tnew, 0, cnew, 0, [])
+seqOutput l = stateOutput $ program >@>
+    SO {todoCalls = tnew, sp = 0, vc = cnew, freshNum = 0, cmds = []}
     where
     program = do
         globals l'
@@ -147,7 +147,7 @@ seqOutput l = stateOutput $ program >@> (tnew, 0, cnew, 0, [])
     l' = l ++ annotateProgram (parseSPL' True stdSPL)
 
 stateOutput :: SO -> String
-stateOutput (_, _, _, _, l) = unlines (map cmdOutput l)
+stateOutput = unlines . (map cmdOutput) . cmds
 
 globals :: [StmtT] -> Sequencer
 globals l = do
@@ -155,7 +155,7 @@ globals l = do
     setGlobals l 0
     where
     setGlobals l n = case l of
-        [] -> eId
+        [] -> ids
         s : r -> case s of
             VarDeclT t i e -> do
                 seqExp l e
@@ -165,16 +165,17 @@ globals l = do
 
 seqTodo :: [StmtT] -> Sequencer
 seqTodo l = do
-    (_, sp, vc, _, _) <- getState
+    sp <- gsp getState
+    vc <- gvc getState
     seqTodo' sp vc l
     where
     seqTodo' sp vc l = do
-        (t, _, _, _, _) <- getState
+        t <- gtodo getState
         case getTodo t of
-            (Nothing, _) -> eId
+            (Nothing, _) -> ids
             (Just c@(i, as), t') -> do
-                gtodo $ const t'
-                gsp $ const (sp + length as)
+                gtodo . st $ const t'
+                gsp . st $ const (sp + length as)
                 gvc . st $ const vc
                 addCmd $ LABEL (callLabel c)
                 seqFunction c l
@@ -196,7 +197,7 @@ callLabel (s, l) = s ++ "_" ++ show (length l) ++
 
 addVariable :: String -> Int -> Bool -> Sequencer
 addVariable i o b = do
-    (_, sp, _, _, _) <- getState
+    sp <- gsp getState
     gvc (cadd i (if b then o + 1 else sp + o, b) ("redefined variable " ++ i))
 
 getVariable :: String -> Sequencer
@@ -218,7 +219,8 @@ setVariable i = do
 
 varPos :: String -> State SO (Int, Bool)
 varPos i = do
-    (_, sp, vc, _, _) <- getState
+    sp <- gsp getState
+    vc <- gvc getState
     let (p, b) = clookupe i >!> vc in
         return $ if b then (p, False) else (p - sp, True)
 
@@ -242,7 +244,7 @@ seqFunction c@(i, as) l =
     seqStmt l b
     where
     addVariables n l = case l of
-        [] -> eId
+        [] -> ids
         a : r -> do
             addVariable a n False
             addVariables (n + 1) r
@@ -279,18 +281,18 @@ seqPrintStr s = addCmds $ concatMap (\c -> [LDC $ enc c, PRINTC]) s
 
 seqStmt :: [StmtT] -> StmtT -> Sequencer
 seqStmt ss s = case s of
-    StmtsT l -> endoSeq (seqStmt ss) l
+    StmtsT l -> sequence_ $ map (seqStmt ss) l
     VarDeclT t i e -> do
         seqExp ss e
         setVariable i
-    FunDeclT _ _ _ _ -> eId
+    FunDeclT _ _ _ _ -> ids
     FunCallT i as -> seqFunCall ss i as
     ReturnT m -> do
         case m of
             Just e -> do
                 seqExp ss e
                 addCmd $ STR "RR"
-            Nothing -> eId
+            Nothing -> ids
         addCmd RET
     AssignT i fs e ->
         case fs of
@@ -359,32 +361,32 @@ seqStmt ss s = case s of
 
 seqIf :: Sequencer -> Maybe Sequencer -> Sequencer
 seqIf b m = do
-    (_, _, _, f, _) <- getState
+    f <- gfresh getState
     case m of
         Nothing -> do
-            gfresh (+1)
+            gfresh . st $ (+1)
             addCmd $ BRF (flowLabel f)
-            (_, sp, _, _, _) <- getState
+            sp <- gsp getState
             b
             addCmd $ LABEL (flowLabel f)
-            gsp $ const sp
+            gsp . st $ const sp
         Just e -> do
-            gfresh (+2)
+            gfresh . st $ (+2)
             addCmd $ BRF (flowLabel f)
-            (_, spStart, _, _, _) <- getState
+            spStart <- gsp getState
             b
             addCmd $ BRA (flowLabel (f + 1))
-            (_, spEnd, _, _, _) <- getState
+            spEnd <- gsp getState
             addCmd $ LABEL (flowLabel f)
-            gsp $ const spStart
+            gsp . st $ const spStart
             e
             addCmd $ LABEL (flowLabel (f + 1))
-            gsp $ const spEnd
+            gsp . st $ const spEnd
 
 seqWhile :: Sequencer -> Sequencer -> Sequencer
 seqWhile c b = do
-    (_, _, _, f, _) <- getState
-    gfresh (+2)
+    f <- gfresh getState
+    gfresh . st $ (+2)
     addCmd $ LABEL (flowLabel f)
     c
     addCmd $ BRF (flowLabel (f + 1))
@@ -406,7 +408,9 @@ seqExp l e = case e of
         addCmd $ STH 2
     EIdT i fs t -> do
         getVariable i
-        flip endoSeq fs $ \f -> case f of
+        sequence_ $ map seqField fs
+        where
+        seqField f = case f of
             First -> do
                 addCmd $ LDH 0 2
                 addCmd $ AJS (-1)
@@ -423,7 +427,7 @@ seqExp l e = case e of
             Tail -> do
                 addCmd $ LDH 0 2
                 addCmd $ AJS (-1)
-    EConsT i as t -> eId -- TODO
+    EConsT i as t -> ids -- TODO
     EFunCallT i as _ -> do
         seqFunCall l i as
         addCmd $ LDR "RR"
@@ -492,7 +496,7 @@ seqFunCall l i as =
             TChar -> do
                 seqExp l e
                 addCmd PRINTC
-            TPoly _ -> eId -- dummy for empty list code
+            TPoly _ -> ids -- dummy for empty list code
             where
             stdprint = seqFunCall l "_print" as
         (("read", []), []) -> do -- TODO: other types
@@ -503,10 +507,10 @@ seqFunCall l i as =
             seqIf (addCmd $ LDC "0") (Just . addCmd $ LDC "-1")
             addCmd $ STR "RR"
         _ -> do
-            gtodo (todo c)
+            gtodo . st $ todo c
             addCmd $ LINK n
-            flip endoSeq as' $ \(_, e) -> seqExp l e
+            sequence $ map (\(_, e) -> seqExp l e) as'
             addCmd $ LDC (callLabel c)
             addCmd JSR
             addCmd $ UNLINK n
-            gsp (\sp -> sp - (length as'))
+            gsp . st $ \sp -> sp - (length as')

@@ -21,19 +21,9 @@ instance Applicative (State a) where
     pure = return
     (<*>) = ap
 
-indiff :: State a b -> State a b
-indiff (ST f) = ST $ \a -> case f a of
-    Left (b, _) -> Left (b, a)
-    Right e -> Right e
-
-stl :: State a c -> State (a, b) c
-stl (ST f) = ST $ \(a, b) -> case f a of
-    Left (c, a') -> Left (c, (a', b))
-    Right e -> Right e
-
-str :: State b c -> State (a, b) c
-str (ST f) = ST $ \(a, b) -> case f b of
-    Left (c, b') -> Left (c, (a, b'))
+stWrap :: (b -> a) -> (a -> b -> b) -> State a c -> State b c
+stWrap f g (ST h) = ST $ \b -> case h (f b) of
+    Left (c, a') -> Left (c, g a' b)
     Right e -> Right e
 
 res :: (a -> b) -> State a b
@@ -57,3 +47,13 @@ infixl 1 >@>
 
 getState :: State a a
 getState = res id
+
+ids :: State a ()
+ids = st id
+
+indiff :: State a b -> State a b
+indiff s = do
+    a <- getState
+    b <- s
+    st $ const a
+    return b

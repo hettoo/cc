@@ -10,26 +10,16 @@ import Control.Monad
 type Cv = Context Type
 type Cf = Context (Type, Type)
 type Cd = Context (String, [String], [Type])
-type SPLC = ((Cv, Cf), Cd)
+data SPLC = SPLC {cv :: Cv, cf :: Cf, cd :: Cd}
 
 splcv :: State Cv a -> State SPLC a
-splcv = stl . stl
+splcv = stWrap cv (\x c -> c {cv = x})
 
 splcf :: State Cf a -> State SPLC a
-splcf = stl . str
+splcf = stWrap cf (\x c -> c {cf = x})
 
 splcd :: State Cd a -> State SPLC a
-splcd = str
-
-forgetv :: State SPLC a -> State SPLC a
-forgetv (ST f) = ST $ \c@((cv, _), _) -> case f c of
-    Left (a, ((_, cf), cd)) -> Left (a, ((cv, cf), cd))
-    Right e -> Right e
-
-forgetf :: State SPLC a -> State SPLC a
-forgetf (ST f) = ST $ \c@((_, cf), _) -> case f c of
-    Left (a, ((cv, _), cd)) -> Left (a, ((cv, cf), cd))
-    Right e -> Right e
+splcd = stWrap cd (\x c -> c {cd = x})
 
 caddvar :: String -> Type -> State SPLC ()
 caddvar i t = splcv $ cadd i t ("redefined variable " ++ i)
@@ -177,7 +167,7 @@ annotateProgram l = let
         splcv cdown
         splcf cdown
         annotateMulti [] l'
-    ) >!> ((cnew, cnew), cnew)
+    ) >!> SPLC {cv = cnew, cf = cnew, cd = cnew}
 
 annotateMulti :: [(Type, String)] -> [Stmt] -> State SPLC [StmtT]
 annotateMulti l = mapM (annotateS l)
@@ -262,13 +252,14 @@ annotateS l s = case s of
         m <- checkMain i t as
         if m then do
             caddfun i as t
-            forgetv $ do
-                splcv cdown
-                splcv (mapM_ addArg as)
-                splcf cdown
-                splcv cdown
-                b <- annotateS ((t, i) : l) b
-                return $ FunDeclT t i as b
+            cv <- splcv getState
+            splcv cdown
+            splcv (mapM_ addArg as)
+            splcf cdown
+            splcv cdown
+            b <- annotateS ((t, i) : l) b
+            splcv $ st (const cv)
+            return $ FunDeclT t i as b
         else
             fail "invalid main function"
                 where
@@ -343,6 +334,9 @@ freshenT t = case t of
                 return t
             Just t -> return t
     _ -> return t
+    where
+    stl = stWrap fst (\a (_, b) -> (a, b))
+    str = stWrap snd (\b (a, _) -> (a, b))
 
 idType :: String -> [Field] -> State SPLC Type
 idType i fs = splcv . indiff $ idType' i fs
