@@ -1,5 +1,5 @@
 data Test a b = A | B | C;
 
 Void main() {
-    \Test Int Int/ a = A;
+    \Test Int Int/ a = A();
 }

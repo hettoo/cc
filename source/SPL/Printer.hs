@@ -218,6 +218,7 @@ instance SimplePrinter Exp where
         ENil -> "[]"
         ETuple a b -> "(" ++ simplePrint a ++ ", " ++ simplePrint b ++ ")"
         EId s l -> s ++ simplePrint l
+        ECons i as -> i ++ "(" ++ simplePrint as ++ ")"
         EFunCall s l -> s ++ "(" ++ simplePrint l ++ ")"
         EOp1 o a -> simplePrint o ++ wrap (simplePrint a) (stronger1 o a)
         EOp2 o a b -> wrap (simplePrint a) (stronger2 o a SLeft) ++

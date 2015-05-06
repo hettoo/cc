@@ -134,7 +134,8 @@ pIdExp = pNId .*?*. (sym '(' -*?*. commaList pExp .*?*- sym ')' \+/ pField)
         Right f -> EId i f
 
 pConsExp :: CharReParser Exp
-pConsExp = pTId .*. star (ws -*. pExp) >@ uncurry ECons
+pConsExp = pTId .*. (sym '(' -*?*. commaList pExp .*?*- sym ')') >@
+    uncurry ECons
 
 pField :: CharReParser [Field]
 pField = star (ows .*. sym '.' -*?*. (

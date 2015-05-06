@@ -110,8 +110,8 @@ instance SimplePrinter ExpT where
         ENilT _ -> "[]"
         ETupleT a b _ -> "(" ++ simplePrint a ++ ", " ++ simplePrint b ++ ")"
         EIdT i l _ -> i ++ simplePrint l
-        EConsT i as _ -> i ++ foldr (\a r -> " " ++ simplePrint a ++ r) "" as
-        EFunCallT i l _ -> i ++ "(" ++ simplePrint l ++ ")"
+        EConsT i as _ -> i ++ "(" ++ simplePrint as ++ ")"
+        EFunCallT i as _ -> i ++ "(" ++ simplePrint as ++ ")"
         EOp1T o a _ -> simplePrint o ++ simplePrint a
         EOp2T o a b _ -> simplePrint a ++ " " ++ simplePrint o
             ++ " " ++ simplePrint b) ++ " @ " ++ simplePrint (getType e) ++ ")"
