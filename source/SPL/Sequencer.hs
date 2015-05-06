@@ -97,7 +97,7 @@ cmdOutput c = case c of
     LINK n -> "link " ++ show n
     UNLINK _ -> "unlink"
 
-type Call = (String, [Type]) -- TODO: allow polymorphic outputs
+type Call = (String, [Type])
 type SP = Int
 type VarContext = Context (SP, Bool)
 data SO = SO {
@@ -499,7 +499,7 @@ seqFunCall l i as =
             TPoly _ -> ids -- dummy for empty list code
             where
             stdprint = seqFunCall l "_print" as
-        (("read", []), []) -> do -- TODO: other types
+        (("read", []), []) -> do
             addCmd $ READI
             addCmd $ STR "RR"
         (("isEmpty", [TList _]), [e]) -> do
