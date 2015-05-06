@@ -7,7 +7,6 @@ import SPL.Std
 import Context
 import Todo
 import State
-import Utils
 import Data.Char
 
 data Command =

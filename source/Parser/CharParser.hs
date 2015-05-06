@@ -2,7 +2,6 @@
 module Parser.CharParser where
 import Parser.Parser
 import Listify
-import Utils
 import Data.Char
 
 data CharState = CharState {

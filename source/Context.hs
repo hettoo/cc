@@ -1,6 +1,5 @@
 module Context where
 import State
-import Utils
 
 type Context t = (Int, Int, [(String, t, Int)])
 

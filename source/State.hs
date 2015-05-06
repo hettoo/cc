@@ -1,5 +1,4 @@
 module State where
-import Utils
 import Control.Monad
 import Control.Applicative
 

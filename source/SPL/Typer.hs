@@ -3,7 +3,6 @@ import SPL.Algebra
 import SPL.Unifier
 import Context
 import State
-import Utils
 import SPL.Printer
 import Control.Monad
 
@@ -193,7 +192,7 @@ checkPoly l t = checkPoly' (listPoly t) (concat (map listPoly l))
 
 checkMain :: String -> Type -> [(Type, String)] -> State SPLC Bool
 checkMain i t as = case i of
-    "main" -> return $ isEmpty as
+    "main" -> return $ null as
     _ -> return True
 
 applyFun :: String -> [Exp] -> State SPLC ([ExpT], Type)

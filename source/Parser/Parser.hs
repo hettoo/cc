@@ -41,7 +41,7 @@ skip l s = case l of
 
 eof :: ParserState s b =>
     Parser a b s ()
-eof l = (if isEmpty l then yield () else yieldError "expected eof") l
+eof l = (if null l then yield () else yieldError "expected eof") l
 
 satisfy :: (ParserState s b, Show a) =>
     (a -> Bool) -> Parser a b s a
