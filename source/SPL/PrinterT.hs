@@ -109,8 +109,9 @@ instance SimplePrinter ExpT where
         ECharT c _ -> show c
         ENilT _ -> "[]"
         ETupleT a b _ -> "(" ++ simplePrint a ++ ", " ++ simplePrint b ++ ")"
-        EIdT s l _ -> s ++ simplePrint l
-        EFunCallT s l _ -> s ++ "(" ++ simplePrint l ++ ")"
+        EIdT i l _ -> i ++ simplePrint l
+        EConsT i as _ -> i ++ foldr (\a r -> " " ++ simplePrint a ++ r) "" as
+        EFunCallT i l _ -> i ++ "(" ++ simplePrint l ++ ")"
         EOp1T o a _ -> simplePrint o ++ simplePrint a
         EOp2T o a b _ -> simplePrint a ++ " " ++ simplePrint o
             ++ " " ++ simplePrint b) ++ " @ " ++ simplePrint (getType e) ++ ")"

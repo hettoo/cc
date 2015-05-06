@@ -19,6 +19,18 @@ unify all t u = let (b, c) = apply (unify' t u) cnew in
                     False -> return False
                     True -> unify' t2 t2'
             (TList t', TList t'') -> unify' t' t''
+            (TCustom n ts, TCustom m ts') ->
+                if n == m then
+                    unifyAll ts ts'
+                else
+                    return False
+                where
+                unifyAll ts ts' = case (ts, ts') of
+                    ([], []) -> return True
+                    ((t' : r), (t'' : r')) -> do
+                        b <- unify' t' t''
+                        if b then unifyAll r r' else return False
+                    _ -> return False
             (TPoly i, TPoly j) ->
                 if i == j then
                     return True

@@ -222,19 +222,20 @@ applyFun i as = do
         return (as, t)
 
 applyCons :: String -> [Exp] -> State SPLC ([ExpT], Type)
-applyCons i as = do -- TODO: actual constructor stuff
-    ts <- splcf (clookupa i)
-    ts <- mapM (\t -> splcv (freshen t)) ts
-    as <- mapM annotateE as
-    let a = combineTypes (map getType as) in do
-        us <- mapM (\(t, t') ->
-            return $ fmap (\c -> treplace t' >!> c) (unifyf t a)) ts
-        us <- filterM (\m -> return $ case m of Just _ -> True; _ -> False) us
-        us <- mapM (\m -> case m of Just t -> return t) us
-        t <- case us of
-            t : _ -> return t
-            _ -> fail $ "no candidate for application of " ++ i ++ " found"
-        return (as, t)
+applyCons i es = do
+    (j, as, ts) <- splcd (clookupe i)
+    es <- mapM annotateE es
+    ats <- return $ map getType es
+    c <- return $ sequence (map addArg (zip ts ats)) >@> cnew
+    rts <- return $ map (applyUnificationT c) (map TPoly as)
+    rts <- splcv $ ST $ \cv ->
+        let (r, (cv', _)) = apply (mapM freshenT rts) (cv, cnew) in
+        Left (r, cv')
+    return (es, TCustom j rts)
+    where
+    addArg (t, at) = case t of
+        TPoly p -> cadd p at "duplicate type argument"
+        _ -> return ()
 
 annotateS :: [(Type, String)] -> Stmt -> State SPLC StmtT
 annotateS l s = case s of
@@ -321,22 +322,25 @@ freshen t = ST $ \cv -> let
         t1 <- freshenT t1
         t2 <- freshenT t2
         return (t1, t2)
-    freshenT t = case t of
-        TTuple t1 t2 -> do
-            (t1, t2) <- freshen' (t1, t2)
-            return (TTuple t1 t2)
-        TList t -> do
-            t <- freshenT t
-            return (TList t)
-        TPoly i -> do
-            m <- str (clookup i)
-            case m of
-                Nothing -> do
-                    t <- stl (fresh)
-                    str (cadd i t "?")
-                    return t
-                Just t -> return t
-        _ -> return t
+
+freshenT :: Type -> State (Context Type, Context Type) Type
+freshenT t = case t of
+    TTuple t1 t2 -> do
+        t1 <- freshenT t1
+        t2 <- freshenT t2
+        return (TTuple t1 t2)
+    TList t -> do
+        t <- freshenT t
+        return (TList t)
+    TPoly i -> do
+        m <- str (clookup i)
+        case m of
+            Nothing -> do
+                t <- stl fresh
+                str $ cadd i t "?"
+                return t
+            Just t -> return t
+    _ -> return t
 
 idType :: String -> [Field] -> State SPLC Type
 idType i fs = splcv . indiff $ idType' i fs

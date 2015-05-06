@@ -423,6 +423,7 @@ seqExp l e = case e of
             Tail -> do
                 addCmd $ LDH 0 2
                 addCmd $ AJS (-1)
+    EConsT i as t -> eId -- TODO
     EFunCallT i as _ -> do
         seqFunCall l i as
         addCmd $ LDR "RR"
