@@ -346,6 +346,9 @@ annotateE e = case e of
     EId i fs -> do
         t <- idType i fs
         return $ EIdT i fs t
+    ECons i as -> do
+        (es, a) <- applyFun i as -- TODO
+        return $ EConsT i es a
     EFunCall i as -> do
         (es, a) <- applyFun i as
         return $ EFunCallT i es a

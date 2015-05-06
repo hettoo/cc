@@ -25,35 +25,35 @@ pDecl :: Bool -> CharReParser Stmt
 pDecl std = if std then pFunDecl std else pDataDecl \/ pVarDecl \/ pFunDecl std
 
 pDataDecl :: CharReParser Stmt
-pDataDecl = (sseq "data" -*-*. pId .*. star (ws -*. pId) .*?*- sym '=') .*?*.
+pDataDecl = (sseq "data" -*-*. pTId .*. star (ws -*. pNId) .*?*- sym '=') .*?*.
     (opt (cons .*?*. star (ows -*. sym '|' -*?*. cons)) >@ listify') .*?*-
     sym ';' >@ (uncurry . uncurry) DataDecl
     where
     cons :: CharReParser (String, [Type])
-    cons = pId .*. star (ws -*. pType)
+    cons = pTId .*. star (ws -*. pType)
     listify' m = case m of -- somehow listify will not compile :(
         Nothing -> []
         Just (p, l) -> p : l
 
 pVarDecl :: CharReParser Stmt
-pVarDecl l = (pType .*?*. pId .*?*. (sym '=' -*?*. pExp .*?*- sym ';') >@
+pVarDecl l = (pType .*?*. pNId .*?*. (sym '=' -*?*. pExp .*?*- sym ';') >@
     (uncurry . uncurry) VarDecl) l
 
 pFunDecl :: Bool -> CharReParser Stmt
 pFunDecl std = pRetType .*?*. fId .*?*.
-    (sym '(' -*?*. commaList (pType .*?*. pId) .*?*- sym ')') .*?*.
+    (sym '(' -*?*. commaList (pType .*?*. pNId) .*?*- sym ')') .*?*.
     (sym '{' -*?*. (star (pVarDecl .*- ows) .*.
         star (pStmt .*- ows) >@ Stmts . uncurry (++)) .*- sym '}') >@
         (uncurry . uncurry . uncurry) FunDecl
     where
-    fId = if std then sym '_' .*. pId >@ uncurry (:) else pId
+    fId = if std then sym '_' .*. pNId >@ uncurry (:) else pNId
 
 pRetType :: CharReParser Type
 pRetType = sseq "Void" .*- nalphanum_ >! TVoid \/ pType
 
 pType :: CharReParser Type
-pType = pBasicType \/ pId >@ TPoly \/
-    sym '\\' -*?*. pId .*. star (ws -*. pType) .*?*- sym '/' >@
+pType = pBasicType \/ pNId >@ TPoly \/
+    sym '\\' -*?*. pTId .*. star (ws -*. pType) .*?*- sym '/' >@
         uncurry TCustom \/
     sym '[' -*?*. pType .*?*- sym ']' >@ TList \/
     sym '(' -*?*. (pType .*?*- sym ',') .*?*. pType .*?*- sym ')' >@
@@ -72,7 +72,7 @@ pStmt = sseq "if" -*?*. (sym '(' -*?*. pExp .*?*- sym ')') .*?*.
     pStmtId \/ sym '{' -*?*. star (pStmt .*- ows) .*- sym '}' >@ sm id Stmts
 
 pStmtId :: CharReParser Stmt
-pStmtId = pId .*?*. (pField .*?*. (sym '=' -*?*. pExp) \+/
+pStmtId = pNId .*?*. (pField .*?*. (sym '=' -*?*. pExp) \+/
         sym '(' -*?*. commaList pExp .*?*- sym ')') .*?*- sym ';'
     >@ \(i, t) -> case t of
         Left (f, e) -> Assign i f e
@@ -121,17 +121,20 @@ pExp6 = pNonOpExp \/ sym '!' -*?*. pExp6 >@ EOp1 ONot \/
     sym '-' -*?*. pExp6 >@ EOp1 ONeg
 
 pNonOpExp :: CharReParser Exp
-pNonOpExp = pInt >@ EInt \/ pBool >@ EBool \/ pChar >@ EChar \/ pExpId \/
-    sym '(' -*?*. pExp .*?*- sym ')' \/
-    sym '[' .*?*. sym ']' >! ENil \/
+pNonOpExp = pInt >@ EInt \/ pBool >@ EBool \/ pChar >@ EChar \/
+    pIdExp \/ pConsExp \/
+    sym '(' -*?*. pExp .*?*- sym ')' \/ sym '[' .*?*. sym ']' >! ENil \/
     sym '(' -*?*. (pExp .*?*- sym ',') .*?*. pExp .*?*- sym ')' >@
         uncurry ETuple
 
-pExpId :: CharReParser Exp
-pExpId = pId .*?*. (sym '(' -*?*. commaList pExp .*?*- sym ')' \+/ pField)
+pIdExp :: CharReParser Exp
+pIdExp = pNId .*?*. (sym '(' -*?*. commaList pExp .*?*- sym ')' \+/ pField)
     >@ \(i, e) -> case e of
         Left l -> EFunCall i l
         Right f -> EId i f
+
+pConsExp :: CharReParser Exp
+pConsExp = pTId .*. star (ws -*. pExp) >@ uncurry ECons
 
 pField :: CharReParser [Field]
 pField = star (ows .*. sym '.' -*?*. (
@@ -149,3 +152,9 @@ pChar = sym '\'' -*. anything .*- sym '\''
 
 pId :: CharReParser String
 pId = satisfy isAlpha .*. star (sym '_' \/ satisfy isAlphaNum) >@ listify
+
+pNId :: CharReParser String
+pNId = satisfy isLower .*. star (sym '_' \/ satisfy isAlphaNum) >@ listify
+
+pTId :: CharReParser String
+pTId = satisfy isUpper .*. star (sym '_' \/ satisfy isAlphaNum) >@ listify

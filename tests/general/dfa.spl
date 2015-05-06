@@ -2,10 +2,10 @@
 /*
  * Deterministic Finite Automaton, stops on accepted states
  */
-Bool dfa([(a, Int)] delta, Int q, Int F, [a] input) {
-	if (q == F) return True;
+Bool dfa([(a, Int)] delta, Int q, Int f, [a] input) {
+	if (q == f) return True;
 	if (transition(input.hd, delta) < 0) return False;
-	return dfa(delta, transition(input.hd, delta), F, input.tl);
+	return dfa(delta, transition(input.hd, delta), f, input.tl);
 }
 
 Int transition(a symbol, [(a, Int)] delta) {

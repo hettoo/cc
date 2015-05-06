@@ -59,6 +59,7 @@ data Exp =
     | ENil
     | ETuple Exp Exp
     | EId String [Field]
+    | ECons String [Exp]
     | EFunCall String [Exp]
     | EOp1 Op1 Exp
     | EOp2 Op2 Exp Exp
@@ -83,6 +84,7 @@ data ExpT =
     | ENilT Type
     | ETupleT ExpT ExpT Type
     | EIdT String [Field] Type
+    | EConsT String [ExpT] Type
     | EFunCallT String [ExpT] Type
     | EOp1T Op1 ExpT Type
     | EOp2T Op2 ExpT ExpT Type
@@ -96,6 +98,7 @@ getType e = case e of
     ENilT t -> t
     ETupleT _ _ t -> t
     EIdT _ _ t -> t
+    EConsT _ _ t -> t
     EFunCallT _ _ t -> t
     EOp1T _ _ t -> t
     EOp2T _ _ _ t -> t
