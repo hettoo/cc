@@ -9,22 +9,26 @@ import Control.Monad
 
 type Cv = Context Type
 type Cf = Context (Type, Type)
-type SPLC = (Cv, Cf)
+type Cd = Context String
+type SPLC = ((Cv, Cf), Cd)
 
 splcv :: State Cv a -> State SPLC a
-splcv = stl
+splcv = stl . stl
 
 splcf :: State Cf a -> State SPLC a
-splcf = str
+splcf = stl . str
+
+splcd :: State Cd a -> State SPLC a
+splcd = str
 
 forgetv :: State SPLC a -> State SPLC a
-forgetv (ST f) = ST $ \c@(cv, _) -> case f c of
-    Left (a, (_, cf)) -> Left (a, (cv, cf))
+forgetv (ST f) = ST $ \c@((cv, _), _) -> case f c of
+    Left (a, ((_, cf), cd)) -> Left (a, ((cv, cf), cd))
     Right e -> Right e
 
 forgetf :: State SPLC a -> State SPLC a
-forgetf (ST f) = ST $ \c@(_, cf) -> case f c of
-    Left (a, (cv, _)) -> Left (a, (cv, cf))
+forgetf (ST f) = ST $ \c@((_, cf), _) -> case f c of
+    Left (a, ((cv, _), cd)) -> Left (a, ((cv, cf), cd))
     Right e -> Right e
 
 caddvar :: String -> Type -> State SPLC ()
@@ -122,21 +126,22 @@ op2Type o = case o of
 initContext :: [Stmt] -> State SPLC ()
 initContext l = case l of
     [] -> do
-        splcv (return ())
         splcf $ do
             cadd "isEmpty" (TList (TPoly "t"), TBool) "?"
             cadd "print" (TPoly "t", TVoid) "?"
             cadd "read" (TVoid, TInt) "?"
-    s : r -> case s of
-        VarDecl t i _ -> do
-            caddvar i t
-            initContext r
-        FunDecl t i as _ -> do
-            caddfun i as t
-            rec
-        _ -> rec
-        where
-        rec = initContext r
+    s : r -> do
+        case s of
+            VarDecl t i _ -> do
+                caddvar i t
+            FunDecl t i as _ -> do
+                caddfun i as t
+            DataDecl i as cs -> sequence_ (map addCons cs)
+                where -- TODO: types
+                addCons (c, ts) = splcd $ cadd c i
+                    ("duplicate constructor " ++ c)
+            _ -> return ()
+        initContext r
 
 guaranteeReturn :: Stmt -> Bool
 guaranteeReturn s = case s of
@@ -172,7 +177,7 @@ annotateProgram l = let
         splcv cdown
         splcf cdown
         annotateMulti [] l'
-    ) >!> (cnew, cnew)
+    ) >!> ((cnew, cnew), cnew)
 
 annotateMulti :: [(Type, String)] -> [Stmt] -> State SPLC [StmtT]
 annotateMulti l = mapM (annotateS l)
@@ -203,6 +208,21 @@ checkMain i t as = case i of
 
 applyFun :: String -> [Exp] -> State SPLC ([ExpT], Type)
 applyFun i as = do
+    ts <- splcf (clookupa i)
+    ts <- mapM (\t -> splcv (freshen t)) ts
+    as <- mapM annotateE as
+    let a = combineTypes (map getType as) in do
+        us <- mapM (\(t, t') ->
+            return $ fmap (\c -> treplace t' >!> c) (unifyf t a)) ts
+        us <- filterM (\m -> return $ case m of Just _ -> True; _ -> False) us
+        us <- mapM (\m -> case m of Just t -> return t) us
+        t <- case us of
+            t : _ -> return t
+            _ -> fail $ "no candidate for application of " ++ i ++ " found"
+        return (as, t)
+
+applyCons :: String -> [Exp] -> State SPLC ([ExpT], Type)
+applyCons i as = do -- TODO: actual constructor stuff
     ts <- splcf (clookupa i)
     ts <- mapM (\t -> splcv (freshen t)) ts
     as <- mapM annotateE as
@@ -347,11 +367,11 @@ annotateE e = case e of
         t <- idType i fs
         return $ EIdT i fs t
     ECons i as -> do
-        (es, a) <- applyFun i as -- TODO
-        return $ EConsT i es a
+        (es, t) <- applyCons i as
+        return $ EConsT i es t
     EFunCall i as -> do
-        (es, a) <- applyFun i as
-        return $ EFunCallT i es a
+        (es, t) <- applyFun i as
+        return $ EFunCallT i es t
     EOp1 o e -> do
         e <- annotateE e
         ft <- splcv (op1Type o)
