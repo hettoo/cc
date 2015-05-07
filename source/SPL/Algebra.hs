@@ -10,6 +10,7 @@ data Stmt =
     | Assign String [Field] Exp
     | If Exp Stmt (Maybe Stmt)
     | While Exp Stmt
+    | Case Exp [(String, Stmt)]
     deriving (Eq, Show)
 
 data Type =
@@ -75,6 +76,7 @@ data StmtT =
     | AssignT String [Field] ExpT
     | IfT ExpT StmtT (Maybe StmtT)
     | WhileT ExpT StmtT
+    | CaseT ExpT [(String, StmtT)]
     deriving (Eq, Show)
 
 data ExpT =
