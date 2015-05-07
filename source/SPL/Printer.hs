@@ -2,6 +2,7 @@
 module SPL.Printer where
 import SPL.Algebra
 import Utils
+import Data.List
 
 class PrettyPrinter a where
     prettyPrint' :: Int -> a -> String
@@ -32,15 +33,11 @@ instance PrettyPrinter Stmt where
         Stmts l -> "{\n" ++ prettyPrint' (n + 1) l ++ prettyPrint' n () ++ "}"
         _ -> prettyPrint' n () ++ case stmt of
             DataDecl i as l -> "data " ++ i ++
-                foldr (\a r -> " " ++ a ++ r) "" as ++ " =" ++ cons l ++ ";\n"
+                foldr (\a r -> " " ++ a ++ r) "" as ++ " = " ++
+                intercalate " | " (map cons l) ++ ";\n"
                 where
-                cons l = case l of
-                    [] -> ""
-                    (c, ts) : r -> " " ++ c ++
-                        foldr (\t r -> " " ++ simplePrint t ++ r) "" ts ++
-                        case r of
-                            [] -> ""
-                            _ -> " |" ++ cons r
+                cons (c, ts) = c ++ " (" ++ intercalate ", "
+                    (map (\(t, f) -> simplePrint t ++ " " ++ f) ts) ++ ")"
             VarDecl t s e -> simplePrint t ++ " " ++ s ++ " = " ++
                 simplePrint e ++ ";\n"
             FunDecl t s a b -> simplePrint t ++ " " ++ s ++

@@ -8,7 +8,7 @@ import Control.Monad
 
 type Cv = Context Type
 type Cf = Context (Type, Type)
-type Cd = Context (String, [String], [Type])
+type Cd = Context (String, [String], [(Type, String)])
 data SPLC = SPLC {cv :: Cv, cf :: Cf, cd :: Cd}
 
 splcv :: State Cv a -> State SPLC a
@@ -215,7 +215,7 @@ applyCons i es = do
     (j, as, ts) <- splcd (clookupe i)
     es <- mapM annotateE es
     ats <- return $ map getType es
-    c <- return $ sequence (map addArg (zip ts ats)) >@> cnew
+    c <- return $ sequence (map addArg (zip (map fst ts) ats)) >@> cnew
     rts <- return $ map (applyUnificationT c) (map TPoly as)
     rts <- splcv $ ST $ \cv ->
         let (r, (cv', _)) = apply (mapM freshenT rts) (cv, cnew) in

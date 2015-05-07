@@ -4,6 +4,7 @@ import SPL.Algebra
 import SPL.Printer
 import SPL.Typer
 import Utils
+import Data.List
 
 elseIfChainT :: Maybe StmtT -> ([(ExpT, StmtT)], Maybe StmtT)
 elseIfChainT m = case m of
@@ -23,15 +24,11 @@ instance PrettyPrinter StmtT where
         StmtsT l -> "{\n" ++ prettyPrint' (n + 1) l ++ prettyPrint' n () ++ "}"
         _ -> prettyPrint' n () ++ case stmt of
             DataDeclT i as l -> "data " ++ i ++
-                foldr (\a r -> " " ++ a ++ r) "" as ++ " =" ++ cons l ++ ";\n"
+                foldr (\a r -> " " ++ a ++ r) "" as ++ " = " ++
+                intercalate " | " (map cons l) ++ ";\n"
                 where
-                cons l = case l of
-                    [] -> ""
-                    (c, ts) : r -> " " ++ c ++
-                        foldr (\t r -> " " ++ simplePrint t ++ r) "" ts ++
-                        case r of
-                            [] -> ""
-                            _ -> " |" ++ cons r
+                cons (c, ts) = c ++ " (" ++ intercalate ", "
+                    (map (\(t, f) -> simplePrint t ++ " " ++ f) ts) ++ ")"
             VarDeclT t s e -> simplePrint t ++ " " ++ s ++ " = " ++
                 simplePrint e ++ ";\n"
             FunDeclT t s a b -> simplePrint t ++ " " ++ s ++

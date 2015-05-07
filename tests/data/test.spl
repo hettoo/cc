@@ -1,5 +1,6 @@
-data Test a b = A | B | C;
+data Test a b = A | B | C (Int field);
 
 Void main() {
-    \Test Int Int/ a = B();
+    \Test Int Int/ a = C(5);
+    a = B();
 }

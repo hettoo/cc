@@ -29,8 +29,9 @@ pDataDecl = (sseq "data" -*-*. pTId .*. star (ws -*. pNId) .*?*- sym '=') .*?*.
     (opt (cons .*?*. star (ows -*. sym '|' -*?*. cons)) >@ listify') .*?*-
     sym ';' >@ (uncurry . uncurry) DataDecl
     where
-    cons :: CharReParser (String, [Type])
-    cons = pTId .*. star (ws -*. pType)
+    cons :: CharReParser (String, [(Type, String)])
+    cons = pTId .*?*. (opt (sym '(' -*?*.
+        commaList (pType .*?*. pNId) .*?*- sym ')') >@ listify)
     listify' m = case m of -- somehow listify will not compile :(
         Nothing -> []
         Just (p, l) -> p : l
