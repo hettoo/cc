@@ -19,22 +19,18 @@ data CAddPolicy =
     deriving Eq
 
 caddc :: (t -> CAddPolicy) -> String -> t -> String -> State (Context t) ()
-caddc f s t e = ST $ \(i, n, l) -> case cadd' l i of
+caddc f s t e = ST $ \(i, n, l) -> case cadd' i l of
     Just l' -> Left ((), (i, n, l'))
     Nothing -> Right e
     where
-    cadd' l i = case l of
-        [] -> Just [(s, t, i)]
-        c@(s', t', i') : r ->
-            if s == s' then
-                if i' >= i && f t' == Reject then
-                    Nothing
-                else
-                    if f t' == Both then fmap ((:) c) rec else rec
+    cadd' i = flip foldr (Just [(s, t, i)]) $ \c@(s', t', i') r ->
+        if s == s' then
+            if i' >= i && f t' == Reject then
+                Nothing
             else
-                fmap ((:) c) rec
-            where
-            rec = cadd' r i
+                if f t' == Both then fmap ((:) c) r else r
+        else
+            fmap ((:) c) r
 
 cadd :: String -> t -> String -> State (Context t) ()
 cadd = caddc (const Reject)
@@ -46,22 +42,13 @@ caddr i t = caddc (\t' -> if t == t' then Reject else Override) i t
 crem :: String -> State (Context t) ()
 crem s = ST $ \(i, n, l) -> Left ((), (i, n, crem' l))
     where
-    crem' l = case l of
-        [] -> []
-        f@(s', _, _) : r ->
-            if s == s' then
-                crem' r
-            else
-                f : crem' r
+    crem' = foldr (\f@(s', _, _) r -> if s == s' then r else f : r) []
 
 clookupa :: String -> State (Context t) [t]
 clookupa s = res clookupa'
     where
-    clookupa' (i, n, l) = case l of
-        [] -> []
-        (s', t, _) : r -> if s == s' then t : rec else rec
-            where
-            rec = clookupa' (i, n, r)
+    clookupa' (i, n, l) = foldr (\(s', t, _) r ->
+        if s == s' then t : r else r) [] l
 
 clookup :: String -> State (Context t) (Maybe t)
 clookup s = res $ \(i, n, l) -> case l of

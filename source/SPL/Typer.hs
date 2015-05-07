@@ -135,29 +135,21 @@ initContext l = case l of
 
 guaranteeReturn :: Stmt -> Bool
 guaranteeReturn s = case s of
-    Stmts l -> guaranteeReturn' l
+    Stmts l -> any guaranteeReturn l
     If e s' m -> case m of
         Nothing -> False
         Just s'' -> guaranteeReturn s' && guaranteeReturn s''
     Return m -> True
     _ -> False
-    where
-    guaranteeReturn' l = case l of
-        [] -> False
-        s' : l' -> guaranteeReturn s' || guaranteeReturn' l'
 
 guaranteeReturns :: [Stmt] -> [Stmt]
-guaranteeReturns l = case l of
-    [] -> []
-    s : r -> case s of
-        FunDecl t i as b ->
-            if t == TVoid || guaranteeReturn b then
-                rest
-            else
-                error $ "function " ++ i ++ " may not return a value"
-        _ -> rest
-        where
-        rest = s : guaranteeReturns r
+guaranteeReturns = flip foldr [] $ \s r -> case s of
+    FunDecl t i as b ->
+        if t == TVoid || guaranteeReturn b then
+            s : r
+        else
+            error $ "function " ++ i ++ " may not return a value"
+    _ -> s : r
 
 annotateProgram :: [Stmt] -> [StmtT]
 annotateProgram l = let

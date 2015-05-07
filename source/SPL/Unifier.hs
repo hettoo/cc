@@ -112,11 +112,7 @@ applyUnificationE c e = expt (fmap aue (expC e')) (aut (typeC e'))
 
 applyUnificationT :: Context Type -> Type -> Type
 applyUnificationT c t = case t of
-    TPoly p -> findApplication (cget c)
-        where
-        findApplication l = case l of
-            [] -> t
-            (i, t') : r -> if p == i then t' else findApplication r
+    TPoly p -> foldr (\(i, t') r -> if p == i then t' else r) t (cget c)
     TTuple t1 t2 -> TTuple (aut t1) (aut t2)
     TList t' -> TList (aut t')
     _ -> t

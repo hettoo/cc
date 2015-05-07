@@ -13,9 +13,7 @@ instance Listify a a where
     listify a = [a]
 
 instance Listify a b => Listify [a] b where
-    listify l = case l of
-        [] -> []
-        a : r -> listify a ++ listify r
+    listify = foldr (\a r -> listify a ++ r) []
 
 instance Listify a b => Listify (Maybe a) b where
     listify m = case m of

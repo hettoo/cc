@@ -39,12 +39,11 @@ instance (SimplePrinter e, SimplePrinter [e]) => PrettyPrinter (PStmt e) where
                 foldr (\a r -> " " ++ a ++ r) "" as ++ " = " ++
                 intercalate " | " (map cons l) ++ ";\n"
                 where
-                cons (c, ts) = c ++ " (" ++ intercalate ", "
-                    (map (\(t, f) -> simplePrint t ++ " " ++ f) ts) ++ ")"
+                cons (c, ts) = c ++ " " ++ simplePrint ts
             VarDecl t s e -> simplePrint t ++ " " ++ s ++ " = " ++
                 simplePrint e ++ ";\n"
-            FunDecl t s a b -> simplePrint t ++ " " ++ s ++
-                " (" ++ simplePrint a ++ ")" ++ blockPrint True b [b]
+            FunDecl t s as b -> simplePrint t ++ " " ++ s ++
+                " " ++ simplePrint as ++ blockPrint True b [b]
             FunCall s l -> s ++ "(" ++ simplePrint l ++ ");\n"
             Return m -> "return" ++ (case m of
                 Nothing -> ""
@@ -91,11 +90,8 @@ instance (SimplePrinter e, SimplePrinter [e]) => PrettyPrinter (PStmt e) where
             _ -> s
 
 instance SimplePrinter [(Type, String)] where
-    simplePrint l = case l of
-        [] -> ""
-        (t, s) : r -> simplePrint t ++ " " ++ s ++ case r of
-            [] -> ""
-            _ -> ", " ++ simplePrint r
+    simplePrint l = "(" ++ intercalate ", "
+        (map (\(t, s) -> simplePrint t ++ " " ++ s) l) ++ ")"
 
 data DeclState =
     DSPre
