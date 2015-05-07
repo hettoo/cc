@@ -11,6 +11,8 @@ Void main() {
         A {
         }
         // ommitted constructors should default to {}
+        // the return check logic for if statements needs to be generalized to
+        // cases
     }
     // field methods should be generalized, i.e., we should be able to use
     // a.field here (simply assuming constructor C, like with lists)
