@@ -1,17 +1,20 @@
 module SPL.Algebra where
 
-data Stmt =
-    Stmts [Stmt]
+data PStmt e =
+    Stmts [PStmt e]
     | DataDecl String [String] [(String, [(Type, String)])]
-    | VarDecl Type String Exp
-    | FunDecl Type String [(Type, String)] Stmt
-    | FunCall String [Exp]
-    | Return (Maybe Exp)
-    | Assign String [Field] Exp
-    | If Exp Stmt (Maybe Stmt)
-    | While Exp Stmt
-    | Case Exp [(String, Stmt)]
+    | VarDecl Type String e
+    | FunDecl Type String [(Type, String)] (PStmt e)
+    | FunCall String [e]
+    | Return (Maybe e)
+    | Assign String [Field] e
+    | If e (PStmt e) (Maybe (PStmt e))
+    | While e (PStmt e)
+    | Case e [(String, PStmt e)]
     deriving (Eq, Show)
+
+type Stmt = PStmt Exp
+type StmtT = PStmt ExpT
 
 data Type =
     TPoly String
@@ -64,19 +67,6 @@ data Exp =
     | EFunCall String [Exp]
     | EOp1 Op1 Exp
     | EOp2 Op2 Exp Exp
-    deriving (Eq, Show)
-
-data StmtT =
-    StmtsT [StmtT]
-    | DataDeclT String [String] [(String, [(Type, String)])]
-    | VarDeclT Type String ExpT
-    | FunDeclT Type String [(Type, String)] StmtT
-    | FunCallT String [ExpT]
-    | ReturnT (Maybe ExpT)
-    | AssignT String [Field] ExpT
-    | IfT ExpT StmtT (Maybe StmtT)
-    | WhileT ExpT StmtT
-    | CaseT ExpT [(String, StmtT)]
     deriving (Eq, Show)
 
 data ExpT =

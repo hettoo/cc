@@ -5,7 +5,6 @@ import Parser.Parser
 import SPL.Parser
 import SPL.Printer
 import SPL.Typer
-import SPL.PrinterT
 import SPL.Sequencer
 import State
 

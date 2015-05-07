@@ -1,4 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
+-- TODO: get rid of these
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 module SPL.Printer where
 import SPL.Algebra
 import Utils
@@ -15,20 +18,20 @@ class SimplePrinter a where
 instance PrettyPrinter () where
     prettyPrint' n _ = concatMap (replicate n) "    "
 
-elseIfChain :: Maybe Stmt -> ([(Exp, Stmt)], Maybe Stmt)
+elseIfChain :: Maybe (PStmt e) -> ([(e, PStmt e)], Maybe (PStmt e))
 elseIfChain m = case m of
     Nothing -> ([], Nothing)
     Just (If c b m') -> left ((:) (c, b)) (elseIfChain m')
     Just s -> ([], Just s)
 
-chainStmts :: ([(Exp, Stmt)], Maybe Stmt) -> [Stmt]
+chainStmts :: ([(e, PStmt e)], Maybe (PStmt e)) -> [PStmt e]
 chainStmts (l, m) = case l of
     [] -> case m of
         Nothing -> []
         Just s -> [s]
     (e, s) : r -> s : chainStmts (r, m)
 
-instance PrettyPrinter Stmt where
+instance (SimplePrinter e, SimplePrinter [e]) => PrettyPrinter (PStmt e) where
     prettyPrint' n stmt = case stmt of
         Stmts l -> "{\n" ++ prettyPrint' (n + 1) l ++ prettyPrint' n () ++ "}"
         _ -> prettyPrint' n () ++ case stmt of
@@ -102,7 +105,7 @@ data DeclState =
     | DSVar
     deriving (Eq, Show)
 
-instance PrettyPrinter [Stmt] where
+instance (SimplePrinter e, SimplePrinter [e]) => PrettyPrinter [PStmt e] where
     prettyPrint' = prettyPrint'' DSPre
         where
         prettyPrint'' s n l = case l of
@@ -226,7 +229,32 @@ instance SimplePrinter Exp where
             True -> "(" ++ s ++ ")"
             False -> s
 
+instance SimplePrinter ExpT where
+    simplePrint e = "(" ++ (case e of
+        EIntT n _ -> show n
+        EBoolT b _ -> show b
+        ECharT c _ -> show c
+        ENilT _ -> "[]"
+        ETupleT a b _ -> "(" ++ simplePrint a ++ ", " ++ simplePrint b ++ ")"
+        EIdT i l _ -> i ++ simplePrint l
+        EConsT i as _ -> i ++ "(" ++ simplePrint as ++ ")"
+        EFunCallT i as _ -> i ++ "(" ++ simplePrint as ++ ")"
+        EOp1T o a _ -> simplePrint o ++ simplePrint a
+        EOp2T o a b _ -> simplePrint a ++ " " ++ simplePrint o
+            ++ " " ++ simplePrint b) ++ " @ " ++ simplePrint (getType e) ++ ")"
+        where
+        wrap s b = case b of
+            True -> "(" ++ s ++ ")"
+            False -> s
+
 instance SimplePrinter [Exp] where
+    simplePrint l = case l of
+        [] -> ""
+        e : r -> simplePrint e ++ case r of
+            [] -> ""
+            _ -> ", " ++ simplePrint r
+
+instance SimplePrinter [ExpT] where
     simplePrint l = case l of
         [] -> ""
         e : r -> simplePrint e ++ case r of

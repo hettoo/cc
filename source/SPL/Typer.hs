@@ -230,8 +230,8 @@ annotateS :: [(Type, String)] -> Stmt -> State SPLC StmtT
 annotateS l s = case s of
     Stmts s -> do
         s <- annotateMulti l s
-        return $ StmtsT s
-    DataDecl i as l -> return $ DataDeclT i as l
+        return $ Stmts s
+    DataDecl i as l -> return $ DataDecl i as l
     VarDecl et i e -> do
         b <- checkPoly (map fst l) et
         if b then do
@@ -239,7 +239,7 @@ annotateS l s = case s of
             let t = getType e in
                 if unifiablef t et then do
                     caddvar i et
-                    return (VarDeclT et i e)
+                    return (VarDecl et i e)
                 else
                     fail $ "assignment mismatch: expected type `" ++
                         simplePrint et ++
@@ -258,7 +258,7 @@ annotateS l s = case s of
             splcv cdown
             b <- annotateS ((t, i) : l) b
             splcv $ st (const cv)
-            return $ FunDeclT t i as b
+            return $ FunDecl t i as b
         else
             fail "invalid main function"
                 where
@@ -267,16 +267,16 @@ annotateS l s = case s of
                         " for function " ++ i)
     FunCall i as -> do
         (es, _) <- applyFun i as
-        return $ FunCallT i es
+        return $ FunCall i es
     Return m -> case l of
         [] -> fail "return outside function"
         (a, i) : l' -> case m of
-            Nothing -> return $ ReturnT Nothing
+            Nothing -> return $ Return Nothing
             Just e -> do
                 e <- annotateE e
                 let t = getType e in
                     if unifiablef t a then
-                        return $ ReturnT (Just e)
+                        return $ Return (Just e)
                     else
                         fail $ "incompatible return type `" ++
                             simplePrint t ++ "' provided; expected `" ++
@@ -286,7 +286,7 @@ annotateS l s = case s of
         e <- annotateE e
         let t = getType e in
             if unifiablef t vt then
-                return $ AssignT i fs e
+                return $ Assign i fs e
             else
                 fail $ "assignment mismatch: expected type `" ++
                     simplePrint vt ++
@@ -296,14 +296,14 @@ annotateS l s = case s of
         e <- annotateE e
         s <- indiff (annotateS l s)
         case m of
-            Nothing -> return $ IfT e s Nothing
+            Nothing -> return $ If e s Nothing
             Just m -> do
                 m <- indiff (annotateS l m)
-                return $ IfT e s (Just m)
+                return $ If e s (Just m)
     While e s -> do
         e <- annotateE e
         s <- indiff (annotateS l s)
-        return $ WhileT e s
+        return $ While e s
 
 freshen :: (Type, Type) -> State Cv (Type, Type)
 freshen t = ST $ \cv -> let

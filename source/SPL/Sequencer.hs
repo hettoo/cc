@@ -140,8 +140,8 @@ program l = do
     gvc cdown
     let (_, _, t) = findFunction ("main", []) l in
         case t of
-            TVoid -> seqStmt l' (FunCallT "main" [])
-            _ -> seqStmt l' (FunCallT "print" [EFunCallT "main" [] t])
+            TVoid -> seqStmt l' (FunCall "main" [])
+            _ -> seqStmt l' (FunCall "print" [EFunCallT "main" [] t])
     addCmd $ HALT "program end"
     seqTodo l'
     where
@@ -161,7 +161,7 @@ globals l = do
     setGlobals l n = case l of
         [] -> ids
         s : r -> case s of
-            VarDeclT t i e -> do
+            VarDecl t i e -> do
                 seqExp l e
                 addVariable i n True
                 setGlobals r (n + 1)
@@ -230,8 +230,8 @@ varPos i = do
 
 varDecls :: StmtT -> [(String, ExpT)]
 varDecls t = case t of
-    StmtsT l -> concat $ map varDecls l
-    VarDeclT _ i e -> [(i, e)]
+    Stmts l -> concat $ map varDecls l
+    VarDecl _ i e -> [(i, e)]
     _ -> []
 
 seqFunction :: Call -> [StmtT] -> Sequencer
@@ -257,12 +257,12 @@ findFunction :: Call -> [StmtT] -> (StmtT, [String], Type)
 findFunction c@(i, as) l = case l of
     [] -> error $ "function " ++ show c ++ " not found"
     s : r -> case s of
-        FunDeclT t i' as' b ->
+        FunDecl t i' as' b ->
             if i == i' then
                 case unifyAll (combineTypes as) (combineTypes $ map fst as') of
                     Nothing -> rec
                     Just c -> case t of
-                        TVoid -> (StmtsT [b', ReturnT Nothing], n, t')
+                        TVoid -> (Stmts [b', Return Nothing], n, t')
                         _ -> (b', n, t')
                         where
                         b' = applyUnificationS c b
@@ -285,20 +285,20 @@ seqPrintStr s = addCmds $ concatMap (\c -> [LDC $ enc c, PRINTC]) s
 
 seqStmt :: [StmtT] -> StmtT -> Sequencer
 seqStmt ss s = case s of
-    StmtsT l -> sequence_ $ map (seqStmt ss) l
-    VarDeclT t i e -> do
+    Stmts l -> sequence_ $ map (seqStmt ss) l
+    VarDecl t i e -> do
         seqExp ss e
         setVariable i
-    FunDeclT _ _ _ _ -> ids
-    FunCallT i as -> seqFunCall ss i as
-    ReturnT m -> do
+    FunDecl _ _ _ _ -> ids
+    FunCall i as -> seqFunCall ss i as
+    Return m -> do
         case m of
             Just e -> do
                 seqExp ss e
                 addCmd $ STR "RR"
             Nothing -> ids
         addCmd RET
-    AssignT i fs e ->
+    Assign i fs e ->
         case fs of
             [] -> do
                 seqExp ss e
@@ -358,10 +358,10 @@ seqStmt ss s = case s of
                             addCmd $ STR "R5"
                             addCmd $ AJS (-2)
                             addCmd $ LDR "R5"
-    IfT c b m -> do
+    If c b m -> do
         seqExp ss c
         seqIf (seqStmt ss b) (fmap (seqStmt ss) m)
-    WhileT c b -> seqWhile (seqExp ss c) (seqStmt ss b)
+    While c b -> seqWhile (seqExp ss c) (seqStmt ss b)
 
 seqIf :: Sequencer -> Maybe Sequencer -> Sequencer
 seqIf b m = do
@@ -401,7 +401,7 @@ seqWhile c b = do
 consIndex :: [StmtT] -> String -> Int
 consIndex l i = case l of
     a : r -> case a of
-        DataDeclT _ _ cs -> case findIndex (\t -> fst t == i) cs of
+        DataDecl _ _ cs -> case findIndex (\t -> fst t == i) cs of
             Just n -> n
             Nothing -> consIndex r i
 
