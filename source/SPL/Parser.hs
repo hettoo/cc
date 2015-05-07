@@ -72,11 +72,11 @@ pStmt = sseq "if" -*?*. (sym '(' -*?*. pExp .*?*- sym ')') .*?*.
         uncurry While \/
     (sseq "return" .*. nalphanum_) -*?*. opt pExp .*?*- sym ';' >@ Return \/
     (sseq "case" .*. nalphanum_) -*?*. pExp .*?*.
-        (sym '{' -*?*. star pCase .*?*- sym '}') >@ uncurry Case \/
+        (sym '{' -*?*. star (pCase .*- ows) .*- sym '}') >@ uncurry Case \/
     pStmtId \/ sym '{' -*?*. star (pStmt .*- ows) .*- sym '}' >@ sm id Stmts
 
 pCase :: CharReParser (String, Stmt)
-pCase = pTId .*?*. (sym '{' -*?*. pStmt .*?*- sym '}')
+pCase = pTId .*?*. pStmt
 
 pStmtId :: CharReParser Stmt
 pStmtId = pNId .*?*. (pField .*?*. (sym '=' -*?*. pExp) \+/

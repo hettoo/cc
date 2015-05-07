@@ -1,6 +1,19 @@
 data Test a b = A | B | C (Int field);
+// duplicate constructors are checked, type names not yet
 
 Void main() {
     \Test Int Int/ a = B();
-    a = C(5);
+    a = C(5); // needs to count and type check
+    case a { // just distinguish on the constructor type
+        C { // later we can add arguments here to bind fields
+        }
+        // constructors here should match the type of the case expression
+        A {
+        }
+        // ommitted constructors should default to {}
+    }
+    // field methods should be generalized, i.e., we should be able to use
+    // a.field here (simply assuming constructor C, like with lists)
+    // perhaps tuples and list can then be mostly implemented through the
+    // standard library
 }
