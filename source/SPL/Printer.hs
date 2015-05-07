@@ -1,9 +1,9 @@
 {-# LANGUAGE FlexibleInstances #-}
--- TODO: get rid of these
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 module SPL.Printer where
 import SPL.Algebra
+import Fix
 import Utils
 import Data.List
 
@@ -172,21 +172,27 @@ instance SimplePrinter Op2 where
         ODiv -> "/"
         OMod -> "%"
 
-stronger1 :: Op1 -> Exp -> Bool
-stronger1 _ e = case e of
-    EOp2 _ _ _ -> True
-    _ -> False
-
 data Side =
     SLeft
     | SRight
     deriving Eq
 
-stronger2 :: Op2 -> Exp -> Side -> Bool
-stronger2 o e s = case e of
-    EOp2 o' a b -> (if s == assoc o then (>) else (>=))
-        (strength o) (strength o')
-    _ -> False
+class Strength e where
+    stronger1 :: Op1 -> e -> Bool
+    stronger2 :: Op2 -> e -> Side -> Bool
+
+instance Strength Exp where
+    stronger1 _ e = case unFix e of
+        EOp2 _ _ _ -> True
+        _ -> False
+    stronger2 o e s = case unFix e of
+        EOp2 o' a b -> (if s == assoc o then (>) else (>=))
+            (strength o) (strength o')
+        _ -> False
+
+instance Strength ExpT where
+    stronger1 _ _ = False
+    stronger2 _ _ _ = False
 
 assoc :: Op2 -> Side
 assoc o = case o of
@@ -210,7 +216,8 @@ strength o = case o of
     ODiv -> 5
     OMod -> 5
 
-instance SimplePrinter Exp where
+instance (SimplePrinter e, SimplePrinter [e], Strength e) =>
+    SimplePrinter (PExp e) where
     simplePrint e = case e of
         EInt n -> show n
         EBool b -> show b
@@ -229,32 +236,15 @@ instance SimplePrinter Exp where
             True -> "(" ++ s ++ ")"
             False -> s
 
-instance SimplePrinter ExpT where
-    simplePrint e = "(" ++ (case e of
-        EIntT n _ -> show n
-        EBoolT b _ -> show b
-        ECharT c _ -> show c
-        ENilT _ -> "[]"
-        ETupleT a b _ -> "(" ++ simplePrint a ++ ", " ++ simplePrint b ++ ")"
-        EIdT i l _ -> i ++ simplePrint l
-        EConsT i as _ -> i ++ "(" ++ simplePrint as ++ ")"
-        EFunCallT i as _ -> i ++ "(" ++ simplePrint as ++ ")"
-        EOp1T o a _ -> simplePrint o ++ simplePrint a
-        EOp2T o a b _ -> simplePrint a ++ " " ++ simplePrint o
-            ++ " " ++ simplePrint b) ++ " @ " ++ simplePrint (getType e) ++ ")"
-        where
-        wrap s b = case b of
-            True -> "(" ++ s ++ ")"
-            False -> s
+instance (SimplePrinter e, SimplePrinter [e], Strength e) =>
+    SimplePrinter (PExpT e) where
+    simplePrint p = "(" ++ simplePrint (expC p) ++
+        " @ " ++ simplePrint (typeC p) ++ ")"
 
-instance SimplePrinter [Exp] where
-    simplePrint l = case l of
-        [] -> ""
-        e : r -> simplePrint e ++ case r of
-            [] -> ""
-            _ -> ", " ++ simplePrint r
+instance SimplePrinter (f (Fix f)) => SimplePrinter (Fix f) where
+    simplePrint = simplePrint . unFix
 
-instance SimplePrinter [ExpT] where
+instance SimplePrinter (Fix f) => SimplePrinter [Fix f] where
     simplePrint l = case l of
         [] -> ""
         e : r -> simplePrint e ++ case r of

@@ -2,6 +2,7 @@ module SPL.Unifier where
 import SPL.Algebra
 import State
 import Context
+import Fix
 import Utils
 
 unify :: Bool -> Type -> Type -> Maybe (Context Type)
@@ -103,15 +104,9 @@ applyUnificationS c s = case s of
     aut = applyUnificationT c
 
 applyUnificationE :: Context Type -> ExpT -> ExpT
-applyUnificationE c e = case e of
-    ENilT t -> ENilT (aut t)
-    ETupleT e1 e2 t -> ETupleT (aue e1) (aue e2) (aut t)
-    EIdT i fs t -> EIdT i fs (aut t)
-    EFunCallT i as t -> EFunCallT i (map aue as) (aut t)
-    EOp1T o e' t -> EOp1T o (aue e') (aut t)
-    EOp2T o e1 e2 t -> EOp2T o (aue e1) (aue e2) (aut t)
-    _ -> e
+applyUnificationE c e = expt (fmap aue (expC e')) (aut (typeC e'))
     where
+    e' = unFix e
     aue = applyUnificationE c
     aut = applyUnificationT c
 

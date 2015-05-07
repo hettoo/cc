@@ -1,4 +1,6 @@
+{-# LANGUAGE DeriveFunctor #-}
 module SPL.Algebra where
+import Fix
 
 data PStmt e =
     Stmts [PStmt e]
@@ -56,44 +58,29 @@ data Op2 =
     | OMod
     deriving (Eq, Show)
 
-data Exp =
+data PExp e =
     EInt Int
     | EBool Bool
     | EChar Char
     | ENil
-    | ETuple Exp Exp
+    | ETuple e e
     | EId String [Field]
-    | ECons String [Exp]
-    | EFunCall String [Exp]
-    | EOp1 Op1 Exp
-    | EOp2 Op2 Exp Exp
-    deriving (Eq, Show)
+    | ECons String [e]
+    | EFunCall String [e]
+    | EOp1 Op1 e
+    | EOp2 Op2 e e
+    deriving (Eq, Show, Functor)
 
-data ExpT =
-    EIntT Int Type
-    | EBoolT Bool Type
-    | ECharT Char Type
-    | ENilT Type
-    | ETupleT ExpT ExpT Type
-    | EIdT String [Field] Type
-    | EConsT String [ExpT] Type
-    | EFunCallT String [ExpT] Type
-    | EOp1T Op1 ExpT Type
-    | EOp2T Op2 ExpT ExpT Type
-    deriving (Eq, Show)
+data PExpT e = PExpT {expC :: PExp e, typeC :: Type}
+
+type Exp = Fix PExp
+type ExpT = Fix PExpT
+
+expt :: PExp ExpT -> Type -> ExpT
+expt e t = Fix $ PExpT {expC = e, typeC = t}
 
 getType :: ExpT -> Type
-getType e = case e of
-    EIntT _ t -> t
-    EBoolT _ t -> t
-    ECharT _ t -> t
-    ENilT t -> t
-    ETupleT _ _ t -> t
-    EIdT _ _ t -> t
-    EConsT _ _ t -> t
-    EFunCallT _ _ t -> t
-    EOp1T _ _ t -> t
-    EOp2T _ _ _ t -> t
+getType = typeC . unFix
 
 combineTypes :: [Type] -> Type
 combineTypes l = case l of

@@ -7,6 +7,7 @@ import SPL.Std
 import Context
 import Todo
 import State
+import Fix
 import Data.Char
 import Data.List
 
@@ -141,7 +142,7 @@ program l = do
     let (_, _, t) = findFunction ("main", []) l in
         case t of
             TVoid -> seqStmt l' (FunCall "main" [])
-            _ -> seqStmt l' (FunCall "print" [EFunCallT "main" [] t])
+            _ -> seqStmt l' (FunCall "print" [expt (EFunCall "main" []) t])
     addCmd $ HALT "program end"
     seqTodo l'
     where
@@ -406,18 +407,18 @@ consIndex l i = case l of
             Nothing -> consIndex r i
 
 seqExp :: [StmtT] -> ExpT -> Sequencer
-seqExp l e = case e of
-    EIntT x TInt -> addCmd $ LDC (show x)
-    EBoolT x TBool -> addCmd $ LDC $ case x of
+seqExp l e = case expC (unFix e) of
+    EInt x -> addCmd $ LDC (show x)
+    EBool x -> addCmd $ LDC $ case x of
         True -> "-1"
         False -> "0"
-    ECharT x TChar -> addCmd $ LDC (enc x)
-    ENilT _ -> addCmd $ LDC "0"
-    ETupleT e1 e2 _ -> do
+    EChar x -> addCmd $ LDC (enc x)
+    ENil -> addCmd $ LDC "0"
+    ETuple e1 e2 -> do
         seqExp l e1
         seqExp l e2
         addCmd $ STH 2
-    EIdT i fs t -> do
+    EId i fs -> do
         getVariable i
         sequence_ $ map seqField fs
         where
@@ -438,15 +439,15 @@ seqExp l e = case e of
             Tail -> do
                 addCmd $ LDH 0 2
                 addCmd $ AJS (-1)
-    EConsT i as t -> do
+    ECons i as -> do
         n <- return $ consIndex l i
         addCmd $ LDC (show n)
         sequence_ $ map (seqExp l) as
         addCmd $ STH (length as + 1)
-    EFunCallT i as _ -> do
+    EFunCall i as -> do
         seqFunCall l i as
         addCmd $ LDR "RR"
-    EOp1T op e _ -> case getType e of
+    EOp1 op e -> case getType e of
         TList _ -> stdop1
         TTuple _ _ -> stdop1
         _ -> do
@@ -456,11 +457,11 @@ seqExp l e = case e of
         stdop1 = do
             seqFunCall l ("_op_" ++ op1name op) [e]
             addCmd $ LDR "RR"
-    EOp2T OCons e1 e2 _ -> do
+    EOp2 OCons e1 e2 -> do
         seqExp l e2
         seqExp l e1
         addCmd $ STH 2
-    EOp2T op e1 e2 _ -> case getType e of
+    EOp2 op e1 e2 -> case getType e of
         TList _ -> stdop2
         TTuple _ _ -> stdop2
         _ -> do

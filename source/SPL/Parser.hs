@@ -3,6 +3,7 @@ import SPL.Algebra
 import Parser.Parser
 import Parser.CharParser
 import Listify
+import Fix
 import Utils
 import Data.Char
 import Data.Either
@@ -88,60 +89,62 @@ pExp :: CharReParser Exp
 pExp = pExp1 .*?*. opt (sym ':' -*?*. pExp) >@
     \(a, m) -> case m of
         Nothing -> a
-        Just b -> EOp2 OCons a b
+        Just b -> Fix $ EOp2 OCons a b
 
 (+<<) :: CharReParser v -> CharReParser (v -> v) -> CharReParser v
 (+<<) p q = p .*. star (ows -*. q) >@ uncurry (foldl (\a f -> f a))
 infixl 4 +<<
 
+flipFix f = \a b -> Fix $ f b a
+
 pExp1 :: CharReParser Exp
 pExp1 = pExp2 +<<
-    sseq "&&" -*?*. pExp2 >@ flip (EOp2 OAnd) \/
-    sseq "||" -*?*. pExp2 >@ flip (EOp2 OOr)
+    sseq "&&" -*?*. pExp2 >@ flipFix (EOp2 OAnd) \/
+    sseq "||" -*?*. pExp2 >@ flipFix (EOp2 OOr)
 
 pExp2 :: CharReParser Exp
 pExp2 = pExp3 +<<
-    sseq "==" -*?*. pExp3 >@ flip (EOp2 OEq) \/
-    sseq "!=" -*?*. pExp3 >@ flip (EOp2 ONeq)
+    sseq "==" -*?*. pExp3 >@ flipFix (EOp2 OEq) \/
+    sseq "!=" -*?*. pExp3 >@ flipFix (EOp2 ONeq)
 
 pExp3 :: CharReParser Exp
 pExp3 = pExp4 +<<
-    sym '<' -*?*. pExp4 >@ flip (EOp2 OLt) \/
-    sym '>' -*?*. pExp4 >@ flip (EOp2 OGt) \/
-    sseq "<=" -*?*. pExp4 >@ flip (EOp2 OLe) \/
-    sseq ">=" -*?*. pExp4 >@ flip (EOp2 OGe)
+    sym '<' -*?*. pExp4 >@ flipFix (EOp2 OLt) \/
+    sym '>' -*?*. pExp4 >@ flipFix (EOp2 OGt) \/
+    sseq "<=" -*?*. pExp4 >@ flipFix (EOp2 OLe) \/
+    sseq ">=" -*?*. pExp4 >@ flipFix (EOp2 OGe)
 
 pExp4 :: CharReParser Exp
 pExp4 = pExp5 +<<
-    sym '+' -*?*. pExp5 >@ flip (EOp2 OPlus) \/
-    sym '-' -*?*. pExp5 >@ flip (EOp2 OMinus)
+    sym '+' -*?*. pExp5 >@ flipFix (EOp2 OPlus) \/
+    sym '-' -*?*. pExp5 >@ flipFix (EOp2 OMinus)
 
 pExp5 :: CharReParser Exp
 pExp5 = pExp6 +<<
-    sym '*' -*?*. pExp6 >@ flip (EOp2 OTimes) \/
-    sym '/' -*?*. pExp6 >@ flip (EOp2 ODiv) \/
-    sym '%' -*?*. pExp6 >@ flip (EOp2 OMod)
+    sym '*' -*?*. pExp6 >@ flipFix (EOp2 OTimes) \/
+    sym '/' -*?*. pExp6 >@ flipFix (EOp2 ODiv) \/
+    sym '%' -*?*. pExp6 >@ flipFix (EOp2 OMod)
 
 pExp6 :: CharReParser Exp
-pExp6 = pNonOpExp \/ sym '!' -*?*. pExp6 >@ EOp1 ONot \/
-    sym '-' -*?*. pExp6 >@ EOp1 ONeg
+pExp6 = pNonOpExp \/ sym '!' -*?*. pExp6 >@ Fix . EOp1 ONot \/
+    sym '-' -*?*. pExp6 >@ Fix . EOp1 ONeg
 
 pNonOpExp :: CharReParser Exp
-pNonOpExp = pInt >@ EInt \/ pBool >@ EBool \/ pChar >@ EChar \/
-    pIdExp \/ pConsExp \/
-    sym '(' -*?*. pExp .*?*- sym ')' \/ sym '[' .*?*. sym ']' >! ENil \/
+pNonOpExp = pInt >@ Fix . EInt \/ pBool >@ Fix . EBool \/
+    pChar >@ Fix . EChar \/ pIdExp \/ pConsExp \/
+    sym '(' -*?*. pExp .*?*- sym ')' \/ sym '[' .*?*. sym ']' >! Fix ENil \/
     sym '(' -*?*. (pExp .*?*- sym ',') .*?*. pExp .*?*- sym ')' >@
-        uncurry ETuple
+        Fix . uncurry ETuple
 
 pIdExp :: CharReParser Exp
 pIdExp = pNId .*?*. (sym '(' -*?*. commaList pExp .*?*- sym ')' \+/ pField)
     >@ \(i, e) -> case e of
-        Left l -> EFunCall i l
-        Right f -> EId i f
+        Left l -> Fix $ EFunCall i l
+        Right f -> Fix $ EId i f
 
 pConsExp :: CharReParser Exp
 pConsExp = pTId .*. (sym '(' -*?*. commaList pExp .*?*- sym ')') >@
-    uncurry ECons
+    Fix . uncurry ECons
 
 pField :: CharReParser [Field]
 pField = star (ows .*. sym '.' -*?*. (

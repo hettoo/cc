@@ -1,9 +1,10 @@
 module SPL.Typer where
 import SPL.Algebra
 import SPL.Unifier
+import SPL.Printer
 import Context
 import State
-import SPL.Printer
+import Fix
 import Control.Monad
 
 type Cv = Context Type
@@ -351,34 +352,36 @@ idType i fs = splcv . indiff $ idType' i fs
             idType' i r
 
 annotateE :: Exp -> State SPLC ExpT
-annotateE e = case e of
-    EInt i -> return $ EIntT i TInt
-    EBool b -> return $ EBoolT b TBool
-    EChar a -> return $ ECharT a TChar
+annotateE e = case unFix e of
+    EInt i -> res (EInt i) TInt
+    EBool b -> res (EBool b) TBool
+    EChar c -> res (EChar c) TChar
     ENil -> splcv $ do
         a <- fresh
-        return $ ENilT (TList a)
+        res ENil (TList a)
     ETuple e1 e2 -> do
         e1 <- annotateE e1
         e2 <- annotateE e2
-        return $ ETupleT e1 e2 (TTuple (getType e1) (getType e2))
+        res (ETuple e1 e2) (TTuple (getType e1) (getType e2))
     EId i fs -> do
         t <- idType i fs
-        return $ EIdT i fs t
+        res (EId i fs) t
     ECons i as -> do
         (es, t) <- applyCons i as
-        return $ EConsT i es t
+        res (ECons i es) t
     EFunCall i as -> do
         (es, t) <- applyFun i as
-        return $ EFunCallT i es t
+        res (EFunCall i es) t
     EOp1 o e -> do
         e <- annotateE e
         ft <- splcv (op1Type o)
-        a <- checkApp ft (getType e)
-        return $ EOp1T o e a
+        t <- checkApp ft (getType e)
+        res (EOp1 o e) t
     EOp2 o e1 e2 -> do
         e1 <- annotateE e1
         e2 <- annotateE e2
         ft <- splcv (op2Type o)
-        a <- checkApp ft (TTuple (getType e1) (getType e2))
-        return $ EOp2T o e1 e2 a
+        t <- checkApp ft (TTuple (getType e1) (getType e2))
+        res (EOp2 o e1 e2) t
+    where
+    res e t = return $ expt e t
