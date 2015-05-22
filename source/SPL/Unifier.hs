@@ -96,6 +96,7 @@ applyUnificationS c s = case s of
     FunCall i as -> FunCall i (map aue as)
     Return m -> Return $ fmap aue m
     Assign i fs e -> Assign i fs (aue e)
+    Case e bs -> Case (aue e) (map (right aus) bs)
     If c b m -> If (aue c) (aus b) (fmap aus m)
     While c b -> While (aue c) (aus b)
     where

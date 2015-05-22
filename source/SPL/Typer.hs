@@ -285,6 +285,14 @@ annotateS l s = case s of
                     simplePrint vt ++
                     "' cannot be unified with given type `" ++
                     simplePrint t ++ "' (variable " ++ i ++ ")"
+    Case e bs -> do
+        e <- annotateE e
+        bs <- sequence $ map annotateCase bs
+        return $ Case e bs
+        where
+        annotateCase (i, s) = do
+            s <- annotateS l s
+            return (i, s)
     If e s m -> do
         e <- annotateE e
         s <- indiff (annotateS l s)
