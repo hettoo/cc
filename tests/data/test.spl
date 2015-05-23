@@ -1,16 +1,16 @@
 data Test a b = A | B | C (Int field);
 // duplicate constructors are checked, type names not yet
+// field names should be unique within a type (or appear at the same position)
 
 Void main() {
     \Test Int Int/ a = B();
     a = C(5); // needs to count and type check
-    case a { // just distinguish on the constructor type
+    case a {
         C { // later we can add arguments here to bind fields
         }
         // constructors here should match the type of the case expression
         A {
         }
-        // ommitted constructors should default to {}
         // the return check logic for if statements needs to be generalized to
         // cases
     }
