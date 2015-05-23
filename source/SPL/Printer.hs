@@ -73,23 +73,19 @@ instance (SimplePrinter e, SimplePrinter [e]) => PrettyPrinter (PStmt e) where
             Nothing -> ""
             Just e -> "else" ++ blockPrint True e h
         blockPrint b s l = case foldl (||) False (map checkStmts l') of
-                True -> " " ++ prettyPrint' n w ++ case b of
-                    True -> "\n"
-                    False -> " "
+                True -> " " ++
+                    prettyPrint' n (if checkStmts s then s else Stmts [s]) ++
+                    if b then "\n" else " "
                 False -> "\n" ++ prettyPrint' (n + 1) s' ++
-                    case b of
-                        True -> ""
-                        False -> prettyPrint' n ()
+                    if b then "" else prettyPrint' n ()
                 where
-                w = case checkStmts s of
-                    True -> s
-                    False -> Stmts [s]
                 s' = makeBlock s
                 l' = map makeBlock l
                 checkStmts s = case s of
                     Stmts _ -> True
                     _ -> False
         makeBlock s = case s of
+            Case _ _ -> Stmts [s]
             If _ _ _ -> Stmts [s]
             While _ _ -> Stmts [s]
             _ -> s
@@ -233,9 +229,7 @@ instance (SimplePrinter e, SimplePrinter [e], Strength e) =>
             " " ++ simplePrint o ++ " " ++
             wrap (simplePrint b) (stronger2 o b SRight)
         where
-        wrap s b = case b of
-            True -> "(" ++ s ++ ")"
-            False -> s
+        wrap s b = if b then "(" ++ s ++ ")" else s
 
 instance (SimplePrinter e, SimplePrinter [e], Strength e) =>
     SimplePrinter (PExpT e) where
@@ -248,6 +242,4 @@ instance SimplePrinter (f (Fix f)) => SimplePrinter (Fix f) where
 instance SimplePrinter (Fix f) => SimplePrinter [Fix f] where
     simplePrint l = case l of
         [] -> ""
-        e : r -> simplePrint e ++ case r of
-            [] -> ""
-            _ -> ", " ++ simplePrint r
+        e : r -> simplePrint e ++ if null r then "" else ", " ++ simplePrint r

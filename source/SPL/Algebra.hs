@@ -85,6 +85,4 @@ getType = typeC . unFix
 combineTypes :: [Type] -> Type
 combineTypes l = case l of
     [] -> TVoid
-    a : r -> case r of
-        [] -> a
-        _ -> TTuple a (combineTypes r)
+    a : r -> if null r then a else TTuple a (combineTypes r)

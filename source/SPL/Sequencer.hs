@@ -300,65 +300,63 @@ seqStmt ss s = case s of
             Nothing -> ids
         addCmd RET
     Assign i fs e ->
-        case fs of
-            [] -> do
-                seqExp ss e
-                setVariable i
-            _ -> do
-                getVariable i
-                setFields fs
-                setVariable i
+        if null fs then do
+            seqExp ss e
+            setVariable i
+        else do
+            getVariable i
+            setFields fs
+            setVariable i
         where
         setFields fs = case fs of
             f : r -> do
                 addCmd $ LDH 0 2
-                case r of
-                    [] -> case f of
-                        First -> do
-                            seqExp ss e
-                            addCmd $ LDS (-1)
-                            addCmd $ STH 2
-                            addCmd $ STR "R5"
-                            addCmd $ AJS (-2)
-                            addCmd $ LDR "R5"
-                        Second -> do
-                            addCmd $ AJS (-1)
-                            seqExp ss e
-                            addCmd $ STH 2
-                        Head -> do
-                            addCmd $ AJS (-1)
-                            seqExp ss e
-                            addCmd $ STH 2
-                        Tail -> do
-                            seqExp ss e
-                            addCmd $ LDS (-1)
-                            addCmd $ STH 2
-                            addCmd $ STR "R5"
-                            addCmd $ AJS (-2)
-                            addCmd $ LDR "R5"
-                    _ -> case f of
-                        First -> do
-                            addCmd $ LDS (-1)
-                            setFields r
-                            addCmd $ LDS (-1)
-                            addCmd $ STH 2
-                            addCmd $ STR "R5"
-                            addCmd $ AJS (-2)
-                            addCmd $ LDR "R5"
-                        Second -> do
-                            setFields r
-                            addCmd $ STH 2
-                        Head -> do
-                            setFields r
-                            addCmd $ STH 2
-                        Tail -> do
-                            addCmd $ LDS (-1)
-                            setFields r
-                            addCmd $ LDS (-1)
-                            addCmd $ STH 2
-                            addCmd $ STR "R5"
-                            addCmd $ AJS (-2)
-                            addCmd $ LDR "R5"
+                if null r then case f of
+                    First -> do
+                        seqExp ss e
+                        addCmd $ LDS (-1)
+                        addCmd $ STH 2
+                        addCmd $ STR "R5"
+                        addCmd $ AJS (-2)
+                        addCmd $ LDR "R5"
+                    Second -> do
+                        addCmd $ AJS (-1)
+                        seqExp ss e
+                        addCmd $ STH 2
+                    Head -> do
+                        addCmd $ AJS (-1)
+                        seqExp ss e
+                        addCmd $ STH 2
+                    Tail -> do
+                        seqExp ss e
+                        addCmd $ LDS (-1)
+                        addCmd $ STH 2
+                        addCmd $ STR "R5"
+                        addCmd $ AJS (-2)
+                        addCmd $ LDR "R5"
+                else case f of
+                    First -> do
+                        addCmd $ LDS (-1)
+                        setFields r
+                        addCmd $ LDS (-1)
+                        addCmd $ STH 2
+                        addCmd $ STR "R5"
+                        addCmd $ AJS (-2)
+                        addCmd $ LDR "R5"
+                    Second -> do
+                        setFields r
+                        addCmd $ STH 2
+                    Head -> do
+                        setFields r
+                        addCmd $ STH 2
+                    Tail -> do
+                        addCmd $ LDS (-1)
+                        setFields r
+                        addCmd $ LDS (-1)
+                        addCmd $ STH 2
+                        addCmd $ STR "R5"
+                        addCmd $ AJS (-2)
+                        addCmd $ LDR "R5"
     Case e bs -> if null bs then ids else do
         seqExp ss e
         seqCase bs
@@ -540,7 +538,7 @@ seqFunCall l i as =
         _ -> do
             gtodo . st $ todo c
             addCmd $ LINK n
-            sequence $ map (\(_, e) -> seqExp l e) as'
+            sequence $ map (seqExp l . snd) as'
             addCmd $ LDC (callLabel c)
             addCmd JSR
             addCmd $ UNLINK n
