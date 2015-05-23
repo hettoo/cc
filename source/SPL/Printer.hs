@@ -50,6 +50,11 @@ instance (SimplePrinter e, SimplePrinter [e]) => PrettyPrinter (PStmt e) where
                 Just e -> " " ++ simplePrint e) ++ ";\n"
             Assign s l e -> s ++ simplePrint l ++ " = " ++
                 simplePrint e ++ ";\n"
+            Case e bs -> "case " ++ simplePrint e ++ " {" ++
+                foldr singleCase "" bs ++ "\n" ++ prettyPrint' n () ++ "}\n"
+                where
+                singleCase (i, b) r = "\n" ++ prettyPrint' (n + 1) () ++ i ++
+                    " " ++ prettyPrint' (n + 1) b ++ r
             If c b m -> printIfChain c b (elseIfChain m)
                 (b : (chainStmts . elseIfChain) m)
             While e b -> "while (" ++ simplePrint e ++ ")" ++

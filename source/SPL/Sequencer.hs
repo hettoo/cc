@@ -359,10 +359,32 @@ seqStmt ss s = case s of
                             addCmd $ STR "R5"
                             addCmd $ AJS (-2)
                             addCmd $ LDR "R5"
+    Case e bs -> if null bs then ids else do
+        seqExp ss e
+        seqCase bs
+        where
+        seqCase bs = let (i, b) : r = bs in do
+            if null r then ids else addCmd $ LDS 0
+            addCmd $ LDH 0 1
+            addCmd . LDC . show $ consIndex ss i
+            addCmd $ OP2 "eq"
+            seqIf (seqStmt ss b) (if null r then Nothing else Just $ seqCase r)
+            addCmd $ AJS (-1)
     If c b m -> do
         seqExp ss c
         seqIf (seqStmt ss b) (fmap (seqStmt ss) m)
     While c b -> seqWhile (seqExp ss c) (seqStmt ss b)
+
+consIndex :: [StmtT] -> String -> Int
+consIndex l i =
+    let
+        s : r = l
+        rec = consIndex r i
+    in case s of
+        DataDecl _ _ cs -> case findIndex ((== i) . fst) cs of
+            Just n -> n
+            _ -> rec
+        _ -> rec
 
 seqIf :: Sequencer -> Maybe Sequencer -> Sequencer
 seqIf b m = do
@@ -399,13 +421,6 @@ seqWhile c b = do
     addCmd $ BRA (flowLabel f)
     addCmd $ LABEL (flowLabel (f + 1))
 
-consIndex :: [StmtT] -> String -> Int
-consIndex l i = case l of
-    a : r -> case a of
-        DataDecl _ _ cs -> case findIndex (\t -> fst t == i) cs of
-            Just n -> n
-            Nothing -> consIndex r i
-
 seqExp :: [StmtT] -> ExpT -> Sequencer
 seqExp l e = case expC (unFix e) of
     EInt x -> addCmd $ LDC (show x)
@@ -440,9 +455,9 @@ seqExp l e = case expC (unFix e) of
                 addCmd $ LDH 0 2
                 addCmd $ AJS (-1)
     ECons i as -> do
+        sequence_ $ map (seqExp l) as
         n <- return $ consIndex l i
         addCmd $ LDC (show n)
-        sequence_ $ map (seqExp l) as
         addCmd $ STH (length as + 1)
     EFunCall i as -> do
         seqFunCall l i as
