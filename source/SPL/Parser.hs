@@ -9,21 +9,18 @@ import Data.Char
 import Data.Either
 
 parseSPL :: String -> [Stmt]
-parseSPL s = parseSPL' False s
-
-parseSPL' :: Bool -> String -> [Stmt]
-parseSPL' std s = (parse $ pPre >@ parse (pSPL std)) (map double s)
+parseSPL s = (parse $ pPre >@ parse pSPL) (map double s)
 
 pPre :: CharParser [(Char, CharState)]
 pPre = star ((sseq "//" .*. star (nsym '\n') .*. (sym '\n' \+/ eof) \+/
     sseq "/*" .*. star (sym '*' -*. nsym '/' \/ nsym '*') .*.  sseq "*/") \+/
     reveal anything) .*- eof >@ rights
 
-pSPL :: Bool -> CharReParser [Stmt]
-pSPL std = ows -*. star (pDecl std .*- ows) .*- eof
+pSPL :: CharReParser [Stmt]
+pSPL = ows -*. star (pDecl .*- ows) .*- eof
 
-pDecl :: Bool -> CharReParser Stmt
-pDecl std = if std then pFunDecl std else pDataDecl \/ pVarDecl \/ pFunDecl std
+pDecl :: CharReParser Stmt
+pDecl = pDataDecl \/ pVarDecl \/ pFunDecl
 
 pDataDecl :: CharReParser Stmt
 pDataDecl = (sseq "data" -*-*. pTId .*. star (ws -*. pNId) .*?*- sym '=') .*?*.
@@ -41,14 +38,12 @@ pVarDecl :: CharReParser Stmt
 pVarDecl l = (pType .*?*. pNId .*?*. (sym '=' -*?*. pExp .*?*- sym ';') >@
     (uncurry . uncurry) VarDecl) l
 
-pFunDecl :: Bool -> CharReParser Stmt
-pFunDecl std = pRetType .*?*. fId .*?*.
+pFunDecl :: CharReParser Stmt
+pFunDecl = pRetType .*?*. pNId .*?*.
     (sym '(' -*?*. commaList (pType .*?*. pNId) .*?*- sym ')') .*?*.
     (sym '{' -*?*. (star (pVarDecl .*- ows) .*.
         star (pStmt .*- ows) >@ Stmts . uncurry (++)) .*- sym '}') >@
         (uncurry . uncurry . uncurry) FunDecl
-    where
-    fId = if std then sym '_' .*. pNId >@ uncurry (:) else pNId
 
 pRetType :: CharReParser Type
 pRetType = sseq "Void" .*- nalphanum_ >! TVoid \/ pType
@@ -57,9 +52,9 @@ pType :: CharReParser Type
 pType = pBasicType \/ pNId >@ TPoly \/
     sym '\\' -*?*. pTId .*. star (ws -*. pType) .*?*- sym '/' >@
         uncurry TCustom \/
-    sym '[' -*?*. pType .*?*- sym ']' >@ TList \/
+    sym '[' -*?*. pType .*?*- sym ']' >@ tList \/
     sym '(' -*?*. (pType .*?*- sym ',') .*?*. pType .*?*- sym ')' >@
-        uncurry TTuple
+        uncurry tTuple
 
 pBasicType :: CharReParser Type
 pBasicType = (sseq "Int" >! TInt \/ sseq "Bool" >! TBool \/
@@ -146,10 +141,8 @@ pConsExp :: CharReParser Exp
 pConsExp = pTId .*. (sym '(' -*?*. commaList pExp .*?*- sym ')') >@
     Fix . uncurry ECons
 
-pField :: CharReParser [Field]
-pField = star (ows .*. sym '.' -*?*. (
-    sseq "hd" >! Head \/ sseq "tl" >! Tail \/
-    sseq "fst" >! First \/ sseq "snd" >! Second)) >@ listify
+pField :: CharReParser [String]
+pField = star (ows .*. sym '.' -*?*. pId) >@ listify
 
 pInt :: CharReParser Int
 pInt = opt (sym '-' .*- ows) .*. plus (satisfy isDigit) >@ read . listify

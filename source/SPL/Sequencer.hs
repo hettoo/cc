@@ -3,7 +3,6 @@ import SPL.Algebra
 import SPL.Unifier
 import SPL.Parser
 import SPL.Typer
-import SPL.Std
 import Context
 import Todo
 import State
@@ -137,16 +136,14 @@ seqOutput l = stateOutput $ program l >@> initialState
 
 program :: [StmtT] -> Sequencer
 program l = do
-    globals l'
+    globals l
     gvc cdown
     let (_, _, t) = findFunction ("main", []) l in
         case t of
-            TVoid -> seqStmt l' (FunCall "main" [])
-            _ -> seqStmt l' (FunCall "print" [expt (EFunCall "main" []) t])
+            TVoid -> seqStmt l (FunCall "main" [])
+            _ -> seqStmt l (FunCall "print" [expt (EFunCall "main" []) t])
     addCmd $ HALT "program end"
-    seqTodo l'
-    where
-    l' = l ++ annotateProgram (parseSPL' True stdSPL)
+    seqTodo l
 
 initialState :: SO
 initialState = SO {todoCalls = tnew, sp = 0, vc = cnew, freshNum = 0, cmds = []}
@@ -194,8 +191,8 @@ callLabel (s, l) = s ++ "_" ++ show (length l) ++
         TInt -> "Int"
         TBool -> "Bool"
         TChar -> "Char"
-        TTuple u v -> "T_" ++ overloadPrint u ++ "_" ++ overloadPrint v ++ "_ET"
-        TList u -> "L_" ++ overloadPrint u ++ "_EL"
+        TCustom i ts -> "C_" ++ i ++ "_" ++
+            concat (intersperse "_" (map overloadPrint ts)) ++ "_EC"
         TPoly p -> "P_" ++ map (\c -> if c == '?' then '_' else c) p ++ "_EP"
         -- ^empty list trick :(
         TVoid -> "Void"
@@ -285,93 +282,59 @@ seqPrintStr :: String -> Sequencer
 seqPrintStr s = addCmds $ concatMap (\c -> [LDC $ enc c, PRINTC]) s
 
 seqStmt :: [StmtT] -> StmtT -> Sequencer
-seqStmt ss s = case s of
-    Stmts l -> sequence_ $ map (seqStmt ss) l
-    VarDecl t i e -> do
-        seqExp ss e
-        setVariable i
-    FunDecl _ _ _ _ -> ids
-    FunCall i as -> seqFunCall ss i as
-    Return m -> do
-        case m of
-            Just e -> do
-                seqExp ss e
-                addCmd $ STR "RR"
-            Nothing -> ids
-        addCmd RET
-    Assign i fs e ->
-        if null fs then do
+seqStmt = seqStmt' 0
+    where
+    seqStmt' d ss s = case s of
+        Stmts l -> sequence_ $ map (seqStmt' d ss) l
+        VarDecl t i e -> do
             seqExp ss e
             setVariable i
-        else do
-            getVariable i
-            setFields fs
-            setVariable i
-        where
-        setFields fs = case fs of
-            f : r -> do
-                addCmd $ LDH 0 2
-                if null r then case f of
-                    First -> do
-                        seqExp ss e
-                        addCmd $ LDS (-1)
-                        addCmd $ STH 2
-                        addCmd $ STR "R5"
-                        addCmd $ AJS (-2)
-                        addCmd $ LDR "R5"
-                    Second -> do
-                        addCmd $ AJS (-1)
-                        seqExp ss e
-                        addCmd $ STH 2
-                    Head -> do
-                        addCmd $ AJS (-1)
-                        seqExp ss e
-                        addCmd $ STH 2
-                    Tail -> do
-                        seqExp ss e
-                        addCmd $ LDS (-1)
-                        addCmd $ STH 2
-                        addCmd $ STR "R5"
-                        addCmd $ AJS (-2)
-                        addCmd $ LDR "R5"
-                else case f of
-                    First -> do
-                        addCmd $ LDS (-1)
-                        setFields r
-                        addCmd $ LDS (-1)
-                        addCmd $ STH 2
-                        addCmd $ STR "R5"
-                        addCmd $ AJS (-2)
-                        addCmd $ LDR "R5"
-                    Second -> do
-                        setFields r
-                        addCmd $ STH 2
-                    Head -> do
-                        setFields r
-                        addCmd $ STH 2
-                    Tail -> do
-                        addCmd $ LDS (-1)
-                        setFields r
-                        addCmd $ LDS (-1)
-                        addCmd $ STH 2
-                        addCmd $ STR "R5"
-                        addCmd $ AJS (-2)
-                        addCmd $ LDR "R5"
-    Case e bs -> if null bs then ids else do
-        seqExp ss e
-        seqCase bs
-        where
-        seqCase bs = let (i, b) : r = bs in do
-            if null r then ids else addCmd $ LDS 0
+        FunDecl _ _ _ _ -> ids
+        FunCall i as -> seqFunCall ss i as
+        Return m -> do
+            if d < 0 then addCmd $ AJS d else ids
+            case m of
+                Just e -> do
+                    seqExp ss e
+                    addCmd $ STR "RR"
+                Nothing -> ids
+            addCmd RET
+        Assign i fs e ->
+            if null fs then do
+                seqExp ss e
+                setVariable i
+            else do
+                getVariable i
+                setFields fs
+                setVariable i
+            where
+            setFields fs =
+                let
+                    f : r = fs
+                    (i, n) = findField ss f
+                in do
+                addCmd $ LDH 0 (n + 1)
+                if null r then seqExp ss e else do
+                    addCmd $ LDS (i - n)
+                    setFields r
+                addCmd $ STS (i - n - 1)
+                addCmd $ STH (n + 1)
+        Case e bs -> if null bs then ids else do
+            seqExp ss e
             addCmd $ LDH 0 1
-            addCmd . LDC . show $ consIndex ss i
-            addCmd $ OP2 "eq"
-            seqIf (seqStmt ss b) (if null r then Nothing else Just $ seqCase r)
-            addCmd $ AJS (-1)
-    If c b m -> do
-        seqExp ss c
-        seqIf (seqStmt ss b) (fmap (seqStmt ss) m)
-    While c b -> seqWhile (seqExp ss c) (seqStmt ss b)
+            seqCase bs
+            where
+            seqCase bs = let (i, b) : r = bs in do
+                if null r then ids else addCmd $ LDS 0
+                addCmd . LDC . show $ consIndex ss i
+                addCmd $ OP2 "eq"
+                if null r then seqIf (seqStmt' d ss b) Nothing else
+                    seqIf (do seqStmt' (d - 1) ss b; addCmd $ AJS (-1))
+                        (Just $ seqCase r)
+        If c b m -> do
+            seqExp ss c
+            seqIf (seqStmt' d ss b) (fmap (seqStmt' d ss) m)
+        While c b -> seqWhile (seqExp ss c) (seqStmt' d ss b)
 
 consIndex :: [StmtT] -> String -> Int
 consIndex l i =
@@ -419,6 +382,19 @@ seqWhile c b = do
     addCmd $ BRA (flowLabel f)
     addCmd $ LABEL (flowLabel (f + 1))
 
+findField :: [StmtT] -> String -> (Int, Int)
+findField l i =
+    let
+        s : r = l
+        rec = findField r i
+    in case s of
+        DataDecl _ _ cs -> foldr findField' rec cs
+            where
+            findField' (_, fs) rec = case findIndex ((== i) . snd) fs of
+                Nothing -> rec
+                Just n -> (n, length fs)
+        _ -> rec
+
 seqExp :: [StmtT] -> ExpT -> Sequencer
 seqExp l e = case expC (unFix e) of
     EInt x -> addCmd $ LDC (show x)
@@ -426,7 +402,7 @@ seqExp l e = case expC (unFix e) of
         True -> "-1"
         False -> "0"
     EChar x -> addCmd $ LDC (enc x)
-    ENil -> addCmd $ LDC "0"
+    ENil -> seqExp l (Fix $ PExpT (ECons "Nil" []) (getType e))
     ETuple e1 e2 -> do
         seqExp l e1
         seqExp l e2
@@ -435,23 +411,8 @@ seqExp l e = case expC (unFix e) of
         getVariable i
         sequence_ $ map seqField fs
         where
-        seqField f = case f of
-            First -> do
-                addCmd $ LDH 0 2
-                addCmd $ AJS (-1)
-            Second -> do
-                addCmd $ LDH 0 2
-                addCmd $ STR "R5"
-                addCmd $ AJS (-1)
-                addCmd $ LDR "R5"
-            Head -> do
-                addCmd $ LDH 0 2
-                addCmd $ STR "R5"
-                addCmd $ AJS (-1)
-                addCmd $ LDR "R5"
-            Tail -> do
-                addCmd $ LDH 0 2
-                addCmd $ AJS (-1)
+        seqField f = let (i, n) = findField l f in
+            addCmd $ LDH (n - i) 1
     ECons i as -> do
         sequence_ $ map (seqExp l) as
         n <- return $ consIndex l i
@@ -461,29 +422,26 @@ seqExp l e = case expC (unFix e) of
         seqFunCall l i as
         addCmd $ LDR "RR"
     EOp1 op e -> case getType e of
-        TList _ -> stdop1
-        TTuple _ _ -> stdop1
+        TCustom _ _ -> stdop1
         _ -> do
             seqExp l e
             addCmd $ OP1 (op1name op)
         where
         stdop1 = do
-            seqFunCall l ("_op_" ++ op1name op) [e]
+            seqFunCall l ("op_" ++ op1name op) [e]
             addCmd $ LDR "RR"
-    EOp2 OCons e1 e2 -> do
-        seqExp l e2
-        seqExp l e1
-        addCmd $ STH 2
-    EOp2 op e1 e2 -> case getType e of
-        TList _ -> stdop2
-        TTuple _ _ -> stdop2
-        _ -> do
-            seqExp l e1
-            seqExp l e2
-            addCmd $ OP2 (op2name op)
+    EOp2 op e1 e2 ->
+        if op == OCons then
+            seqExp l (Fix $ PExpT (ECons "Cons" [e1, e2]) (getType e))
+        else case getType e of
+            TCustom _ _ -> stdop2
+            _ -> do
+                seqExp l e1
+                seqExp l e2
+                addCmd $ OP2 (op2name op)
         where
         stdop2 = do
-            seqFunCall l ("_op_" ++ op2name op) [e1, e2]
+            seqFunCall l ("op_" ++ op2name op) [e1, e2]
             addCmd $ LDR "RR"
 
 op1name :: Op1 -> String
@@ -516,8 +474,7 @@ seqFunCall l i as =
         as' = zip names as
     in case (c, as) of
         (("print", [t]), [e]) -> case t of
-            TList _ -> stdprint
-            TTuple _ _ -> stdprint
+            TCustom _ _ -> stdprint
             TBool -> stdprint
             TInt -> do
                 seqExp l e
@@ -527,13 +484,9 @@ seqFunCall l i as =
                 addCmd PRINTC
             TPoly _ -> ids -- dummy for empty list code
             where
-            stdprint = seqFunCall l "_print" as
+            stdprint = seqFunCall l "print_" as
         (("read", []), []) -> do
             addCmd $ READI
-            addCmd $ STR "RR"
-        (("isEmpty", [TList _]), [e]) -> do
-            seqExp l e
-            seqIf (addCmd $ LDC "0") (Just . addCmd $ LDC "-1")
             addCmd $ STR "RR"
         _ -> do
             gtodo . st $ todo c

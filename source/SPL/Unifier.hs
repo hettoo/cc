@@ -14,24 +14,17 @@ unify all t u = let (b, c) = apply (unify' t u) cnew in
         rt <- rewrite t
         ru <- rewrite u
         case (rt, ru) of
-            (TTuple t1 t2, TTuple t1' t2') -> do
-                b <- unify' t1 t1'
-                case b of
-                    False -> return False
-                    True -> unify' t2 t2'
-            (TList t', TList t'') -> unify' t' t''
             (TCustom n ts, TCustom m ts') ->
-                if n == m then
+                if n == m && length ts == length ts' then
                     unifyAll ts ts'
                 else
                     return False
                 where
                 unifyAll ts ts' = case (ts, ts') of
-                    ([], []) -> return True
                     ((t' : r), (t'' : r')) -> do
                         b <- unify' t' t''
                         if b then unifyAll r r' else return False
-                    _ -> return False
+                    _ -> return True
             (TPoly i, TPoly j) ->
                 if i == j then
                     return True
@@ -114,8 +107,7 @@ applyUnificationE c e = expt (fmap aue (expC e')) (aut (typeC e'))
 applyUnificationT :: Context Type -> Type -> Type
 applyUnificationT c t = case t of
     TPoly p -> foldr (\(i, t') r -> if p == i then t' else r) t (cget c)
-    TTuple t1 t2 -> TTuple (aut t1) (aut t2)
-    TList t' -> TList (aut t')
+    TCustom i ts -> TCustom i (map aut ts)
     _ -> t
     where
     aut = applyUnificationT c

@@ -4,6 +4,7 @@ data Test a b = A | B | C (Int field);
 
 Void main() {
     \Test Int Int/ a = B();
+    Int b = 7;
     a = C(5); // needs to count and type check
     case a {
         C { // later we can add arguments here to bind fields
@@ -11,11 +12,7 @@ Void main() {
         // constructors here should match the type of the case expression
         A {
         }
-        // the return check logic for if statements needs to be generalized to
-        // cases
     }
-    // field methods should be generalized, i.e., we should be able to use
-    // a.field here (simply assuming constructor C, like with lists)
-    // perhaps tuples and list can then be mostly implemented through the
-    // standard library
+    b = a.field;
+    a.field = 3;
 }

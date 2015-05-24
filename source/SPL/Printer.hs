@@ -48,7 +48,7 @@ instance (SimplePrinter e, SimplePrinter [e]) => PrettyPrinter (PStmt e) where
             Return m -> "return" ++ (case m of
                 Nothing -> ""
                 Just e -> " " ++ simplePrint e) ++ ";\n"
-            Assign s l e -> s ++ simplePrint l ++ " = " ++
+            Assign s l e -> s ++ concat (map ('.' :) l) ++ " = " ++
                 simplePrint e ++ ";\n"
             Case e bs -> "case " ++ simplePrint e ++ " {" ++
                 foldr singleCase "" bs ++ "\n" ++ prettyPrint' n () ++ "}\n"
@@ -123,28 +123,18 @@ instance (SimplePrinter e, SimplePrinter [e]) => PrettyPrinter [PStmt e] where
                 where
                 e = prettyPrint' n a
 
-instance SimplePrinter Field where
-    simplePrint f = "." ++ case f of
-        Head -> "hd"
-        Tail -> "tl"
-        First -> "fst"
-        Second -> "snd"
-
-instance SimplePrinter [Field] where
-    simplePrint l = case l of
-        [] -> ""
-        f : r -> simplePrint f ++ simplePrint r
-
 instance SimplePrinter Type where
     simplePrint t = case t of
         TPoly s -> s
-        TCustom s l -> "\\" ++ s ++
-            foldr (\a r -> " " ++ simplePrint a ++ r) "" l ++ "/"
+        TCustom s l -> case s of
+            "List" -> let [u] = l in "[" ++ simplePrint u ++ "]"
+            "Tuple" -> let [u, v] = l in
+                "(" ++ simplePrint u ++ ", " ++ simplePrint v ++ ")"
+            _ -> "\\" ++ s ++ foldr (\a r -> " " ++ simplePrint a ++ r) "" l ++
+                "/"
         TInt -> "Int"
         TBool -> "Bool"
         TChar -> "Char"
-        TTuple u v -> "(" ++ simplePrint u ++ ", " ++ simplePrint v ++ ")"
-        TList u -> "[" ++ simplePrint u ++ "]"
         TVoid -> "Void"
 
 instance SimplePrinter Op1 where
@@ -221,7 +211,7 @@ instance (SimplePrinter e, SimplePrinter [e], Strength e) =>
         EChar c -> show c
         ENil -> "[]"
         ETuple a b -> "(" ++ simplePrint a ++ ", " ++ simplePrint b ++ ")"
-        EId s l -> s ++ simplePrint l
+        EId s l -> s ++ concat (map ('.' :) l)
         ECons i as -> i ++ "(" ++ simplePrint as ++ ")"
         EFunCall s l -> s ++ "(" ++ simplePrint l ++ ")"
         EOp1 o a -> simplePrint o ++ wrap (simplePrint a) (stronger1 o a)

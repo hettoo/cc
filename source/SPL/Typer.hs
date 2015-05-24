@@ -6,6 +6,7 @@ import Context
 import State
 import Fix
 import Control.Monad
+import Data.List
 
 type Cv = Context Type
 type Cf = Context (Type, Type)
@@ -42,32 +43,24 @@ caddfun i as t = do
 instance DistinctSequence Type where
     createN n = TPoly ("?" ++ show n)
 
-fieldType :: Field -> State (Context Type) (Type, Type)
-fieldType f = case f of
-    Head -> do
-        a <- fresh
-        return (TList a, a)
-    Tail -> do
-        a <- fresh
-        return (TList a, TList a)
-    First -> do
-        a <- fresh
-        b <- fresh
-        return (TTuple a b, a)
-    Second -> do
-        a <- fresh
-        b <- fresh
-        return (TTuple a b, b)
+fieldType :: String -> State SPLC (Type, Type)
+fieldType i = do
+    (j, as, ts) <- splcd (clookupfe (\(j, as, ts) ->
+        case find ((== i) . snd) ts of
+            Just _ -> True
+            _ -> False))
+    splcv $ freshen (TCustom j (map TPoly as),
+        (fst . unMaybe . find ((== i) . snd)) ts)
+    where
+    unMaybe m = case m of
+        Just x -> x
+        _ -> error "unexpected void"
 
 treplace :: Type -> State (Context Type) Type
 treplace t = case t of
-    TTuple t1 t2 -> do
-        t1 <- treplace t1
-        t2 <- treplace t2
-        return $ TTuple t1 t2
-    TList t -> do
-        t <- treplace t
-        return $ TList t
+    TCustom i ts -> do
+        ts <- mapM treplace ts
+        return $ TCustom i ts
     _ -> creplace findPoly t
     where
     findPoly t = case t of
@@ -90,7 +83,7 @@ op2Type :: Op2 -> State Cv (Type, Type)
 op2Type o = case o of
     OCons -> do
         a <- fresh
-        return (TTuple a (TList a), TList a)
+        return (tTuple a (tList a), tList a)
     OAnd -> tBBB
     OOr -> tBBB
     OEq -> taaB
@@ -105,19 +98,18 @@ op2Type o = case o of
     ODiv -> taaa
     OMod -> taaa
     where
-    tBBB = return (TTuple TBool TBool, TBool)
+    tBBB = return (tTuple TBool TBool, TBool)
     taaa = do
         a <- fresh
-        return (TTuple a a, a)
+        return (tTuple a a, a)
     taaB = do
         a <- fresh
-        return (TTuple a a, TBool)
+        return (tTuple a a, TBool)
 
 initContext :: [Stmt] -> State SPLC ()
 initContext l = case l of
     [] -> do
         splcf $ do
-            cadd "isEmpty" (TList (TPoly "t"), TBool) "?"
             cadd "print" (TPoly "t", TVoid) "?"
             cadd "read" (TVoid, TInt) "?"
     s : r -> do
@@ -136,9 +128,10 @@ initContext l = case l of
 guaranteeReturn :: Stmt -> Bool
 guaranteeReturn s = case s of
     Stmts l -> any guaranteeReturn l
-    If e s' m -> case m of
+    If _ s' m -> case m of
         Nothing -> False
         Just s'' -> guaranteeReturn s' && guaranteeReturn s''
+    Case _ bs -> True -- TODO: figure if all constructors are returning
     Return m -> True
     _ -> False
 
@@ -165,7 +158,7 @@ annotateMulti :: [(Type, String)] -> [Stmt] -> State SPLC [StmtT]
 annotateMulti l = mapM (annotateS l)
 
 checkPoly :: [Type] -> Type -> State SPLC Bool
-checkPoly l t = checkPoly' (listPoly t) (concat (map listPoly l))
+checkPoly l t = checkPoly' (listPoly t) (concat $ map listPoly l)
     where
     checkPoly' :: [Type] -> [Type] -> State SPLC Bool
     checkPoly' r l = case r of
@@ -179,8 +172,7 @@ checkPoly l t = checkPoly' (listPoly t) (concat (map listPoly l))
     listPoly :: Type -> [Type]
     listPoly t = case t of
         TPoly _ -> [t]
-        TTuple t1 t2 -> listPoly t1 ++ listPoly t2
-        TList t' -> listPoly t'
+        TCustom _ ts -> concat $ map listPoly ts
         _ -> []
 
 checkMain :: String -> Type -> [(Type, String)] -> State SPLC Bool
@@ -318,15 +310,11 @@ freshen t = ST $ \cv -> let
 
 freshenT :: Type -> State (Context Type, Context Type) Type
 freshenT t = case t of
-    TTuple t1 t2 -> do
-        t1 <- freshenT t1
-        t2 <- freshenT t2
-        return (TTuple t1 t2)
-    TList t -> do
-        t <- freshenT t
-        return (TList t)
+    TCustom i ts -> do
+        ts <- mapM freshenT ts
+        return $ TCustom i ts
     TPoly i -> do
-        m <- str (clookup i)
+        m <- str $ clookup i
         case m of
             Nothing -> do
                 t <- stl fresh
@@ -338,17 +326,21 @@ freshenT t = case t of
     stl = stWrap fst (\a (_, b) -> (a, b))
     str = stWrap snd (\b (a, _) -> (a, b))
 
-idType :: String -> [Field] -> State SPLC Type
-idType i fs = splcv . indiff $ idType' i fs
+idType :: String -> [String] -> State SPLC Type
+idType i fs = do
+    cv <- splcv getState
+    t <- idType' i fs
+    splcv . st $ const cv
+    return t
     where
     idType' i fs = case fs of
-        [] -> clookupe i
+        [] -> splcv $ clookupe i
         f : r -> do
-            t <- clookupe i
-            crem i
+            t <- splcv $ clookupe i
+            splcv $ crem i
             t' <- fieldType f
             a <- checkApp t' t
-            cadd i a "?"
+            splcv $ cadd i a "?"
             idType' i r
 
 annotateE :: Exp -> State SPLC ExpT
@@ -358,11 +350,11 @@ annotateE e = case unFix e of
     EChar c -> res (EChar c) TChar
     ENil -> splcv $ do
         a <- fresh
-        res ENil (TList a)
+        res ENil (tList a)
     ETuple e1 e2 -> do
         e1 <- annotateE e1
         e2 <- annotateE e2
-        res (ETuple e1 e2) (TTuple (getType e1) (getType e2))
+        res (ETuple e1 e2) (tTuple (getType e1) (getType e2))
     EId i fs -> do
         t <- idType i fs
         res (EId i fs) t
@@ -381,7 +373,7 @@ annotateE e = case unFix e of
         e1 <- annotateE e1
         e2 <- annotateE e2
         ft <- splcv (op2Type o)
-        t <- checkApp ft (TTuple (getType e1) (getType e2))
+        t <- checkApp ft (tTuple (getType e1) (getType e2))
         res (EOp2 o e1 e2) t
     where
     res e t = return $ expt e t

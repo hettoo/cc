@@ -6,6 +6,10 @@ all:
 	mkdir -p build
 	ghc -O2 -outputdir $(BUILD) -i$(SOURCE) -o $(EXE) $(SOURCE)/Main.hs
 
+debug:
+	mkdir -p build
+	ghc -O2 -prof -fprof-auto -outputdir $(BUILD) -i$(SOURCE) -o $(EXE) $(SOURCE)/Main.hs
+
 run: all
 	$(EXE) < tests/main.spl
 
@@ -47,4 +51,4 @@ tests: all
 	@$(call testError,typing/error17)
 	@$(call testError,typing/error18)
 
-.PHONY: all run tests
+.PHONY: all debug run tests

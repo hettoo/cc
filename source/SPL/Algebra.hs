@@ -9,7 +9,7 @@ data PStmt e =
     | FunDecl Type String [(Type, String)] (PStmt e)
     | FunCall String [e]
     | Return (Maybe e)
-    | Assign String [Field] e
+    | Assign String [String] e
     | If e (PStmt e) (Maybe (PStmt e))
     | While e (PStmt e)
     | Case e [(String, PStmt e)]
@@ -24,17 +24,14 @@ data Type =
     | TInt
     | TBool
     | TChar
-    | TTuple Type Type
-    | TList Type
     | TVoid
     deriving (Eq, Show)
 
-data Field =
-    Head
-    | Tail
-    | First
-    | Second
-    deriving (Eq, Show)
+tTuple :: Type -> Type -> Type
+tTuple t1 t2 = TCustom "Tuple" [t1, t2]
+
+tList :: Type -> Type
+tList t = TCustom "List" [t]
 
 data Op1 =
     ONot
@@ -64,7 +61,7 @@ data PExp e =
     | EChar Char
     | ENil
     | ETuple e e
-    | EId String [Field]
+    | EId String [String]
     | ECons String [e]
     | EFunCall String [e]
     | EOp1 Op1 e
@@ -85,4 +82,4 @@ getType = typeC . unFix
 combineTypes :: [Type] -> Type
 combineTypes l = case l of
     [] -> TVoid
-    a : r -> if null r then a else TTuple a (combineTypes r)
+    a : r -> if null r then a else tTuple a (combineTypes r)

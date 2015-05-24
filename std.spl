@@ -1,0 +1,217 @@
+data List a = Nil | Cons(a hd, [a] tl);
+data Tuple a b = Tuple(a fst, b snd);
+
+Bool isEmpty([a] l) {
+    case l {
+        Nil {
+            return True;
+        }
+        Cons {
+            return False;
+        }
+    }
+}
+
+Void print_(Bool b) {
+    if (b) {
+        print('T');
+        print('r');
+        print('u');
+        print('e');
+    } else {
+        print('F');
+        print('a');
+        print('l');
+        print('s');
+        print('e');
+    }
+}
+
+Void print_((a, b) t) {
+    print('(');
+    print(t.fst);
+    print(',');
+    print(' ');
+    print(t.snd);
+    print(')');
+}
+
+Void print_([a] l) {
+    print('[');
+    if (!isEmpty(l)) {
+        print(l.hd);
+        l = l.tl;
+    }
+    while (!isEmpty(l)) {
+        print(',');
+        print(' ');
+        print(l.hd);
+        l = l.tl;
+    }
+    print(']');
+}
+
+(a, b) op_not((a, b) t) {
+    return (!t.fst, !t.snd);
+}
+
+(a, b) op_neg((a, b) t) {
+    return (-t.fst, -t.snd);
+}
+
+Bool op_eq((a, b) t1, (a, b) t2) {
+    return t1.fst == t2.fst && t1.snd == t2.snd;
+}
+
+Bool op_ne((a, b) t1, (a, b) t2) {
+    return t1.fst != t2.fst || t1.snd != t2.snd;
+}
+
+Bool op_lt((a, b) t1, (a, b) t2) {
+    return t1.fst < t2.fst || t1.fst == t2.fst && t1.snd < t2.snd;
+}
+
+Bool op_gt((a, b) t1, (a, b) t2) {
+    return t1.fst > t2.fst || t1.fst == t2.fst && t1.snd > t2.snd;
+}
+
+Bool op_le((a, b) t1, (a, b) t2) {
+    return t1.fst < t2.fst || t1.fst == t2.fst && t1.snd <= t2.snd;
+}
+
+Bool op_ge((a, b) t1, (a, b) t2) {
+    return t1.fst > t2.fst || t1.fst == t2.fst && t1.snd >= t2.snd;
+}
+
+(a, b) op_add((a, b) t1, (a, b) t2) {
+    return (t1.fst + t2.fst, t1.snd + t2.snd);
+}
+
+(a, b) op_sub((a, b) t1, (a, b) t2) {
+    return (t1.fst - t2.fst, t1.snd - t2.snd);
+}
+
+(a, b) op_mul((a, b) t1, (a, b) t2) {
+    return (t1.fst * t2.fst, t1.snd * t2.snd);
+}
+
+(a, b) op_div((a, b) t1, (a, b) t2) {
+    return (t1.fst / t2.fst, t1.snd / t2.snd);
+}
+
+(a, b) op_mod((a, b) t1, (a, b) t2) {
+    return (t1.fst % t2.fst, t1.snd % t2.snd);
+}
+
+[a] op_not([a] l) {
+    if (isEmpty(l))
+        return l;
+    else
+        return !l.hd : !l.tl;
+}
+
+[a] op_neg([a] l) {
+    if (isEmpty(l))
+        return l;
+    else
+        return -l.hd : !l.tl;
+}
+
+Bool op_eq([a] l1, [a] l2) {
+    if (isEmpty(l1) && isEmpty(l2))
+        return True;
+    else if (isEmpty(l1) || isEmpty(l2))
+        return False;
+    else
+        return l1.hd == l2.hd && l1.tl == l2.tl;
+}
+
+Bool op_ne([a] l1, [a] l2) {
+    if (isEmpty(l1) && isEmpty(l2))
+        return False;
+    else if (isEmpty(l1) || isEmpty(l2))
+        return True;
+    else
+        return l1.hd != l2.hd && l1.tl != l2.tl;
+}
+
+Bool op_lt([a] l1, [a] l2) {
+    if (isEmpty(l1) && !isEmpty(l2))
+        return True;
+    else if (isEmpty(l1) || isEmpty(l2))
+        return False;
+    else
+        return l1.hd < l2.hd || l1.hd == l2.hd && l1.tl < l2.tl;
+}
+
+Bool op_gt([a] l1, [a] l2) {
+    if (isEmpty(l2) && !isEmpty(l1))
+        return True;
+    else if (isEmpty(l2) || isEmpty(l1))
+        return False;
+    else
+        return l1.hd > l2.hd || l1.hd == l2.hd && l1.tl > l2.tl;
+}
+
+Bool op_le([a] l1, [a] l2) {
+    if (isEmpty(l1))
+        return True;
+    else if (isEmpty(l2))
+        return False;
+    else
+        return l1.hd < l2.hd || l1.hd == l2.hd && l1.tl <= l2.tl;
+}
+
+Bool op_ge([a] l1, [a] l2) {
+    if (isEmpty(l2))
+        return True;
+    else if (isEmpty(l1))
+        return False;
+    else
+        return l1.hd > l2.hd || l1.hd == l2.hd && l1.tl >= l2.tl;
+}
+
+[a] op_add([a] l1, [a] l2) {
+    if (isEmpty(l1))
+        return l2;
+    else if (isEmpty(l1))
+        return l1;
+    else
+        return l1.hd + l2.hd : l1.tl + l2.tl;
+}
+
+[a] op_sub([a] l1, [a] l2) {
+    if (isEmpty(l1))
+        return l2;
+    else if (isEmpty(l1))
+        return l1;
+    else
+        return l1.hd - l2.hd : l1.tl - l2.tl;
+}
+
+[a] op_mul([a] l1, [a] l2) {
+    if (isEmpty(l1))
+        return l2;
+    else if (isEmpty(l1))
+        return l1;
+    else
+        return l1.hd * l2.hd : l1.tl * l2.tl;
+}
+
+[a] op_div([a] l1, [a] l2) {
+    if (isEmpty(l1))
+        return l2;
+    else if (isEmpty(l1))
+        return l1;
+    else
+        return l1.hd / l2.hd : l1.tl / l2.tl;
+}
+
+[a] op_mod([a] l1, [a] l2) {
+    if (isEmpty(l1))
+        return l2;
+    else if (isEmpty(l1))
+        return l1;
+    else
+        return l1.hd % l2.hd : l1.tl % l2.tl;
+}

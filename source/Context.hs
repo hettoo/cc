@@ -50,11 +50,24 @@ clookupa s = res clookupa'
     clookupa' (i, n, l) = foldr (\(s', t, _) r ->
         if s == s' then t : r else r) [] l
 
+clookupf :: (t -> Bool) -> State (Context t) (Maybe t)
+clookupf f = res $ \(i, n, l) -> case l of
+    [] -> Nothing
+    (_, t, _) : _ | f t -> Just t
+    _ : r -> clookupf f >!> (i, n, r)
+
 clookup :: String -> State (Context t) (Maybe t)
 clookup s = res $ \(i, n, l) -> case l of
     [] -> Nothing
     (s', t, _) : _ | s == s' -> Just t
     _ : r -> clookup s >!> (i, n, r)
+
+clookupfe :: (t -> Bool) -> State (Context t) t
+clookupfe f = do
+    m <- clookupf f
+    case m of
+        Nothing -> fail $ "context lookup error"
+        Just t -> return t
 
 clookupe :: String -> State (Context t) t
 clookupe s = do

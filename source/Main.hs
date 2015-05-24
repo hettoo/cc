@@ -27,8 +27,11 @@ lookupPath args = case args of
 main = do
     args <- getArgs
     s <- getContents
-    let p = annotateProgram . parseSPL $ s
-    writeFile (lookupPath args) $ seqOutput p
-    putStr . prettyPrint $ p
+    let p = parseSPL s
+    std <- readFile "std.spl"
+    let pstd = parseSPL std
+    let a = annotateProgram (pstd ++ p)
+    writeFile (lookupPath args) $ seqOutput a
+    putStr . prettyPrint $ drop (length pstd) a
     --putStr . prettyPrint . parseSPL $ s
     --putStrLn $ "Parser |= Printer: " ++ show (testPrinter s)
