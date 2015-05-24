@@ -48,7 +48,7 @@ instance (SimplePrinter e, SimplePrinter [e]) => PrettyPrinter (PStmt e) where
             Return m -> "return" ++ (case m of
                 Nothing -> ""
                 Just e -> " " ++ simplePrint e) ++ ";\n"
-            Assign s l e -> s ++ concat (map ('.' :) l) ++ " = " ++
+            Assign s l e -> s ++ concatMap ('.' :) l ++ " = " ++
                 simplePrint e ++ ";\n"
             Case e bs -> "case " ++ simplePrint e ++ " {" ++
                 foldr singleCase "" bs ++ "\n" ++ prettyPrint' n () ++ "}\n"
@@ -211,7 +211,7 @@ instance (SimplePrinter e, SimplePrinter [e], Strength e) =>
         EChar c -> show c
         ENil -> "[]"
         ETuple a b -> "(" ++ simplePrint a ++ ", " ++ simplePrint b ++ ")"
-        EId s l -> s ++ concat (map ('.' :) l)
+        EId s l -> s ++ concatMap ('.' :) l
         ECons i as -> i ++ "(" ++ simplePrint as ++ ")"
         EFunCall s l -> s ++ "(" ++ simplePrint l ++ ")"
         EOp1 o a -> simplePrint o ++ wrap (simplePrint a) (stronger1 o a)
