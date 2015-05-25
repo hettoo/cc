@@ -193,27 +193,35 @@ applyFun i as = do
     ts <- splcf (clookupa i)
     ts <- mapM (\t -> splcv (freshen t)) ts
     as <- mapM annotateE as
-    let a = combineTypes (map getType as) in do
-        us <- mapM (\(t, t') ->
-            return $ fmap (\c -> treplace t' >!> c) (unifyf t a)) ts
-        us <- filterM (\m -> return $ case m of Just _ -> True; _ -> False) us
-        us <- mapM (\m -> case m of Just t -> return t) us
-        t <- case us of
-            t : _ -> return t
-            _ -> fail $ "no candidate for application of " ++ i ++ " found"
-        return (as, t)
+    let a = combineTypes (map getType as)
+    us <- mapM (\(t, t') ->
+        return $ fmap (\c -> treplace t' >!> c) (unifyf t a)) ts
+    us <- filterM (\m -> return $ case m of Just _ -> True; _ -> False) us
+    us <- mapM (\m -> case m of Just t -> return t) us
+    t <- case us of
+        t : _ -> return t
+        _ -> fail $ "no candidate for application of " ++ i ++ " found"
+    return (as, t)
 
 applyCons :: String -> [Exp] -> State SPLC ([ExpT], Type)
 applyCons i es = do
     (j, as, ts) <- splcd (clookupe i)
     es <- mapM annotateE es
-    ats <- return $ map getType es
-    c <- return $ sequence (map addArg (zip (map fst ts) ats)) >@> cnew
-    rts <- return $ map (applyUnificationT c) (map TPoly as)
-    rts <- splcv $ ST $ \cv ->
-        let (r, (cv', _)) = apply (mapM freshenT rts) (cv, cnew) in
-        Left (r, cv')
-    return (es, TCustom j rts)
+    let ats = map getType es
+    ts <- return $ map fst ts
+    let atss = combineTypes ats
+    let tss = combineTypes ts
+    case unifiablef atss tss of
+        True -> do
+            let c = sequence (map addArg (zip ts ats)) >@> cnew
+            let rts = map (applyUnificationT c) (map TPoly as)
+            rts <- splcv $ ST $ \cv ->
+                let (r, (cv', _)) = apply (mapM freshenT rts) (cv, cnew) in
+                Left (r, cv')
+            return (es, TCustom j rts)
+        False -> fail $ "constructor mismatch: expected type `" ++
+            simplePrint tss ++ "' cannot be unified with given type `" ++
+            simplePrint atss ++ "'"
     where
     addArg (t, at) = case t of
         TPoly p -> cadd p at "duplicate type argument"

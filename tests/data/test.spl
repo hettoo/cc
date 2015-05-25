@@ -3,7 +3,7 @@ data Test a b = A | B | C (Int field);
 Void main() {
     \Test Int Int/ a = B();
     Int b = 7;
-    a = C(5); // needs to count and type check
+    a = C(5);
     case a {
         C { // later we can add arguments here to bind fields
         }
