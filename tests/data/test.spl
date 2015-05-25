@@ -1,6 +1,5 @@
 data Test a b = A | B | C (Int field);
-// duplicate constructors are checked, type names not yet
-// field names should be unique within a type (or appear at the same position)
+// duplicate constructors and fields are checked; type names not yet
 
 Void main() {
     \Test Int Int/ a = B();
@@ -15,4 +14,22 @@ Void main() {
     }
     b = a.field;
     a.field = 3;
+    print(a);
+}
+
+Void print_(\Test a b/ a) {
+    case a {
+        A {
+            print('A');
+        }
+        B {
+            print('B');
+        }
+        C {
+            print('C');
+            print('(');
+            print(a.field);
+            print(')');
+        }
+    }
 }

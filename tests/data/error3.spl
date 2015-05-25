@@ -1,0 +1,4 @@
+data Test = A | A;
+
+Void main() {
+}

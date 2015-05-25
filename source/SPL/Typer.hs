@@ -118,7 +118,11 @@ initContext l = case l of
                 caddvar i t
             FunDecl t i as _ -> do
                 caddfun i as t
-            DataDecl i as cs -> sequence_ (map addCons cs)
+            DataDecl i as cs -> let fs = map snd (concat (map snd cs)) in
+                if length fs == length (nub fs) then
+                    sequence_ (map addCons cs)
+                else
+                    fail $ "duplicate field name"
                 where
                 addCons (c, ts) = splcd $ cadd c (i, as, ts)
                     ("duplicate constructor " ++ c)

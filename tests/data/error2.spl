@@ -1,0 +1,5 @@
+data Test1 = A;
+data Test2 = A;
+
+Void main() {
+}

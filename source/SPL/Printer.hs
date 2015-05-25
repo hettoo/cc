@@ -54,7 +54,7 @@ instance (SimplePrinter e, SimplePrinter [e]) => PrettyPrinter (PStmt e) where
                 foldr singleCase "" bs ++ "\n" ++ prettyPrint' n () ++ "}\n"
                 where
                 singleCase (i, b) r = "\n" ++ prettyPrint' (n + 1) () ++ i ++
-                    " " ++ prettyPrint' (n + 1) b ++ r
+                    " " ++ prettyPrint' (n + 1) (makeBlockStrong b) ++ r
             If c b m -> printIfChain c b (elseIfChain m)
                 (b : (chainStmts . elseIfChain) m)
             While e b -> "while (" ++ simplePrint e ++ ")" ++
@@ -89,6 +89,9 @@ instance (SimplePrinter e, SimplePrinter [e]) => PrettyPrinter (PStmt e) where
             If _ _ _ -> Stmts [s]
             While _ _ -> Stmts [s]
             _ -> s
+        makeBlockStrong s = case s of
+            Stmts _ -> s
+            _ -> Stmts [s]
 
 instance SimplePrinter [(Type, String)] where
     simplePrint l = "(" ++ intercalate ", "
