@@ -45,15 +45,17 @@ caddfun i as t = do
 instance DistinctSequence Type where
     createN n = TPoly ("?" ++ show n)
 
-fieldType :: String -> State SPLC (Type, Type)
-fieldType i = do
-    m <- splcd (clookupf (\(j, as, ts) ->
-        case find ((== i) . snd) ts of
-            Just _ -> True
-            _ -> False))
-    let (j, as, ts) = unMaybe ("field `" ++ i ++ "' not found") m
-    splcv $ freshen (TCustom j (map TPoly as),
-        (fst . unMaybe "?" . find ((== i) . snd)) ts)
+fieldType :: String -> Type -> State SPLC (Type, Type)
+fieldType i bt = case bt of
+    TCustom j _ -> do
+        m <- splcd (clookupf (\(j', as, ts) -> j == j' &&
+            case find ((== i) . snd) ts of
+                Just _ -> True
+                _ -> False))
+        let (j, as, ts) = unMaybe ("field `" ++ i ++ "' not found") m
+        splcv $ freshen (TCustom j (map TPoly as),
+            (fst . unMaybe "?" . find ((== i) . snd)) ts)
+    _ -> fail $ "not a custom type: `" ++ show bt ++ "'"
     where
     unMaybe e m = case m of
         Just x -> x
@@ -299,11 +301,11 @@ annotateS l s = case s of
                             simplePrint t ++ "' provided; expected `" ++
                             simplePrint a ++ "' in function " ++ i
     Assign i fs e -> do
-        vt <- idType i fs
+        (vt, tfs) <- idType i fs
         e <- annotateE e
         let t = getType e in
             if unifiablef t vt then
-                return $ Assign i fs e
+                return $ Assign i tfs e
             else
                 fail $ "assignment mismatch: expected type `" ++
                     simplePrint vt ++
@@ -369,7 +371,7 @@ freshenT t = case t of
     stl = stWrap fst (\a (_, b) -> (a, b))
     str = stWrap snd (\b (a, _) -> (a, b))
 
-idType :: String -> [String] -> State SPLC Type
+idType :: String -> [String] -> State SPLC (Type, [(String, Type)])
 idType i fs = do
     cv <- splcv getState
     t <- idType' i fs
@@ -377,14 +379,17 @@ idType i fs = do
     return t
     where
     idType' i fs = case fs of
-        [] -> splcv $ clookupe i
+        [] -> do
+            t <- splcv $ clookupe i
+            return (t, [])
         f : r -> do
             t <- splcv $ clookupe i
             splcv $ crem i
-            t' <- fieldType f
+            t' <- fieldType f t
             a <- checkApp t' t
             splcv $ cadd i a "?"
-            idType' i r
+            (tres, tfs) <- idType' i r
+            return (tres, (f, t) : tfs)
 
 annotateE :: Exp -> State SPLC ExpT
 annotateE e = case unFix e of
@@ -399,8 +404,8 @@ annotateE e = case unFix e of
         e2 <- annotateE e2
         res (ETuple e1 e2) (tTuple (getType e1) (getType e2))
     EId i fs -> do
-        t <- idType i fs
-        res (EId i fs) t
+        (t, tfs) <- idType i fs
+        res (EId i tfs) t
     ECons i as -> do
         (es, t) <- applyCons i as
         res (ECons i es) t

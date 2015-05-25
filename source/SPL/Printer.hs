@@ -18,20 +18,21 @@ class SimplePrinter a where
 instance PrettyPrinter () where
     prettyPrint' n _ = concatMap (replicate n) "    "
 
-elseIfChain :: Maybe (PStmt e) -> ([(e, PStmt e)], Maybe (PStmt e))
+elseIfChain :: Maybe (PStmt f e) -> ([(e, PStmt f e)], Maybe (PStmt f e))
 elseIfChain m = case m of
     Nothing -> ([], Nothing)
     Just (If c b m') -> left ((:) (c, b)) (elseIfChain m')
     Just s -> ([], Just s)
 
-chainStmts :: ([(e, PStmt e)], Maybe (PStmt e)) -> [PStmt e]
+chainStmts :: ([(e, PStmt f e)], Maybe (PStmt f e)) -> [PStmt f e]
 chainStmts (l, m) = case l of
     [] -> case m of
         Nothing -> []
         Just s -> [s]
     (e, s) : r -> s : chainStmts (r, m)
 
-instance (SimplePrinter e, SimplePrinter [e]) => PrettyPrinter (PStmt e) where
+instance (SimplePrinter e, SimplePrinter [e], FieldFix f) =>
+    PrettyPrinter (PStmt f e) where
     prettyPrint' n stmt = case stmt of
         Stmts l -> "{\n" ++ prettyPrint' (n + 1) l ++ prettyPrint' n () ++ "}"
         _ -> prettyPrint' n () ++ case stmt of
@@ -49,7 +50,7 @@ instance (SimplePrinter e, SimplePrinter [e]) => PrettyPrinter (PStmt e) where
             Return m -> "return" ++ (case m of
                 Nothing -> ""
                 Just e -> " " ++ simplePrint e) ++ ";\n"
-            Assign s l e -> s ++ concatMap ('.' :) l ++ " = " ++
+            Assign s l e -> s ++ concatMap ('.' :) (map fieldName l) ++ " = " ++
                 simplePrint e ++ ";\n"
             Case e bs -> "case " ++ simplePrint e ++ " {" ++
                 foldr singleCase "" bs ++ "\n" ++ prettyPrint' n () ++ "}\n"
@@ -106,7 +107,8 @@ data DeclState =
     | DSVar
     deriving (Eq, Show)
 
-instance (SimplePrinter e, SimplePrinter [e]) => PrettyPrinter [PStmt e] where
+instance (SimplePrinter e, SimplePrinter [e], FieldFix f) =>
+    PrettyPrinter [PStmt f e] where
     prettyPrint' = prettyPrint'' DSPre
         where
         prettyPrint'' s n l = case l of
@@ -207,15 +209,24 @@ strength o = case o of
     ODiv -> 5
     OMod -> 5
 
-instance (SimplePrinter e, SimplePrinter [e], Strength e) =>
-    SimplePrinter (PExp e) where
+class FieldFix f where
+    fieldName :: f -> String
+
+instance FieldFix String where
+    fieldName = id
+
+instance FieldFix (String, Type) where
+    fieldName = fst
+
+instance (SimplePrinter e, SimplePrinter [e], Strength e, FieldFix f) =>
+    SimplePrinter (PExp f e) where
     simplePrint e = case e of
         EInt n -> show n
         EBool b -> show b
         EChar c -> ['\'', c, '\'']
         ENil -> "[]"
         ETuple a b -> "(" ++ simplePrint a ++ ", " ++ simplePrint b ++ ")"
-        EId s l -> s ++ concatMap ('.' :) l
+        EId s l -> s ++ concatMap ('.' :) (map fieldName l)
         ECons i as -> i ++ if null as then "" else "(" ++ simplePrint as ++ ")"
         EFunCall s l -> s ++ "(" ++ simplePrint l ++ ")"
         EOp1 o a -> simplePrint o ++ wrap (simplePrint a) (stronger1 o a)

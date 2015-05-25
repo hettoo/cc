@@ -387,13 +387,14 @@ seqWhile c b = do
     addCmd $ BRA (flowLabel f)
     addCmd $ LABEL (flowLabel (f + 1))
 
-findField :: [StmtT] -> String -> (Int, Int)
-findField l i =
+findField :: [StmtT] -> (String, Type) -> (Int, Int)
+findField l (i, t) =
     let
+        TCustom j _ = t
         s : r = l
-        rec = findField r i
+        rec = findField r (i, t)
     in case s of
-        DataDecl _ _ cs -> foldr findField' rec cs
+        DataDecl j' _ cs -> if j' == j then foldr findField' rec cs else rec
             where
             findField' (_, fs) rec = case findIndex ((== i) . snd) fs of
                 Nothing -> rec

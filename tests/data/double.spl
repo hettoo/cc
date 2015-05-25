@@ -1,0 +1,15 @@
+data Test1 = A(Int x, Int y);
+data Test2 = B(Int y, Int x);
+
+Void main() {
+    \Test1/ a = A(2, 3);
+    \Test2/ b = B(5, 7);
+    print(a.x);
+    print(a.y);
+    print(b.y);
+    print(b.x);
+    a.y = 11;
+    b.x = 13;
+    print(a.y);
+    print(b.x);
+}
