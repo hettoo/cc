@@ -7,7 +7,6 @@ Void main() {
     case a {
         C { // later we can add arguments here to bind fields
         }
-        // constructors here should match the type of the case expression
         A {
         }
     }

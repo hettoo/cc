@@ -1,4 +1,9 @@
 module Utils where
+import Data.List
+
+isMinimal :: Eq a =>
+    [a] -> Bool
+isMinimal l = length l == length (nub l)
 
 sm :: (a -> b) -> ([a] -> b) -> [a] -> b
 sm f g l = case l of

@@ -1,0 +1,9 @@
+data Test1 = A;
+data Test2 = B;
+
+Void main() {
+    case A() {
+        B {
+        }
+    }
+}

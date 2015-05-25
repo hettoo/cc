@@ -50,5 +50,13 @@ tests: all
 	@$(call testError,typing/error16)
 	@$(call testError,typing/error17)
 	@$(call testError,typing/error18)
+	@$(call testError,data/error1)
+	@$(call testError,data/error2)
+	@$(call testError,data/error3)
+	@$(call testError,data/error4)
+	@$(call testError,data/error5)
+	@$(call testError,data/error6)
+	@$(call testError,data/error7)
+	@$(call testError,data/error8)
 
 .PHONY: all debug run tests

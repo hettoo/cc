@@ -1,0 +1,10 @@
+data Test = A;
+
+Void main() {
+    case A() {
+        A {
+        }
+        A {
+        }
+    }
+}

@@ -5,6 +5,7 @@ import SPL.Printer
 import Context
 import State
 import Fix
+import Utils
 import Control.Monad
 import Data.List
 
@@ -122,7 +123,7 @@ initContext l = case l of
                 m <- splcd $ clookupf (\(j, _, _) -> i == j)
                 case m of
                     Nothing -> let fs = map snd (concat (map snd cs)) in
-                        if length fs == length (nub fs) then
+                        if isMinimal fs then
                             sequence_ (map addCons cs)
                         else
                             fail "duplicate field name"
@@ -294,13 +295,24 @@ annotateS l s = case s of
                     "' cannot be unified with given type `" ++
                     simplePrint t ++ "' (variable " ++ i ++ ")"
     Case e bs -> do
+        if isMinimal (map fst bs) then ids else
+            fail $ "duplicate constructor in case"
         e <- annotateE e
-        bs <- sequence $ map annotateCase bs
+        let t = getType e
+        j <- case t of
+            TCustom j _ -> return j
+            _ -> fail $ "not a matchable type: " ++ simplePrint t
+        bs <- sequence $ map (annotateCase j) bs
         return $ Case e bs
         where
-        annotateCase (i, s) = do
-            s <- annotateS l s
-            return (i, s)
+        annotateCase j (i, s) = do
+            (j', _, _) <- splcd (clookupe i)
+            case j == j' of
+                True -> do
+                    s <- annotateS l s
+                    return (i, s)
+                False -> fail $ "constructor " ++ i ++
+                    " belongs to type " ++ j' ++ " rather than " ++ j
     If e s m -> do
         e <- annotateE e
         s <- indiff (annotateS l s)
