@@ -3,4 +3,5 @@ Void main() {
     [Int] b = 1 : 3 : [];
     print(a < b);
     print(a < a);
+    print(a + b);
 }
