@@ -1,0 +1,60 @@
+data Tree a = Leaf | Node(a val, \Tree a/ left, \Tree a/ right);
+
+Void main() {
+    print(fromList(1 : 2 : 3 : 4 : []));
+}
+
+\Tree a/ fromList([a] l) {
+    ([a], [a]) t = ([], []);
+    case l {
+        Nil {
+            return Leaf;
+        }
+        Cons {
+            t = split(l.tl);
+            return Node(l.hd, fromList(t.fst), fromList(t.snd));
+        }
+    }
+}
+
+([a], [a]) split([a] l) {
+    [a] r = [];
+    ([a], [a]) t = ([], []);
+    case l {
+        Nil {
+            return t;
+        }
+        Cons {
+            r = l.tl;
+            case r {
+                Nil {
+                    return (l.hd : [], []);
+                }
+                Cons {
+                    t = split(r.tl);
+                    return (l.hd : t.fst, r.hd : t.snd);
+                }
+            }
+        }
+    }
+}
+
+Void print_(\Tree a/ t) {
+    printTree(0, t);
+}
+
+Void printTree(Int n, \Tree a/ t) {
+    Int i = 0;
+    case t {
+        Node {
+            printTree(n + 1, t.left);
+            while (i < n) {
+                print(' ');
+                print(' ');
+                i = i + 1;
+            }
+            print(t.val);
+            printTree(n + 1, t.right);
+        }
+    }
+}

@@ -1,0 +1,6 @@
+data Test = A(Int field);
+
+Void main() {
+    \Test/ a = A(5);
+    Bool b = a.field;
+}

@@ -211,7 +211,7 @@ instance (SimplePrinter e, SimplePrinter [e], Strength e) =>
     simplePrint e = case e of
         EInt n -> show n
         EBool b -> show b
-        EChar c -> show c
+        EChar c -> ['\'', c, '\'']
         ENil -> "[]"
         ETuple a b -> "(" ++ simplePrint a ++ ", " ++ simplePrint b ++ ")"
         EId s l -> s ++ concatMap ('.' :) l

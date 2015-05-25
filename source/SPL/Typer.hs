@@ -8,6 +8,7 @@ import Fix
 import Utils
 import Control.Monad
 import Data.List
+import Debug.Trace
 
 type Cv = Context Type
 type Cf = Context (Type, Type)
@@ -46,16 +47,17 @@ instance DistinctSequence Type where
 
 fieldType :: String -> State SPLC (Type, Type)
 fieldType i = do
-    (j, as, ts) <- splcd (clookupfe (\(j, as, ts) ->
+    m <- splcd (clookupf (\(j, as, ts) ->
         case find ((== i) . snd) ts of
             Just _ -> True
             _ -> False))
+    let (j, as, ts) = unMaybe ("field `" ++ i ++ "' not found") m
     splcv $ freshen (TCustom j (map TPoly as),
-        (fst . unMaybe . find ((== i) . snd)) ts)
+        (fst . unMaybe "?" . find ((== i) . snd)) ts)
     where
-    unMaybe m = case m of
+    unMaybe e m = case m of
         Just x -> x
-        _ -> error "unexpected void"
+        _ -> error e
 
 treplace :: Type -> State (Context Type) Type
 treplace t = case t of
