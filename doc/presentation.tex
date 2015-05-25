@@ -1,0 +1,231 @@
+\documentclass[12pt]{beamer}
+
+\title{SPL with Custom Data Types}
+\author{Gerco van Heerdt}
+
+\usepackage[english]{babel}
+\usepackage{lmodern}
+\usepackage{fixltx2e}
+\usepackage{array}
+
+\setbeamertemplate{frametitle continuation}{}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}[frame number]
+
+\newcommand{\mcut}[1]{\ifmin\\\quad #1\else#1\fi}
+\newcommand{\mfset}[2]{
+    \gdef\multiframetitle{#1}
+    \gdef\multiframesubtitle{#2}
+}
+\newenvironment{mframe}{
+    \begin{frame}
+        \frametitle{\multiframetitle}
+        \framesubtitle{\multiframesubtitle}
+}{
+    \end{frame}
+}
+
+\setlength{\parskip}{\medskipamount}
+
+\begin{document}
+
+\frame{\titlepage}
+
+\begin{frame}[fragile]
+    \frametitle{Example}
+    \framesubtitle{Bool}
+    \begin{verbatim}
+data Bool = True | False;\end{verbatim}
+    In declarations, custom types are put between slashes:
+    \begin{verbatim}
+\Bool/ b = True;\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Example}
+    \frametitle{Lists and Tuples}
+    \begin{verbatim}
+data List a = Nil | Cons(a hd, \List a/ tl);
+data Tuple a b = Tuple(a fst, b snd);\end{verbatim}
+    \verb+[a]+ is now just a synonym for \verb+\List a/+ and \verb+(a, b)+ for \verb+\Tuple a b/+
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Constructors}
+    \begin{verbatim}
+data List a = Nil | Cons(a hd, \List a/ tl);\end{verbatim}
+    The assignment
+    \begin{verbatim}
+[Int] l = 2 : [];\end{verbatim}
+    is equivalent to
+    \begin{verbatim}
+\List Int/ l = Cons(2, Nil);\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Generalized Field Accessors}
+    \begin{verbatim}
+data List a = Nil | Cons(a hd, \List a/ tl);\end{verbatim}
+    Field names automatically become accessors:
+    \begin{verbatim}
+\List Int/ l = Cons(2, Nil);
+print(l.hd);\end{verbatim}
+    prints 2
+
+    Setting a field has also been generalized.
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Duplicate Field Names}
+    \begin{verbatim}
+data T1 = A(Int x, Int y);
+data T2 = B(Int y, Int x);
+
+Void main() {
+    \T1/ a = A(2, 3);
+    \T2/ b = B(5, 7);
+    print(a.x);
+    print(a.y);
+    print(b.y);
+    print(b.x);
+    a.y = 11;
+    b.x = 13;
+    print(a.y);
+    print(b.x);
+}\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Errors}
+    \framesubtitle{Invalid Duplicate Field Names}
+    \begin{verbatim}
+data T = A(Int field) | B(Bool field);\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Errors}
+    \framesubtitle{Duplicate Constructor Names}
+    \begin{verbatim}
+data T1 = A;
+data T2 = A;\end{verbatim}
+    \begin{verbatim}
+data T = B | B;\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Errors}
+    \framesubtitle{Duplicate Type Names}
+    \begin{verbatim}
+data T = A;
+data T = B;\end{verbatim}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Type Checking}
+    \begin{itemize}
+        \item Constructor application is checked like function application
+        \item Field accessors are like functions from the custom type to the field type
+    \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Constructor Matching}
+    \begin{verbatim}
+data List a = Nil | Cons(a hd, \List a/ tl);\end{verbatim}
+    \begin{verbatim}
+\List Int/ l = Cons(2, Nil);
+case l {
+    Nil { print(0); }
+    Cons { print(l.hd); }
+}\end{verbatim}
+    No actual pattern matching, but field accessors alleviate this.
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Errors}
+    \framesubtitle{Invalid Constructor}
+    \begin{verbatim}
+data T1 = A;
+data T2 = B;
+
+Void main() {
+    case A() {
+        B {}
+    }
+}\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Errors}
+    \framesubtitle{Duplicate Constructor}
+    \begin{verbatim}
+data T = A;
+
+Void main() {
+    case A() {
+        A {}
+        A {}
+    }
+}\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Errors}
+    \framesubtitle{Non-Custom Type}
+    \begin{verbatim}
+Void main() {
+    case 5 {}
+}\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Errors}
+    \framesubtitle{Return Value Not Guaranteed}
+    \begin{verbatim}
+data T = A | B;
+
+Bool test(\T/ a) {
+    case a {
+        A { return True; }
+    }
+}\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Errors}
+    \framesubtitle{Return Value Not Guaranteed}
+    \begin{verbatim}
+data T = A | B;
+
+Bool test(\T/ a) {
+    case a {
+        A { }
+        B { return True; }
+    }
+}\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Example}
+    \framesubtitle{Printing a List as a Tree}
+    \begin{verbatim}
+data Tree a = Leaf |
+    Node(a val, \Tree a/ left, \Tree a/ right);
+
+\Tree a/ fromList([a] l) {
+    ([a], [a]) t;
+    case l {
+        Nil { return Leaf; }
+        Cons {
+            t = split(l.tl);
+            return Node(l.hd,
+                fromList(t.fst),
+                fromList(t.snd)); }
+    }
+}
+\end{verbatim}
+\end{frame}
+
+% TODO: technical details
+
+\end{document}

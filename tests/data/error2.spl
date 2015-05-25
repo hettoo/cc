@@ -1,5 +1,5 @@
-data Test1 = A;
-data Test2 = A;
+data T1 = A;
+data T2 = A;
 
 Void main() {
 }

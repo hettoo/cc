@@ -1,4 +1,4 @@
-data Test = A | A;
+data T = A | A;
 
 Void main() {
 }

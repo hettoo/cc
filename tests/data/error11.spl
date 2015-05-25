@@ -1,6 +1,6 @@
-data Test = A | B;
+data T = A | B;
 
-Bool test(\Test/ a) {
+Bool test(\T/ a) {
     case a {
         A {
         }

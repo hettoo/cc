@@ -1,4 +1,4 @@
-data Test = A(Int field) | B(Bool field);
+data T = A(Int field) | B(Bool field);
 
 Void main() {
 }

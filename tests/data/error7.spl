@@ -1,4 +1,4 @@
-data Test = A;
+data T = A;
 
 Void main() {
     case A() {

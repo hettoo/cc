@@ -1,6 +1,6 @@
-data Test = A(Int field);
+data T = A(Int field);
 
 Void main() {
-    \Test/ a = A(5);
+    \T/ a = A(5);
     Bool b = a.field;
 }
