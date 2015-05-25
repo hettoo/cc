@@ -159,8 +159,8 @@ globals l = do
     setGlobals l n = case l of
         [] -> ids
         s : r -> case s of
-            VarDecl t i e -> do
-                seqExp l e
+            VarDecl t i m -> do
+                seqDecl l m
                 addVariable i n True
                 setGlobals r (n + 1)
             _ -> setGlobals r n
@@ -226,10 +226,10 @@ varPos i = do
     let (p, b) = clookupe i >!> vc in
         return $ if b then (p, False) else (p - sp, True)
 
-varDecls :: StmtT -> [(String, ExpT)]
+varDecls :: StmtT -> [(String, Maybe ExpT)]
 varDecls t = case t of
     Stmts l -> concat $ map varDecls l
-    VarDecl _ i e -> [(i, e)]
+    VarDecl _ i m -> [(i, m)]
     _ -> []
 
 seqFunction :: Call -> [StmtT] -> Sequencer
@@ -281,13 +281,18 @@ enc = show . ord
 seqPrintStr :: String -> Sequencer
 seqPrintStr s = addCmds $ concatMap (\c -> [LDC $ enc c, PRINTC]) s
 
+seqDecl :: [StmtT] -> Maybe ExpT -> Sequencer
+seqDecl ss m = case m of
+    Just e -> seqExp ss e
+    Nothing -> addCmd $ LDC "0"
+
 seqStmt :: [StmtT] -> StmtT -> Sequencer
 seqStmt = seqStmt' 0
     where
     seqStmt' d ss s = case s of
         Stmts l -> sequence_ $ map (seqStmt' d ss) l
-        VarDecl t i e -> do
-            seqExp ss e
+        VarDecl t i m -> do
+            seqDecl ss m
             setVariable i
         FunDecl _ _ _ _ -> ids
         FunCall i as -> seqFunCall ss i as

@@ -84,7 +84,7 @@ unifiableAll = unifiable True
 applyUnificationS :: Context Type -> StmtT -> StmtT
 applyUnificationS c s = case s of
     Stmts l -> Stmts (map aus l)
-    VarDecl t i e -> VarDecl (aut t) i (aue e)
+    VarDecl t i m -> VarDecl (aut t) i (fmap aue m)
     FunDecl t i as b -> FunDecl (aut t) i (map (left aut) as) (aus b)
     FunCall i as -> FunCall i (map aue as)
     Return m -> Return $ fmap aue m

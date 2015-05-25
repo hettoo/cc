@@ -5,7 +5,7 @@ import Fix
 data PStmt e =
     Stmts [PStmt e]
     | DataDecl String [String] [(String, [(Type, String)])]
-    | VarDecl Type String e
+    | VarDecl Type String (Maybe e)
     | FunDecl Type String [(Type, String)] (PStmt e)
     | FunCall String [e]
     | Return (Maybe e)

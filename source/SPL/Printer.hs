@@ -40,8 +40,9 @@ instance (SimplePrinter e, SimplePrinter [e]) => PrettyPrinter (PStmt e) where
                 intercalate " | " (map cons l) ++ ";\n"
                 where
                 cons (c, ts) = c ++ " " ++ simplePrint ts
-            VarDecl t s e -> simplePrint t ++ " " ++ s ++ " = " ++
-                simplePrint e ++ ";\n"
+            VarDecl t s m -> simplePrint t ++ " " ++ s ++ case m of
+                Just e -> " = " ++ simplePrint e ++ ";\n"
+                Nothing -> ""
             FunDecl t s as b -> simplePrint t ++ " " ++ s ++
                 " " ++ simplePrint as ++ blockPrint True b [b]
             FunCall s l -> s ++ "(" ++ simplePrint l ++ ");\n"

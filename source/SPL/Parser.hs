@@ -35,7 +35,7 @@ pDataDecl = (sseq "data" -*-*. pTId .*. star (ws -*. pNId) .*?*- sym '=') .*?*.
         Just (p, l) -> p : l
 
 pVarDecl :: CharReParser Stmt
-pVarDecl l = (pType .*?*. pNId .*?*. (sym '=' -*?*. pExp .*?*- sym ';') >@
+pVarDecl l = (pType .*?*. pNId .*?*. opt (sym '=' -*?*. pExp) .*?*- sym ';' >@
     (uncurry . uncurry) VarDecl) l
 
 pFunDecl :: CharReParser Stmt
@@ -49,7 +49,7 @@ pRetType :: CharReParser Type
 pRetType = sseq "Void" .*- nalphanum_ >! TVoid \/ pType
 
 pType :: CharReParser Type
-pType = pBasicType \/ pNId >@ TPoly \/
+pType = pBasicType \/ satisfy isLower >@ (\a -> TPoly [a]) \/
     sym '\\' -*?*. pTId .*. star (ws -*. pType) .*?*- sym '/' >@
         uncurry TCustom \/
     sym '[' -*?*. pType .*?*- sym ']' >@ tList \/

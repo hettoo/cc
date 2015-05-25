@@ -245,19 +245,23 @@ annotateS l s = case s of
         s <- annotateMulti l s
         return $ Stmts s
     DataDecl i as l -> return $ DataDecl i as l
-    VarDecl et i e -> do
+    VarDecl et i m -> do
         b <- checkPoly (map fst l) et
-        if b then do
-            e <- annotateE e
-            let t = getType e in
-                if unifiablef t et then do
-                    caddvar i et
-                    return (VarDecl et i e)
-                else
-                    fail $ "assignment mismatch: expected type `" ++
-                        simplePrint et ++
-                        "' cannot be unified with given type `" ++
-                        simplePrint t ++ "' (variable " ++ i ++ ")"
+        if b then case m of
+            Just e -> do
+                e <- annotateE e
+                let t = getType e in
+                    if unifiablef t et then do
+                        caddvar i et
+                        return $ VarDecl et i (Just e)
+                    else
+                        fail $ "assignment mismatch: expected type `" ++
+                            simplePrint et ++
+                            "' cannot be unified with given type `" ++
+                            simplePrint t ++ "' (variable " ++ i ++ ")"
+            Nothing -> do
+                caddvar i et
+                return $ VarDecl et i Nothing
         else
             fail ("free polymorphic variable " ++ i)
     FunDecl t i as b -> do

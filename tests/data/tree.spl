@@ -5,7 +5,7 @@ Void main() {
 }
 
 \Tree a/ fromList([a] l) {
-    ([a], [a]) t = ([], []);
+    ([a], [a]) t;
     case l {
         Nil {
             return Leaf;
@@ -18,11 +18,11 @@ Void main() {
 }
 
 ([a], [a]) split([a] l) {
-    [a] r = [];
-    ([a], [a]) t = ([], []);
+    [a] r;
+    ([a], [a]) t;
     case l {
         Nil {
-            return t;
+            return ([], []);
         }
         Cons {
             r = l.tl;
