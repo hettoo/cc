@@ -403,10 +403,7 @@ seqExp l e = case expC (unFix e) of
         False -> "0"
     EChar x -> addCmd $ LDC (enc x)
     ENil -> seqExp l (Fix $ PExpT (ECons "Nil" []) (getType e))
-    ETuple e1 e2 -> do
-        seqExp l e1
-        seqExp l e2
-        addCmd $ STH 2
+    ETuple e1 e2 -> seqExp l (Fix $ PExpT (ECons "Tuple" [e1, e2]) (getType e))
     EId i fs -> do
         getVariable i
         sequence_ $ map seqField fs
