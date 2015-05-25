@@ -1,5 +1,4 @@
 data Test a b = A | B | C (Int field);
-// duplicate constructors and fields are checked; type names not yet
 
 Void main() {
     \Test Int Int/ a = B();

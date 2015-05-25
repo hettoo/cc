@@ -56,18 +56,18 @@ clookupf f = res $ \(i, n, l) -> case l of
     (_, t, _) : _ | f t -> Just t
     _ : r -> clookupf f >!> (i, n, r)
 
-clookup :: String -> State (Context t) (Maybe t)
-clookup s = res $ \(i, n, l) -> case l of
-    [] -> Nothing
-    (s', t, _) : _ | s == s' -> Just t
-    _ : r -> clookup s >!> (i, n, r)
-
 clookupfe :: (t -> Bool) -> State (Context t) t
 clookupfe f = do
     m <- clookupf f
     case m of
         Nothing -> fail $ "context lookup error"
         Just t -> return t
+
+clookup :: String -> State (Context t) (Maybe t)
+clookup s = res $ \(i, n, l) -> case l of
+    [] -> Nothing
+    (s', t, _) : _ | s == s' -> Just t
+    _ : r -> clookup s >!> (i, n, r)
 
 clookupe :: String -> State (Context t) t
 clookupe s = do
