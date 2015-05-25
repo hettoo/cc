@@ -215,7 +215,7 @@ instance (SimplePrinter e, SimplePrinter [e], Strength e) =>
         ENil -> "[]"
         ETuple a b -> "(" ++ simplePrint a ++ ", " ++ simplePrint b ++ ")"
         EId s l -> s ++ concatMap ('.' :) l
-        ECons i as -> i ++ "(" ++ simplePrint as ++ ")"
+        ECons i as -> i ++ if null as then "" else "(" ++ simplePrint as ++ ")"
         EFunCall s l -> s ++ "(" ++ simplePrint l ++ ")"
         EOp1 o a -> simplePrint o ++ wrap (simplePrint a) (stronger1 o a)
         EOp2 o a b -> wrap (simplePrint a) (stronger2 o a SLeft) ++
