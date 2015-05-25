@@ -136,34 +136,43 @@ initContext l = case l of
             _ -> return ()
         initContext r
 
-guaranteeReturn :: Stmt -> Bool
-guaranteeReturn s = case s of
-    Stmts l -> any guaranteeReturn l
+guaranteeReturn :: (String -> [String]) -> StmtT -> Bool
+guaranteeReturn f s = case s of
+    Stmts l -> any (guaranteeReturn f) l
     If _ s' m -> case m of
         Nothing -> False
-        Just s'' -> guaranteeReturn s' && guaranteeReturn s''
-    Case _ bs -> True -- TODO: figure if all constructors are returning
+        Just s'' -> guaranteeReturn f s' && guaranteeReturn f s''
+    Case e bs -> let TCustom i _ = getType e in
+        if length bs /= length (f i) then
+            False
+        else
+            all (guaranteeReturn f) (map snd bs)
     Return m -> True
     _ -> False
 
-guaranteeReturns :: [Stmt] -> [Stmt]
-guaranteeReturns = flip foldr [] $ \s r -> case s of
+guaranteeReturns :: (String -> [String]) -> [StmtT] -> [StmtT]
+guaranteeReturns f = flip foldr [] $ \s r -> case s of
     FunDecl t i as b ->
-        if t == TVoid || guaranteeReturn b then
+        if t == TVoid || guaranteeReturn f b then
             s : r
         else
             error $ "function " ++ i ++ " may not return a value"
     _ -> s : r
 
 annotateProgram :: [Stmt] -> [StmtT]
-annotateProgram l = let
-    l' = guaranteeReturns l
-    in (do
-        initContext l'
+annotateProgram l =
+    (do
+        initContext l
         splcv cdown
         splcf cdown
-        annotateMulti [] l'
+        l <- annotateMulti [] l
+        return $ guaranteeReturns (consList l) l
     ) >!> SPLC {cv = cnew, cf = cnew, cd = cnew}
+    where
+    consList l i = concatMap (consList' i) l
+    consList' i s = case s of
+        DataDecl j _ cs -> if i == j then map fst cs else []
+        _ -> []
 
 annotateMulti :: [(Type, String)] -> [Stmt] -> State SPLC [StmtT]
 annotateMulti l = mapM (annotateS l)

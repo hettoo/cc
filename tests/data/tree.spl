@@ -1,7 +1,7 @@
 data Tree a = Leaf | Node(a val, \Tree a/ left, \Tree a/ right);
 
 Void main() {
-    print(fromList(1 : 2 : 3 : 4 : []));
+    print(fromList(1 : 2 : 3 : 4 : 5 : 6 : []));
 }
 
 \Tree a/ fromList([a] l) {
@@ -47,14 +47,18 @@ Void printTree(Int n, \Tree a/ t) {
     Int i = 0;
     case t {
         Node {
-            printTree(n + 1, t.left);
+            printTree(n + 1, t.right);
             while (i < n) {
+                print(' ');
+                print(' ');
+                print(' ');
+                print(' ');
                 print(' ');
                 print(' ');
                 i = i + 1;
             }
             print(t.val);
-            printTree(n + 1, t.right);
+            printTree(n + 1, t.left);
         }
     }
 }

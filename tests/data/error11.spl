@@ -1,0 +1,14 @@
+data Test = A | B;
+
+Bool test(\Test/ a) {
+    case a {
+        A {
+        }
+        B {
+            return True;
+        }
+    }
+}
+
+Void main() {
+}
