@@ -6,6 +6,7 @@
 \usepackage[english]{babel}
 \usepackage{lmodern}
 \usepackage{fixltx2e}
+\usepackage[cmtip,all]{xy}
 \usepackage{array}
 
 \setbeamertemplate{frametitle continuation}{}
@@ -63,7 +64,7 @@ data List a = Nil | Cons(a hd, \List a/ tl);\end{verbatim}
 \end{frame}
 
 \begin{frame}[fragile]
-    \frametitle{Generalized Field Accessors}
+    \frametitle{Generalized Fields}
     \begin{verbatim}
 data List a = Nil | Cons(a hd, \List a/ tl);\end{verbatim}
     Field names automatically become accessors:
@@ -123,7 +124,7 @@ data T = B;\end{verbatim}
 \begin{frame}
     \frametitle{Type Checking}
     \begin{itemize}
-        \item Constructor application is checked like function application
+        \item Constructor application is checked like function application: the return type is the custom type
         \item Field accessors are like functions from the custom type to the field type
     \end{itemize}
 \end{frame}
@@ -131,15 +132,32 @@ data T = B;\end{verbatim}
 \begin{frame}[fragile]
     \frametitle{Constructor Matching}
     \begin{verbatim}
-data List a = Nil | Cons(a hd, \List a/ tl);\end{verbatim}
-    \begin{verbatim}
+data List a = Nil | Cons(a hd, \List a/ tl);
+
 \List Int/ l = Cons(2, Nil);
 case l {
-    Nil { print(0); }
+    Nil { print('?'); }
     Cons { print(l.hd); }
 }\end{verbatim}
     No actual pattern matching, but field accessors alleviate this.
 \end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Constructor Matching}
+    \framesubtitle{isEmpty}
+    \begin{verbatim}
+data List a = Nil | Cons(a hd, \List a/ tl);\end{verbatim}
+
+\begin{verbatim}
+Bool isEmpty([a] l) {
+    case l {
+        Nil { return True; }
+        Cons { return False; }
+    }
+}\end{verbatim}
+\end{frame}
+
+
 
 \begin{frame}[fragile]
     \frametitle{Errors}
@@ -205,6 +223,23 @@ Bool test(\T/ a) {
 }\end{verbatim}
 \end{frame}
 
+\begin{frame}
+    \frametitle{Code Generation}
+    \begin{itemize}
+        \item Every custom type inhabitant is stored on the heap
+        \item The parameters of the constructor are followed by the constructor index
+    \end{itemize}
+    \begin{itemize}
+        \item Case distinction loads the constructor index and copies it while it is still needed
+        \item If a return is encountered, this value may have to be removed from the stack
+        \item Multiple comparisons: generalized if
+    \end{itemize}
+    \begin{itemize}
+        \item Our heap is immutable
+        \item Call by value
+    \end{itemize}
+\end{frame}
+
 \begin{frame}[fragile]
     \frametitle{Example}
     \framesubtitle{Printing a List as a Tree}
@@ -222,21 +257,86 @@ data Tree a = Leaf |
                 fromList(t.fst),
                 fromList(t.snd)); }
     }
-}
-\end{verbatim}
+}\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Example}
+    \framesubtitle{Printing a List as a Tree}
+    \begin{verbatim}
+([a], [a]) split([a] l) {
+    [a] r; ([a], [a]) t;
+    case l {
+        Nil { return ([], []); }
+        Cons {
+            r = l.tl;
+            case r {
+                Nil { return (l.hd : [], []); }
+                Cons { t = split(r.tl);
+                    return (l.hd : t.fst,
+                        r.hd : t.snd); }
+            } }
+    }
+}\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Example}
+    \framesubtitle{Printing a List as a Tree}
+    \begin{verbatim}
+Void print_(\Tree a/ t) {
+    printTree(0, t);
+}\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Example}
+    \framesubtitle{Printing a List as a Tree}
+    \begin{verbatim}
+Void printTree(Int n, \Tree a/ t) {
+    Int i = 0;
+    case t {
+        Node {
+            printTree(n + 1, t.right);
+            while (i < n) { i = i + 1;
+                print(' '); print(' ');
+                print(' '); print(' ');
+                print(' '); print(' ');
+            }
+            print(t.val);
+            printTree(n + 1, t.left); }
+    }
+}\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Example}
+    \framesubtitle{Printing a List as a Tree}
+    \begin{verbatim}
+Void main() {
+    print(fromList(1 : 2 : 3 : 4 : 5 : 6 : []));
+}\end{verbatim}
 \end{frame}
 
 \begin{frame}
-    \frametitle{Code Generation}
-    \begin{itemize}
-        \item Every custom type inhabitant is stored on the heap
-        \item The parameters of the constructor are followed by the constructor index
-    \end{itemize}
-    \begin{itemize}
-        \item Case distinction loads the constructor index and copies it while it is still needed
-        \item If a return is encountered, this value may have to be removed from the stack
-        \item Multiple comparisons: generalized if
-    \end{itemize}
+    \frametitle{Example}
+    \framesubtitle{Printing a List as a Tree}
+    3
+\end{frame}
+
+\begin{frame}
+    \frametitle{Example}
+    \framesubtitle{Printing a List as a Tree}
+    \begin{flalign*}
+        \xymatrix@C=1.2cm@R=0.3cm{
+            & 3 \ar@{-}[dr] \\
+            & & 5 \\
+            1 \ar@{-}[uur] \ar@{-}[ddr] \\
+            & & 6 \\
+            & 2 \ar@{-}[ur] \ar@{-}[dr] \\
+            & & 4
+        } &&
+    \end{flalign*}
 \end{frame}
 
 \end{document}
