@@ -1,5 +1,7 @@
 module Context where
 import State
+import Data.List
+import Data.Function
 
 type Context t = (Int, Int, [(String, t, Int)])
 
@@ -9,8 +11,21 @@ cnew = (0, 0, [])
 cdown :: State (Context t) ()
 cdown = st $ \(i, n, l) -> (i + 1, n, l)
 
-cget :: Context t -> [(String, t)]
-cget (_, _, l) = map (\(s, t, _) -> (s, t)) l -- TODO: filter on highest level
+cget :: Eq t =>
+    Context t -> [(String, t)]
+cget (_, _, l) = map (\(s, t, _) -> (s, t)) $ foldr improve [] l
+    where
+    improve v@(s, t, _) r =
+        let
+            r' = filter (\(s', t', _) -> s == s' && t == t') r
+            m = maximumBy (compare `on` measure) r'
+        in if null r' then
+            [v]
+        else if ((>) `on` measure) v m then
+            v : r'
+        else
+            r'
+    measure (_, _, i) = i
 
 data CAddPolicy =
     Both
