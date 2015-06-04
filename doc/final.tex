@@ -21,30 +21,37 @@
 
 \section{Syntax}
 
-Recall our final version of the SPL grammar.
-\setlength{\grammarindent}{7.1em}
+Our language has been updated with custom data types, generic field getters and setters, and constructor matching. % TODO: maybe explain this informally in detail first?
+This has affected our grammar, of which the new version is shown below.
+\setlength{\grammarindent}{7.6em}
 \begin{grammar}
     <SPL> ::= <Decl>+
 
-    <Decl> ::= <VarDecl> | <FunDecl>
+    <Decl> ::= <DataDecl> | <VarDecl> | <FunDecl>
 
-    <VarDecl> ::= <Type> <id> `=' <Exp> `;'
+    <DataDecl> ::= `data' <uid> <lid>* `=' [\,<Constructor> (\,`|' <Constructor>\,)*\,] `;'
 
-    <FunDecl> ::= <RetType> <id> `(' [\,<FArgs>\,] `)' `{' <VarDecl>* <Stmt>+ `}'
+    <Constructor> ::= <uid> [\,`(' [\,<FArgs>\,] `)'\,]
+
+    <VarDecl> ::= <Type> <lid> [\,`=' <Exp>\,] `;'
+
+    <FunDecl> ::= <RetType> <lid> `(' [\,<FArgs>\,] `)' `{' <VarDecl>* <Stmt>* `}'
 
     <RetType> ::= <Type> | `Void'
 
-    <Type> ::= <id> | <BasicType> | `(' <Type> `,' <Type> `)' | `[' <Type> `]'
+    <Type> ::= <lower> | <BasicType> | `\\' <uid> <Type>* `/'
+    \alt `(' <Type> `,' <Type> `)' | `[' <Type> `]'
 
     <BasicType> ::= `Int' | `Bool' | `Char'
 
-    <FArgs> ::= <Type> <id> [\,`,' <FArgs>\,]
+    <FArgs> ::= <Type> <lid> [\,`,' <FArgs>\,]
 
     <Stmt> ::= `{' <Stmt>* `}' | <StmtId> `;' | `return' [\,<Exp>\,] `;'
     \alt `if' `(' <Exp> `)' <Stmt> [\,`else' <Stmt>\,]
     \alt `while' `(' <Exp> `)' <Stmt>
+    \alt `case' <Exp> `{' (\,<uid> <Stmt>\,)* `}'
 
-    <StmtId> ::= <id> (\,[\,<Field>\,] `=' <Exp> | `(' [\,<ActArgs>\,] `)'\,)
+    <StmtId> ::= <lid> (\,[\,<Field>\,] `=' <Exp> | `(' [\,<ActArgs>\,] `)'\,)
 
     <Exp> ::= <Exp1> [\,`:' <Exp>\,]
 
@@ -60,12 +67,14 @@ Recall our final version of the SPL grammar.
 
     <Exp6> ::= (\,`!' | `-'\,) <Exp6> | <NonOpExp>
 
-    <NonOpExp> ::= <int> | <char> | <bool> | `[]' | <ExpId>
+    <NonOpExp> ::= <int> | <char> | <bool> | `[]' | <IdExp> | <ConsExp>
     \alt `(' <Exp> `)' | `(' <Exp> `,' <Exp> `)'
 
-    <ExpId> ::= <id> (\,[\,<Field>\,] | `(' [\,<ActArgs>\,] `)'\,)
+    <ConsExp> ::= <uid> [\,`(' [\,<ActArgs>\,] `)'\,]
 
-    <Field> ::= `.' (\,`hd' | `tl' | `fst' | `snd'\,) [\,<Field>\,]
+    <IdExp> ::= <lid> (\,[\,<Field>\,] | `(' [\,<ActArgs>\,] `)'\,)
+
+    <Field> ::= `.' <id> [\,<Field>\,]
 
     <ActArgs> ::= <Exp> [\,`,' <ActArgs>\,]
 
@@ -76,7 +85,14 @@ Recall our final version of the SPL grammar.
     <bool> ::= `False' | `True'
 
     <id> ::= <alpha> (\,`_' | <alphaNum>\,)*
+
+    <lid> ::= <lower> (\,`_' | <alphaNum>\,)*
+
+    <uid> ::= <upper> (\,`_' | <alphaNum>\,)*
 \end{grammar}
+
+Names of custom types and constructors must begin with an uppercase character; we have restricted variable and function names to begin with a lowercase character, and polymorphic type identifiers may only be single lowercase characters.
+Note that there is a minor other change: a variable declaration does not require an initial assignment.
 
 What matters for typing is not the syntax used to recognize a program, but rather the syntax used to store it (the relation with the above grammar should be clear).
 For instance, the grammar describing our expressions is shown below.
@@ -89,8 +105,7 @@ Here $\ominus$ stands for a unary operator, and $\otimes$ can be any binary oper
 
 \section{Typing rules}
 
-For convenience, we use the notation that a context $\Gamma$ is made up of a variable context $\Gamma_v$ and a function context $\Gamma_f$.
-Formally, $\Gamma = (\Gamma_v, \Gamma_f)$.
+For convenience, we use the notation $\Gamma = (\Gamma_v, \Gamma_f)$ expressing that a context $\Gamma$ is made up of a variable context $\Gamma_v$ and a function context $\Gamma_f$.
 
 \begin{center}
     \AxiomC{}
@@ -235,146 +250,6 @@ Of course there are no such variables, but this is in turn modeled by the return
 Functions may be overloaded, but it is not allowed that multiple versions of a function apply for any possible way the function can be called.
 Note that the current implementation does not allow overloading the return type of a function at all.
 
-\subsection{Test cases}
-
-The following test cases primarily test for program instances that should be rejected by the compiler due to typing problems.
-For positive tests we have mostly relied on using the example programs for the first assignment, except for specific type constructs which were not covered by these examples.
-These test cases also introduce some of our design choices.
-General tests beyond the scope of semantic analysis are contained within the \verb|tests/general| directory of the project and have already been described in the previous assignment.
-
-\paragraph{tests/typing/error1.spl}
-In this example we show that polymorphic returns are checked.
-Calling \verb|g| with an integer yield an integer, which is too specific for the return type of \verb|f|.
-    \begin{verbatim}
-incompatible return type `Int' provided; expected `a' in
-function f\end{verbatim}
-
-\paragraph{tests/typing/error2.spl}
-This test builds on the previous one, modifying the return type for \verb|g|.
-The compiler correctly rejects this test because the return of \verb|g| is now ill-typed.
-    \begin{verbatim}
-incompatible return type `c' provided; expected `b' in function g\end{verbatim}
-
-\paragraph{tests/typing/error3.spl}
-Function application is performed with incorrect arity.
-    \begin{verbatim}
-no candidate for application of f found\end{verbatim}
-
-\paragraph{tests/typing/error4.spl}
-Function application is performed with incorrect arity.
-    \begin{verbatim}
-no candidate for application of f found\end{verbatim}
-
-\paragraph{tests/typing/error5.spl}
-Return type is too general
-    \begin{verbatim}
-assignment mismatch: expected type `Int' does not cover
-given type `a' (variable y)\end{verbatim}
-
-\paragraph{tests/typing/error6.spl}
-This program describes an instance where a variable cannot be typed because of the unknown return type of \verb|read()|.
-    \begin{verbatim}
-free polymorphic variable x\end{verbatim}
-
-\paragraph{tests/typing/error7.spl}
-The type checker ensures a valid return for all possible code paths when control structures are used within a function body.
-    \begin{verbatim}
-function g may not return a value\end{verbatim}
-
-\paragraph{tests/typing/error8.spl}
-A return in a while control block is not sufficient to ensure all possible code paths have a valid return, because the loop condition is not evaluated at compile-time.
-    \begin{verbatim}
-function f may not return a value\end{verbatim}
-
-\paragraph{tests/typing/error9.spl}
-Variables may only be defined once in their scope.
-    \begin{verbatim}
-redefined variable x\end{verbatim}
-
-\paragraph{tests/typing/error10.spl}
-Functions may only be defined once.
-    \begin{verbatim}
-redefined function f\end{verbatim}
-
-\paragraph{tests/typing/error11.spl}
-Function arguments may only be defined once.
-    \begin{verbatim}
-duplicate formal argument n for function f\end{verbatim}
-
-\paragraph{tests/typing/error12.spl}
-Variables may not be used outside of their scope.
-    \begin{verbatim}
-undeclared entity a\end{verbatim}
-
-\paragraph{tests/typing/error13.spl}
-Functions must be called with the right arity.
-    \begin{verbatim}
-no candidate for application of f found\end{verbatim}
-
-\paragraph{tests/typing/error14.spl}
-Function overloading instances must have mutually exclusive types.
-    \begin{verbatim}
-redefined function id\end{verbatim}
-
-\paragraph{tests/typing/error15.spl}
-The main function may not be polymorphic.
-    \begin{verbatim}
-invalid main function\end{verbatim}
-
-\paragraph{tests/typing/error16.spl}
-The main function may not accept arguments.
-    \begin{verbatim}
-invalid main function\end{verbatim}
-
-\paragraph{tests/typing/error17.spl}
-Overloading must not be purely on the return type.
-    \begin{verbatim}
-redefined function f\end{verbatim}
-
-\paragraph{tests/typing/error18.spl}
-The arguments for the application of a polymorphic function must match its scheme.
-    \begin{verbatim}
-application mismatch: expected type `(?1, ?1)' does not cover
-given type `(Int, Char)'\end{verbatim}
-
-\paragraph{tests/typing/overloading1.spl}\mbox{}\\ % TODO: :(
-Overloaded function applications are allowed.
-    \begin{verbatim}
-Void f () {
-    f((0 @ Int));
-}
-
-Void f (Int a) {
-}\end{verbatim}
-
-\paragraph{tests/typing/overloading2.spl}\mbox{}\\ % TODO: :(
-Overloaded function applications are allowed.
-    \begin{verbatim}
-Void f (Char a) {
-    f((0 @ Int));
-}
-
-Void f (Int a) {
-}\end{verbatim}
-
-\paragraph{tests/typing/scope1.spl}
-Local variables hide local variables.
-    \begin{verbatim}
-Int a = (0 @ Int);
-
-Char f (Char a) {
-    return (a @ Char);
-}\end{verbatim}
-
-\paragraph{tests/typing/scope2.spl}
-Local variables hide function arguments.
-    \begin{verbatim}
-Int f (Char a) {
-    Int a = (0 @ Int);
-
-    return (a @ Int);
-}\end{verbatim}
-
 \section{Compilation Schemes}
 
 We employ \emph{by-value} assignments and calling: a copy of an object---as shallow as possible---is made on assignment.
@@ -399,63 +274,6 @@ At the beginning of the program we copy the value of the stack pointer to anothe
 
 Many (cases of) built-in functions and operators are implemented through a standard library.
 The remaining primitive cases (Int/Char printing, basic operators, etc.) are compiled inline.
-
-\subsection{Test Cases}
-
-The directory \verb|tests/sequencing/| contains additional tests tailored for the functionality introduced in the code generation phase.
-These include tests for recursion, polymorphic operators, global variables, field setters and getters, etc. All tests yield their expected result.
-
-\paragraph{accessor.spl}
-This test case generates code for accessors of tuples and lists (fst, snd, hd, tl).
-
-\paragraph{discard.spl}
-Tests whether return values are discarded when they are not used.
-
-\paragraph{empty.spl}
-Tests isEmpty with empty and non-empty lists.
-
-\paragraph{facI.spl}
-Imperative implementation of fac.
-
-\paragraph{facR.spl}
-Recursive implementation of fac.
-
-\paragraph{fromTo.spl}
-Generates lists which contain all integers starting at \verb|from| and ending at \verb|to|.
-
-\paragraph{funcall.spl}
-Tests calling functions with an argument, performing actions on that argument, and returning a value.
-
-\paragraph{globals.spl}
-Tests whether globals are hidden by function parameters.
-
-\paragraph{listOp.spl}
-Tests comparison operators on lists.
-
-\paragraph{main.spl}
-Tests whether the main function is evaluated correctly.
-
-\paragraph{poly.spl}
-Tests polymorphic functions (polymorphic argument types and polymorphic return types).
-
-\paragraph{print.spl}
-Tests print function for literal arguments and variable arguments, for integers, booleans, characters, and strings (list of characters).
-
-\paragraph{read.spl}
-Reads and integer from the console and prints it.
-
-\paragraph{setList.spl}
-Tests changing a list by assigning a new value to its accessors.
-
-\paragraph{setTuple.spl}
-Tests changing a tuple by assigning a new value to its accessors.
-
-\paragraph{tuple.spl}
-Tests tuple declaration, unary operations, and binary operations.
-
-\paragraph{two.spl}
-Tests function calls with more than two arguments.
-
 
 \section{Build Instructions}
 
