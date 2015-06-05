@@ -94,18 +94,30 @@ This has affected our grammar, of which the new version is shown below.
 Names of custom types and constructors must begin with an uppercase character; we have restricted variable and function names to begin with a lowercase character, and polymorphic type identifiers may only be single lowercase characters.
 Note that there is a minor other change: a variable declaration does not require an initial assignment.
 
-What matters for typing is not the syntax used to recognize a program, but rather the syntax used to store it (the relation with the above grammar should be clear).
-For instance, the grammar describing our expressions is shown below.
-\setlength{\grammarindent}{4.1em}
-\begin{grammar}
-    <Exp> ::= Int $i$ | Bool $b$ | Char $c$ | Nil | $\ominus$<Exp> | <Exp> $\otimes$ <Exp>
-    \alt (\,<Exp>, <Exp>\,) | Var <id> <Field>* | Fun <id> <Exp>*
-\end{grammar}
-Here $\ominus$ stands for a unary operator, and $\otimes$ can be any binary operator.
+\section{Semantic Analysis}
+
+Binding time analysis consists in determining where variables that are used in the program were bound.
+We use the usual precedence rules to do this: variables defined in a subscope override ones defined on a higher level; it is an error to redefine a variable in the same scope.
+Note that both function arguments and function bodies introduce a new scope.
+
+Typechecking a function consists in ensuring that the returned values for all possible executions of the function (assuming just that it terminates) are compatible with the type given to it.
+An execution not hitting a return statement is equivalent to it returning a variable of type Void in the end.
+Of course there are no such variables, but this is in turn modeled by the return statement without parameter.
+
+Functions may be overloaded, but it is not allowed that multiple versions of a function apply for any possible way the function can be called.
+Note that the current implementation does not allow overloading the return type of a function at all.
+
+For convenience, we use the notation $\Gamma = (\Gamma_v, \Gamma_f)$ expressing that a context $\Gamma$ is made up of a variable context $\Gamma_v$ and a function context $\Gamma_f$.
 
 \section{Typing rules}
 
-For convenience, we use the notation $\Gamma = (\Gamma_v, \Gamma_f)$ expressing that a context $\Gamma$ is made up of a variable context $\Gamma_v$ and a function context $\Gamma_f$.
+What matters for typing is not the syntax used to recognize a program, but rather the syntax used to store it, particularly the grammar describing our expressions, which is shown below.
+\setlength{\grammarindent}{4.1em}
+\begin{grammar}
+    <Exp> ::= Int $i$ | Bool $b$ | Char $c$ | $\ominus$<Exp> | <Exp> $\otimes$ <Exp>
+    \alt Var <id> <Field>* | Fun <id> <Exp>* | Cons <id> <Exp>*
+\end{grammar}
+Here $\ominus$ stands for a unary operator, and $\otimes$ can be any binary operator.
 
 \begin{center}
     \AxiomC{}
@@ -236,19 +248,6 @@ Here Void simply indicates the absence of a return value.
 Note that we do not allow overloading or polymorphism purely on the return type, and so we choose to fix the type of the $\mathit{read}$ function to Int.
 The reason for this is to avoid ambiguity: instead of as an expression a function call may appear as a statement, in which case the desired return type is not defined.
 We further reject overloading when two versions of a function potentially apply to a certain same combination of argument types.
-
-\section{Semantic Analysis}
-
-Binding time analysis consists in determining where variables that are used in the program were bound.
-We use the usual precedence rules to do this: variables defined later override earlier ones, unless they were defined in the same scope (block of code or function argument lists), which is an error.
-Note that both function arguments and function bodies introduce a new scope.
-
-Typechecking a function consists in ensuring that the returned values for all possible executions of the function (assuming just that it terminates) are compatible with the type given to it.
-An execution not hitting a return statement is equivalent to it returning a variable of type Void in the end.
-Of course there are no such variables, but this is in turn modeled by the return statement without parameter.
-
-Functions may be overloaded, but it is not allowed that multiple versions of a function apply for any possible way the function can be called.
-Note that the current implementation does not allow overloading the return type of a function at all.
 
 \section{Compilation Schemes}
 
