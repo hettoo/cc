@@ -108,6 +108,8 @@ Functions may be overloaded, but it is not allowed that multiple versions of a f
 Note that the current implementation does not allow overloading the return type of a function at all.
 
 For convenience, we use the notation $\Gamma = (\Gamma_v, \Gamma_f)$ expressing that a context $\Gamma$ is made up of a variable context $\Gamma_v$ and a function context $\Gamma_f$.
+% TODO: add custom type info
+% TODO: explain how contexts are determined more precisely?
 
 \section{Typing rules}
 
@@ -125,15 +127,15 @@ Here $\ominus$ stands for a unary operator, and $\otimes$ can be any binary oper
     \DisplayProof
     \qquad
     \AxiomC{}
-    \UnaryInfC{$\Gamma \vdash \text{Bool } i : \text{Bool}$}
+    \UnaryInfC{$\Gamma \vdash \text{Bool } b : \text{Bool}$}
     \DisplayProof
     \qquad
     \AxiomC{}
-    \UnaryInfC{$\Gamma \vdash \text{Char } i : \text{Char}$}
+    \UnaryInfC{$\Gamma \vdash \text{Char } c : \text{Char}$}
     \DisplayProof
 \end{center}
 
-\begin{center}
+\begin{center} % TODO: replace these two by a generic constructor rule
     \AxiomC{}
     \UnaryInfC{$\Gamma \vdash \text{Nil} : \forall a.\,[a]$}
     \DisplayProof
@@ -157,7 +159,7 @@ Here $\ominus$ stands for a unary operator, and $\otimes$ can be any binary oper
 \end{center}
 Here $\Gamma_{v \setminus i} = \{(v, t) \in \Gamma_v \mid v \neq i\}$.
 
-Note that the above rule requires us to type field specifiers as well.
+Note that the above rule requires us to type field specifiers as well. % TODO: also do this generically
 We will do this later.
 
 \begin{center}
@@ -251,10 +253,11 @@ We further reject overloading when two versions of a function potentially apply 
 
 \section{Compilation Schemes}
 
+% TODO: update this
 We employ \emph{by-value} assignments and calling: a copy of an object---as shallow as possible---is made on assignment.
 For tuples and lists this value is a pointer to objects on the heap, but note that the heap is immutable because of the assignment convention.
 Thus, an object passed to a function will never actually be modified by that function.
-Our current implementation does never actually free memory from the heap.
+Our implementation does never actually free memory from the heap. % TODO: irrelevant?
 
 All objects are represented on the stack with a single value.
 As mentioned above, tuples and lists are stored on the heap.
