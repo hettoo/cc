@@ -7,6 +7,9 @@
 \usepackage{amssymb}
 \usepackage[nounderscore]{syntax}
 \usepackage{bussproofs}
+\usepackage{fancyvrb}
+
+\VerbatimFootnotes
 
 \setlength{\grammarparsep}{0pt}
 \renewcommand{\syntleft}{\normalfont\itshape}
@@ -19,10 +22,53 @@
 
 \maketitle
 
+\section{Project Description}
+
+Our language has been extended with custom data types, generic field getters and setters, and constructor matching.
+We explain this first using examples, after which we present the updated formal basis of our language in subsequent sections.
+
+\subsection{Custom Data Types}
+
+Our custom data types generalize both enumerations and record types.
+As a simple example, the boolean type could have been defined as follows:
+\begin{verbatim}
+data Bool = True | False;\end{verbatim}
+This type is denoted \verb+\Bool/+, so we might define a variable as follows:\footnote{%
+    For the sake of the example we pretend here that there is no \verb+Bool+ type, for otherwise the value \verb+True+ would be of type \verb+Bool+ rather than \verb+\Bool/+, and a type error would occur.
+}
+\begin{verbatim}
+\Bool/ a = True;\end{verbatim}
+The constructors of custom types may have arguments, as we see in the following definitions of familiar types, taken from our standard library:
+\begin{verbatim}
+data List a = Nil | Cons(a hd, [a] tl);
+data Tuple a b = Tuple(a fst, b snd);\end{verbatim}
+Here we see custom types parameterized by one or two types, thus providing generic lists and tuples.
+A parameterized constructor behaves like a function from its arguments to the custom type.
+A list with a single element $2$ may thus be defined as follows:
+\begin{verbatim}
+\List Int/ l = Cons(2, Nil);\end{verbatim}
+By naming the constructor parameters (which is mandatory), we automatically unlock field getters and setters:
+\begin{verbatim}
+Int a = l.hd; // a = 2
+l.tl = Cons(3, Nil); // l = Cons(2, Cons(3, Nil))\end{verbatim}
+
+Note that in our language the types \verb+[a]+ and \verb+(a, b)+ are really synonyms for \verb+\List a/+ and \verb+\Tuple a b/+, respectively.
+Furthermore, \verb+[]+ is actually \verb+Nil+, \verb+a : l+ translates to \verb+Cons(a, l)+, and \verb+(a, b)+ is equivalent to \verb+Tuple(a, b)+.
+
+\subsection{Constructor Matching}
+
+Additionally, we provide a construction to distinguish on the constructor value of an actual expression, which is much like a generalized if-statement.
+The following code will print the number $2$:
+\begin{verbatim}
+\List Int/ l = Cons(2, Nil);
+case l {
+    Nil { print('?'); }
+    Cons { print(l.hd); }
+}\end{verbatim}
+
 \section{Syntax}
 
-Our language has been updated with custom data types, generic field getters and setters, and constructor matching. % TODO: maybe explain this informally in detail first?
-This has affected our grammar, of which the new version is shown below.
+Our new grammar is shown below.
 \setlength{\grammarindent}{7.6em}
 \begin{grammar}
     <SPL> ::= <Decl>+
