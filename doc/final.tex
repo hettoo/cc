@@ -164,30 +164,37 @@ Note that there is a minor other change: a variable declaration does not require
 
 \section{Semantic Analysis}
 
-Binding time analysis consists in determining where variables that are used in the program were bound.
-We use the usual precedence rules to do this: variables defined in a subscope override ones defined on a higher level; it is an error to redefine a variable in the same scope.
+Functions may be overloaded, but it is not allowed that multiple versions of a function apply for any possible way the function can be called.
+Note that our implementation does not allow overloading the return type of a function at all.
+
+Our newly added constructs induce some further checks.
+It is not allowed to use the same field name twice within the same type definition, nor can the same type or constructor be declared twice.
+In a case expression, the constructors for which a body is provided must correspond to constructors for the type of the expression that is evaluated.
+A case body may be provided only once for every constructor in a case expression.
+Finally, the type of the expression that is evaluated must be a custom type.
+
+Before we can do any type checking, we need to define what a context is and how it is determined throughout the program.
+For convenience, we use the notation $\Gamma = (\Gamma_v, \Gamma_f)$ expressing that a context $\Gamma$ is made up of a variable context $\Gamma_v$ and a function context $\Gamma_f$.
+Functions and variables are added to the context in the usual way: variables defined in a subscope override ones defined on a higher level, and it is an error to redefine a variable in the same scope.
 Note that both function arguments and function bodies introduce a new scope.
+% TODO: add custom type info
 
 Typechecking a function consists in ensuring that the returned values for all possible executions of the function (assuming just that it terminates) are compatible with the type given to it.
+This has been updated to check case statements properly: for all possible constructors a value of the right type must be returned in the corresponding case body, unless subsequent code returns properly.
 An execution not hitting a return statement is equivalent to it returning a variable of type Void in the end.
 Of course there are no such variables, but this is in turn modeled by the return statement without parameter.
 
-Functions may be overloaded, but it is not allowed that multiple versions of a function apply for any possible way the function can be called.
-Note that the current implementation does not allow overloading the return type of a function at all.
-
-For convenience, we use the notation $\Gamma = (\Gamma_v, \Gamma_f)$ expressing that a context $\Gamma$ is made up of a variable context $\Gamma_v$ and a function context $\Gamma_f$.
-% TODO: add custom type info
-% TODO: explain how contexts are determined more precisely?
-
 \section{Typing rules}
 
-What matters for typing is not the syntax used to recognize a program, but rather the syntax used to store it, particularly the grammar describing our expressions, which is shown below.
+We will type a simplified syntax, which is the one used internally to store a program rather than the one used for parsing.
+The grammar describing our stored expressions is given below.
 \setlength{\grammarindent}{4.1em}
 \begin{grammar}
     <Exp> ::= Int $i$ | Bool $b$ | Char $c$ | $\ominus$<Exp> | <Exp> $\otimes$ <Exp>
     \alt Var <id> <Field>* | Fun <id> <Exp>* | Cons <id> <Exp>*
 \end{grammar}
-Here $\ominus$ stands for a unary operator, and $\otimes$ can be any binary operator.
+Here $\ominus$ stands for a unary operator, and $\otimes$ can be any binary operator; the value $i$ is an actual integer value, $b$ is any Boolean, and $c$ is a character.
+Note that \synt{id} and \synt{Field} here are actually just arbitrary strings.
 
 \begin{center}
     \AxiomC{}
@@ -347,9 +354,10 @@ The remaining primitive cases (Int/Char printing, basic operators, etc.) are com
 
 \section{Build Instructions}
 
-Building the project requires a modern Haskell compiler and a Make-like system.
+Building the project requires a Haskell compiler and a Make-like system.
 Running \verb|make| in the project root will build the compiler in the \verb|build| folder.
-Tests can either be run manually by feeding SPL source files into the compiler with \verb|build/compiler < program.spl| or automatically by calling \verb|make tests| in the project root to run a set of predefined tests.
+The directory \verb|tests| contains all our tests, including ones for the error scenarios described earlier.
+Programs can either be run manually by feeding SPL source files into the compiler with \verb|build/compiler < program.spl| or automatically by calling \verb|make tests| in the project root to run a set of predefined tests.
 If no problems are encountered, the compiler generates the file \verb|a.ssm| containing the compiled program.
 
 \end{document}
