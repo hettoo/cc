@@ -1,0 +1,5 @@
+data T = A;
+
+Void main() {
+    \T Int/ a = A;
+}
