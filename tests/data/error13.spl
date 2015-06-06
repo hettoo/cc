@@ -1,0 +1,4 @@
+data T = A(a x);
+
+Void main() {
+}

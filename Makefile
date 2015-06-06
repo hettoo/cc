@@ -65,5 +65,6 @@ tests: all
 	@$(call testError,data/error10)
 	@$(call testError,data/error11)
 	@$(call testError,data/error12)
+	@$(call testError,data/error13)
 
 .PHONY: all debug run tests

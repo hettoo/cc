@@ -61,16 +61,23 @@ fieldType i bt = case bt of
         Just x -> x
         _ -> error e
 
+findPoly :: Type -> Maybe String
+findPoly t = case t of
+    TPoly a -> Just a
+    _ -> Nothing
+
+findPolys :: Type -> [String]
+findPolys t = case t of
+    TCustom i ts -> concatMap findPolys ts
+    TPoly a -> [a]
+    _ -> []
+
 treplace :: Type -> State (Context Type) Type
 treplace t = case t of
     TCustom i ts -> do
         ts <- mapM treplace ts
         return $ TCustom i ts
     _ -> creplace findPoly t
-    where
-    findPoly t = case t of
-        TPoly a -> Just a
-        _ -> Nothing
 
 checkApp :: (Type, Type) -> Type -> State a Type
 checkApp (t, t') a = case unifyf t a of
@@ -124,6 +131,7 @@ initContext l = case l of
             FunDecl t i as _ -> do
                 caddfun i as t
             DataDecl i as cs -> do
+                let ts = concatMap (map fst . snd) cs
                 m <- splcd $ clookupf (\(j, _, _) -> i == j)
                 case m of
                     Nothing -> let fs = map snd (concat (map snd cs)) in
@@ -133,8 +141,11 @@ initContext l = case l of
                             fail "duplicate field name"
                     _ -> fail $ "duplicate type " ++ i
                 where
-                addCons (c, ts) = splcd $ cadd c (i, as, ts)
-                    ("duplicate constructor " ++ c)
+                addCons (c, ts) = if all (`elem` as)
+                    (concatMap (findPolys . fst) ts)
+                    then splcd $ cadd c (i, as, ts)
+                        ("duplicate constructor " ++ c)
+                    else fail $ "free polymorphic data type parameter"
             _ -> return ()
         initContext r
 
