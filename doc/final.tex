@@ -299,16 +299,13 @@ We further reject overloading when two versions of a function potentially apply 
 
 \section{Compilation Schemes}
 
-% TODO: update this
-We employ \emph{by-value} assignments and calling: a copy of an object---as shallow as possible---is made on assignment.
-For tuples and lists this value is a pointer to objects on the heap, but note that the heap is immutable because of the assignment convention.
+We employ \emph{by-value} assignments and calling: a copy of an object is made on assignment.
+For custom data types this value is a pointer to objects on the heap, but note that the heap is immutable because of the assignment convention.
 Thus, an object passed to a function will never actually be modified by that function.
-Our implementation does never actually free memory from the heap. % TODO: irrelevant?
 
 All objects are represented on the stack with a single value.
-As mentioned above, tuples and lists are stored on the heap.
-In the case of a tuple the first object is stored first, followed by the second object; for a list we store the tail first and the head second.
-The empty list is represented by a null pointer.
+As mentioned above, values of custom data types are stored on the heap.
+% TODO: description
 
 A program compiled by our compiler first assigns to the global variables in order their initial values, after which it calls the main function of which the return value, if any, is printed.
 Our implementation uses a todo list maintaining the instances of functions that still need to be compiled.
