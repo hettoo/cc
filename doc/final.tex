@@ -38,11 +38,14 @@ This type is denoted \verb+\Bool/+, so we might define a variable as follows:\fo
 }
 \begin{verbatim}
 \Bool/ a = True;\end{verbatim}
-The constructors of custom types may have arguments, as we see in the following definitions of familiar types, taken from our standard library:
+The constructors of custom types may have arguments:
+\begin{verbatim}
+data MaybeInt = Nothing | Just(Int val);\end{verbatim}
+Moreover, type arguments may be declared, as we see in the following definitions of familiar types, taken from our standard library:
 \begin{verbatim}
 data List a = Nil | Cons(a hd, [a] tl);
 data Tuple a b = Tuple(a fst, b snd);\end{verbatim}
-Here we see custom types parameterized by one or two types, thus providing generic lists and tuples.
+Hence we recover generic lists and tuples as special cases of our construction.
 A parameterized constructor behaves like a function from its arguments to the custom type.
 A list with a single element $2$ may thus be defined as follows:
 \begin{verbatim}
@@ -65,6 +68,25 @@ case l {
     Nil { print('?'); }
     Cons { print(l.hd); }
 }\end{verbatim}
+Note that there is no pattern matching on the constructor arguments available, but in most cases use of the field accessors is convenient enough (and sometimes even more convenient, if there are many constructor parameters).
+
+We can now also implement the function \verb+isEmpty+ in the standard library:
+\begin{verbatim}
+Bool isEmpty([a] l) {
+    case l {
+        Nil { return True; }
+        Cons { return False; }
+    }
+}\end{verbatim}
+
+\subsection{Further Changes}
+
+To avoid ambiguity, we need to make some additional restrictions.
+Names of custom types and constructors must begin with an uppercase character; we have restricted variable and function names to begin with a lowercase character.
+
+There is a minor other change: a variable declaration does not require an initial assignment.
+This is not related to the project described above, but allows for nicer example code.
+To avoid ambiguity with return statements, polymorphic type identifiers may now only be single lowercase characters.
 
 \section{Syntax}
 
