@@ -177,6 +177,7 @@ Before we can do any type checking, we need to define what a context is and how 
 For convenience, we use the notation $\Gamma = (\Gamma_v, \Gamma_f)$ expressing that a context $\Gamma$ is made up of a variable context $\Gamma_v$ and a function context $\Gamma_f$.
 Functions and variables are added to the context in the usual way: variables defined in a subscope override ones defined on a higher level, and it is an error to redefine a variable in the same scope.
 Note that both function arguments and function bodies introduce a new scope.
+% TODO: more precise description
 % TODO: add custom type info
 
 Typechecking a function consists in ensuring that the returned values for all possible executions of the function (assuming just that it terminates) are compatible with the type given to it.
@@ -227,15 +228,12 @@ Note that \synt{id} and \synt{Field} here are actually just arbitrary strings.
 
 \begin{center}
     \AxiomC{$(i, \sigma) \in \Gamma_v$}
-    \AxiomC{$\Gamma \vdash f : \sigma \to \tau$}
+    \AxiomC{$(.f, \sigma \to \tau) \in \Gamma_f$}
     \AxiomC{$((\Gamma_{v \setminus i}, i : \tau), \Gamma_f) \vdash \text{Var } i\;r : \chi$}
     \TrinaryInfC{$\Gamma \vdash \text{Var } i\;(f :: r) : \chi$}
     \DisplayProof
 \end{center}
-Here $\Gamma_{v \setminus i} = \{(v, t) \in \Gamma_v \mid v \neq i\}$.
-
-Note that the above rule requires us to type field specifiers as well. % TODO: also do this generically
-We will do this later.
+Here $.f$ is the string $f$ prefixed by a dot, and $\Gamma_{v \setminus i} = \{(v, t) \in \Gamma_v \mid v \neq i\}$.
 
 \begin{center}
     \AxiomC{$\forall_{1 \le j \le n}\,\Gamma \vdash e_j : \sigma_j$}
@@ -244,7 +242,7 @@ We will do this later.
     \DisplayProof
 \end{center}
 
-Finally, we have to specify all operators.
+Next we have to specify all operators.
 
 \begin{center}
     \AxiomC{$\Gamma \vdash e : \text{Int}$}
@@ -287,36 +285,9 @@ with $\diamond \in \{==, <, >, <=, >=, !\!=\}$.
     \DisplayProof
 \end{center}
 
-Field specifiers are given by the following grammar:
-\setlength{\grammarindent}{4.3em}
-\begin{grammar}
-    <Field> ::= Head | Tail | First | Second
-\end{grammar}
-
-The types of these are given by the axioms below.
-\begin{center}
-    \AxiomC{}
-    \UnaryInfC{$\Gamma \vdash \text{Head} : [\sigma] \to \sigma$}
-    \DisplayProof
-    \qquad
-    \AxiomC{}
-    \UnaryInfC{$\Gamma \vdash \text{Tail} : [\sigma] \to [\sigma]$}
-    \DisplayProof
-\end{center}
-\begin{center}
-    \AxiomC{}
-    \UnaryInfC{$\Gamma \vdash \text{First} : (\sigma_1, \sigma_2) \to \sigma_1$}
-    \DisplayProof
-    \qquad
-    \AxiomC{}
-    \UnaryInfC{$\Gamma \vdash \text{Second} : (\sigma_1, \sigma_2) \to \sigma_2$}
-    \DisplayProof
-\end{center}
-
 Finally, we have the following built-in functions, typed through context initialization:
 \[
     \begin{array}{lcl}
-        \mathit{isEmpty} & : & [\sigma] \to \text{Bool} \\
         \mathit{print}   & : & \sigma \to \text{Void} \\
         \mathit{read}    & : & \text{Int}
     \end{array}
