@@ -16,7 +16,7 @@
 \renewcommand{\syntright}{}
 
 \title{A Compiler for SPL with Custom Data Types}
-\author{Tom Sanders and Gerco van Heerdt}
+\author{Gerco van Heerdt and Tom Sanders}
 
 \begin{document}
 
@@ -25,7 +25,7 @@
 \section{Project Description}
 
 Our language has been extended with custom data types, generic field getters and setters, and constructor matching.
-We explain this first using examples, after which we present the updated formal basis of our language in subsequent sections.
+We explain this first using examples, after which we present the updated formal basis of our compiler in subsequent sections.
 
 \subsection{Custom Data Types}
 
@@ -33,15 +33,12 @@ Our custom data types generalize both enumerations and record types.
 As a simple example, the boolean type could have been defined as follows:
 \begin{verbatim}
 data Bool = True | False;\end{verbatim}
-This type is denoted \verb+\Bool/+, so we might define a variable as follows:\footnote{%
+This type is denoted \verb+\Bool/+, and we might define a variable as follows:\footnote{%
     For the sake of the example we pretend here that there is no \verb+Bool+ type, for otherwise the value \verb+True+ would be of type \verb+Bool+ rather than \verb+\Bool/+, and a type error would occur.
 }
 \begin{verbatim}
 \Bool/ a = True;\end{verbatim}
-The constructors of custom types may have arguments:
-\begin{verbatim}
-data MaybeInt = Nothing | Just(Int val);\end{verbatim}
-Moreover, type arguments may be declared, as we see in the following definitions of familiar types, taken from our standard library:
+The constructors of custom types may have arguments, and custom types themselves take type arguments, as we see in the following definitions of familiar types, taken from our standard library:
 \begin{verbatim}
 data List a = Nil | Cons(a hd, [a] tl);
 data Tuple a b = Tuple(a fst, b snd);\end{verbatim}
@@ -59,7 +56,8 @@ Furthermore, \verb+[]+ is actually \verb+Nil+, \verb+a : l+ translates to \verb+
 
 \subsection{Constructor Matching}
 
-Additionally, we provide a construction to distinguish on the constructor value of an actual expression, which is much like a generalized if-statement.
+Additionally, we provide a construction to distinguish on the constructor value of an actual expression.
+This is much like a generalized if-statement.
 The following code will print the number $2$:
 \begin{verbatim}
 \List Int/ l = Cons(2, Nil);
@@ -158,9 +156,6 @@ Our new grammar is shown below.
     <uid> ::= <upper> (\,`_' | <alphaNum>\,)*
 \end{grammar}
 
-Names of custom types and constructors must begin with an uppercase character; we have restricted variable and function names to begin with a lowercase character, and polymorphic type identifiers may only be single lowercase characters.
-Note that there is a minor other change: a variable declaration does not require an initial assignment.
-
 \section{Semantic Analysis}
 
 Functions may be overloaded, but it is not allowed that multiple versions of a function apply for any possible way the function can be called.
@@ -184,21 +179,22 @@ Functions and variables are added to the context in the usual way: variables def
 Note that both function arguments and function bodies introduce a new scope.
 The set $\Gamma_v$ consists of pairs $(i, \sigma)$, where $i$ is a variable name and $\sigma$ its associated type; the set $\Gamma_f$ contains tuples $(i, \sigma \to \tau)$, where $i$ is a function name, $\sigma$ is an $n$-tuple containing the $n$ types of the function inputs, and $\tau$ is the output type.
 For field getters and constructors we exploit the fact that normal function names always start with a lowercase character: encountering a constructor $\text{C}(\sigma_1\;f_1, \sigma_2\;f_2, \ldots, \sigma_n\;f_n)$ in a definition of a custom type T parameterized by a list of type variables $\mathit{as}$, we extend $\Gamma_f$ with the pairs $(@\text{C}, (\sigma_1, \sigma_2, \ldots, \sigma_n) \to \text{Custom T }\mathit{as}')$ and $(.f_i, \text{Custom T }\mathit{as}' \to \sigma_i)$ for all $1 \le i \le n$, where $\mathit{as}'$ is obtained from $\mathit{as}$ by interpreting every string as a polymorphic type.
-Here and hereafter we use the denote by $.s$ and $@s$ the string resulting from prepending the character `.' or `@' to the string $s$.
+Here and hereafter we denote by $.s$ and $@s$ the string resulting from prepending the character `.' or `@' to the string $s$.
 
 Typechecking a function consists in ensuring that the returned values for all possible executions of the function (assuming just that it terminates) are compatible with the type given to it.
-This has been updated to check case statements properly: for all possible constructors a value of the right type must be returned in the corresponding case body, unless subsequent code returns properly.
 An execution not hitting a return statement is equivalent to it returning a variable of type Void in the end.
 Of course there are no such variables, but this is in turn modeled by the return statement without argument.
+The above procedure has been updated to check case statements properly: for all possible constructors a value of the right type must be returned in the corresponding case body, unless subsequent code returns properly.
 
 \subsection{Typing rules}
 
 We will type a simplified syntax, which is the one used internally to store a program rather than the one used for parsing.
+The relation between those should be obvious.
 The grammar describing our stored expressions is given below.
 \setlength{\grammarindent}{4.1em}
 \begin{grammar}
-    <Exp> ::= Int $i$ | Bool $b$ | Char $c$ | $\ominus$<Exp> | <Exp> $\otimes$ <Exp>
-    \alt Var <id> <Field>* | Fun <id> <Exp>* | Cons <id> <Exp>*
+    <Exp> ::= Int $i$ | Bool $b$ | Char $c$ | $\ominus$<Exp> | <Exp> $\otimes$ <Exp> | Cons <id> <Exp>*
+    \alt Var <id> <Field>* | Fun <id> <Exp>*
 \end{grammar}
 Here $\ominus$ stands for a unary operator, and $\otimes$ can be any binary operator; the value $i$ is an actual integer value, $b$ is any Boolean, and $c$ is a character.
 Note that \synt{id} and \synt{Field} here are actually just arbitrary strings.
@@ -294,19 +290,25 @@ Finally, we have the following built-in functions, typed through context initial
     \end{array}
 \]
 
-Note that we do not allow overloading or polymorphism purely on the return type, and so we choose to fix the type of the $\mathit{read}$ function to Int.
+Note that we do not allow overloading or polymorphism purely on the return type of a function, and so we choose to fix the type of the $\mathit{read}$ function to Int.
 The reason for this is to avoid ambiguity: instead of as an expression a function call may appear as a statement, in which case the desired return type is not defined.
 We further reject overloading when two versions of a function potentially apply to a certain same combination of argument types.
 
 \section{Compilation Schemes}
 
-We employ \emph{by-value} assignments and calling: a copy of an object is made on assignment.
+We employ \emph{by-value} assignments and function calls: a copy of an object is always made.
 For custom data types this value is a pointer to objects on the heap, but note that the heap is immutable because of the assignment convention.
 Thus, an object passed to a function will never actually be modified by that function.
 
 All objects are represented on the stack with a single value.
-As mentioned above, values of custom data types are stored on the heap, by storing first the present arguments of the relevant constructor, followed by the constructor index in the current type.
-% TODO: explain case distinctions
+As mentioned above, values of custom data types are stored on the heap, by storing first the present arguments of the relevant constructor in order, followed by the constructor index in the current type.
+In the case of a constructor distinction, we first evaluate the argument and replace the resulting heap pointer by the constructor index it points to.
+An exception to this is the case where no actual cases are provided at all.
+As long as there is more than one case left, we copy the constructor index.
+In any case, we then reduce the current case to a simple conditional that compares the top stack value (the constructor index of the distinction argument) to the constructor index of the provided constructor.
+If they match, the corresponding body is executed and the other cases are not considered.
+If, in this case, there were still more cases, the remaining constructor index needs to be removed from the stack.
+Note that this must also be done before the execution of a return statement in such a case body.
 
 A program compiled by our compiler first assigns to the global variables in order their initial values, after which it calls the main function of which the return value, if any, is printed.
 Our implementation uses a todo list maintaining the instances of functions that still need to be compiled.
@@ -323,7 +325,7 @@ The remaining primitive cases (Int/Char printing, basic operators, etc.) are com
 
 \section{Build Instructions}
 
-Building the project requires a Haskell compiler and a Make-like system.
+Building the project requires a Haskell compiler.
 Running \verb|make| in the project root will build the compiler in the \verb|build| folder.
 The directory \verb|tests| contains all our tests, including ones for the error scenarios described earlier.
 Programs can either be run manually by feeding SPL source files into the compiler with \verb|build/compiler < program.spl| or automatically by calling \verb|make tests| in the project root to run a set of predefined tests.
