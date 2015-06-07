@@ -172,12 +172,19 @@ In a case expression, the constructors for which a body is provided must corresp
 A case body may be provided only once for every constructor in a case expression.
 Finally, the type of the expression that is evaluated must be a custom type.
 
+Internally, the following grammar is used to describe types:
+\setlength{\grammarindent}{4.3em}
+\begin{grammar}
+    <Type> ::= Int | Bool | Char | Custom <uid> <Type>* | Poly <lower>
+\end{grammar}
+
 Before we can do any type checking, we need to define what a context is and how it is determined throughout the program.
 For convenience, we use the notation $\Gamma = (\Gamma_v, \Gamma_f)$ expressing that a context $\Gamma$ is made up of a variable context $\Gamma_v$ and a function context $\Gamma_f$.
 Functions and variables are added to the context in the usual way: variables defined in a subscope override ones defined on a higher level, and it is an error to redefine a variable in the same scope.
 Note that both function arguments and function bodies introduce a new scope.
-% TODO: more precise description
-% TODO: add custom type info
+The set $\Gamma_v$ consists of pairs $(i, \sigma)$, where $i$ is a variable name and $\sigma$ its associated type; the set $\Gamma_f$ contains tuples $(i, \sigma \to \tau)$, where $i$ is a function name, $\sigma$ is an $n$-tuple containing the $n$ types of the function inputs, and $\tau$ is the output type.
+For field getters and constructors we exploit the fact that normal function names always start with a lowercase character: encountering a constructor $\text{C}(\sigma_1\;f_1, \sigma_2\;f_2, \ldots, \sigma_n\;f_n)$ in a definition of a custom type T parameterized by a list of type variables $\mathit{as}$, we extend $\Gamma_f$ with the pairs $(@\text{C}, (\sigma_1, \sigma_2, \ldots, \sigma_n) \to \text{Custom T }\mathit{as}')$ and $(.f_i, \text{Custom T }\mathit{as}' \to \sigma_i)$ for all $1 \le i \le n$, where $\mathit{as}'$ is obtained from $\mathit{as}$ by interpreting every string as a polymorphic type.
+Here and hereafter we use the denote by $.s$ and $@s$ the string resulting from prepending the character `.' or `@' to the string $s$.
 
 Typechecking a function consists in ensuring that the returned values for all possible executions of the function (assuming just that it terminates) are compatible with the type given to it.
 This has been updated to check case statements properly: for all possible constructors a value of the right type must be returned in the corresponding case body, unless subsequent code returns properly.
@@ -210,14 +217,9 @@ Note that \synt{id} and \synt{Field} here are actually just arbitrary strings.
     \DisplayProof
 \end{center}
 
-\begin{center} % TODO: replace these two by a generic constructor rule
-    \AxiomC{}
-    \UnaryInfC{$\Gamma \vdash \text{Nil} : \forall a.\,[a]$}
-    \DisplayProof
-    \qquad
-    \AxiomC{$\Gamma \vdash e_1 : \sigma_1$}
-    \AxiomC{$\Gamma \vdash e_2 : \sigma_2$}
-    \BinaryInfC{$\Gamma \vdash (e_1, e_2) : (\sigma_1, \sigma_2)$}
+\begin{center}
+    \AxiomC{$\Gamma \vdash \text{Fun } @i\;e : \sigma$}
+    \UnaryInfC{$\Gamma \vdash \text{Cons } i\;e : \sigma$}
     \DisplayProof
     \qquad
     \AxiomC{$(i, \sigma) \in \Gamma_v$}
@@ -228,11 +230,11 @@ Note that \synt{id} and \synt{Field} here are actually just arbitrary strings.
 \begin{center}
     \AxiomC{$(i, \sigma) \in \Gamma_v$}
     \AxiomC{$(.f, \sigma \to \tau) \in \Gamma_f$}
-    \AxiomC{$((\Gamma_{v \setminus i}, i : \tau), \Gamma_f) \vdash \text{Var } i\;r : \chi$}
+    \AxiomC{$(\Gamma_{v, i \mapsto \tau}, \Gamma_f) \vdash \text{Var } i\;r : \chi$}
     \TrinaryInfC{$\Gamma \vdash \text{Var } i\;(f :: r) : \chi$}
     \DisplayProof
 \end{center}
-Here $.f$ is the string $f$ prefixed by a dot, and $\Gamma_{v \setminus i} = \{(v, t) \in \Gamma_v \mid v \neq i\}$.
+Here $\Gamma_{v, i \mapsto \tau} = \{(j, t) \in \Gamma_v \mid j \neq i\} \cup \{(i, \tau)\}$.
 
 \begin{center}
     \AxiomC{$\forall_{1 \le j \le n}\,\Gamma \vdash e_j : \sigma_j$}
@@ -303,8 +305,8 @@ For custom data types this value is a pointer to objects on the heap, but note t
 Thus, an object passed to a function will never actually be modified by that function.
 
 All objects are represented on the stack with a single value.
-As mentioned above, values of custom data types are stored on the heap.
-% TODO: description
+As mentioned above, values of custom data types are stored on the heap, by storing first the present arguments of the relevant constructor, followed by the constructor index in the current type.
+% TODO: explain case distinctions
 
 A program compiled by our compiler first assigns to the global variables in order their initial values, after which it calls the main function of which the return value, if any, is printed.
 Our implementation uses a todo list maintaining the instances of functions that still need to be compiled.
