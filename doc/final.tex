@@ -46,8 +46,7 @@ Moreover, type arguments may be declared, as we see in the following definitions
 data List a = Nil | Cons(a hd, [a] tl);
 data Tuple a b = Tuple(a fst, b snd);\end{verbatim}
 Hence we recover generic lists and tuples as special cases of our construction.
-A parameterized constructor behaves like a function from its arguments to the custom type.
-A list with a single element $2$ may thus be defined as follows:
+A parameterized constructor behaves like a function from its arguments to the custom type, so A list with a single element $2$ may be defined as follows:
 \begin{verbatim}
 \List Int/ l = Cons(2, Nil);\end{verbatim}
 By naming the constructor parameters (which is mandatory), we automatically unlock field getters and setters:
@@ -86,7 +85,7 @@ Names of custom types and constructors must begin with an uppercase character; w
 
 There is a minor other change: a variable declaration does not require an initial assignment.
 This is not related to the project described above, but allows for nicer example code.
-To avoid ambiguity with return statements, polymorphic type identifiers may now only be single lowercase characters.
+To avoid ambiguity with return statements (we do not use a tokenizer), polymorphic type identifiers may now only be single lowercase characters.
 
 \section{Syntax}
 
